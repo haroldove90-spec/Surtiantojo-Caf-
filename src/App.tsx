@@ -304,16 +304,6 @@ export default function App() {
         {/* MAIN MODULE GRAPHIC INTERFACE */}
         <main id="main-content" className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-6">
           
-          {/* ELEGANT SERIF HEADER PRESCRIBED BY HIGH DENSITY SPEC - CLEANED OF DATE AND TIME AS REQUESTED */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-slate-200 pb-3">
-            <div>
-              <p className="text-[#043077] text-xs font-bold uppercase tracking-wider font-mono">Surtiantojo Café Administration</p>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-1.5 font-display">
-                {activeModuleData.name}
-              </h1>
-            </div>
-          </div>
-
           {/* DYNAMIC COMPONENT RENDERER */}
           <div className="transition-all duration-300">
             <ModulePlaceholder moduleId={activeModule} />
