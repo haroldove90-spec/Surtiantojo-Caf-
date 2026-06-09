@@ -9,8 +9,8 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: #F8F5F2; /* Warm linen/beige from High Density theme */
-  color: #1F1B18; /* Deep rich charcoal coffee brown */
+  background-color: #F1F5F9; /* Slate 100/50 cool slate layout for high density view */
+  color: #0F172A; /* Slate 900 */
 }
 
 

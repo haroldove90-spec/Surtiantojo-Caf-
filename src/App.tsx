@@ -51,13 +51,13 @@ export default function App() {
   const formattedDate = "Hoy, 09:45 AM";
 
   return (
-    <div className="min-h-screen bg-[#F8F5F2] flex flex-col font-sans text-stone-800 antialiased">
+    <div className="min-h-screen bg-[#F1F5F9] flex flex-col font-sans text-slate-800 antialiased">
       
-      {/* GLOBAL NAVBAR / HEADER */}
-      <header id="global-header" className="sticky top-0 z-40 bg-white border-b border-slate-200/80 shadow-sm px-6 h-16 flex items-center shrink-0">
+      {/* GLOBAL NAVBAR / HEADER - STYLED IN DEEP BLUE #043077 */}
+      <header id="global-header" className="sticky top-0 z-40 bg-[#043077] border-b border-blue-900/40 shadow-sm px-6 h-16 flex items-center shrink-0">
         <div className="w-full mx-auto flex items-center justify-between">
           
-          {/* Logo and Brand Title on Left */}
+          {/* Logo on Left - Raw and Clean without bounding frames */}
           <div className="flex items-center gap-4">
             
             {/* Hamburger Button for Mobile / Expand-Collapse for Desktop */}
@@ -70,52 +70,31 @@ export default function App() {
                   setIsMobileMenuOpen(!isMobileMenuOpen);
                 }
               }}
-              className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors focus:outline-none"
+              className="p-2 -ml-2 rounded-lg text-blue-100 hover:bg-white/10 transition-colors focus:outline-none"
               aria-label="Toggle navigation menu"
             >
               <Menu className="w-6 h-6" />
             </button>
 
-            <div className="flex items-center gap-3">
-              {/* Premium image logo framed per instructions */}
-              <div id="brand-logo-frame" className="relative shrink-0 flex items-center">
-                <img 
-                  id="brand-logo-img"
-                  src="https://cotecam.com//surtiantojo.jpg" 
-                  alt="Surtiantojo Café Logo" 
-                  referrerPolicy="no-referrer"
-                  className="h-10 w-auto object-contain rounded transition-transform duration-300"
-                />
-              </div>
-
-              <div>
-                <h1 className="text-base md:text-lg font-black font-display text-[#2C1810] tracking-tight leading-none">
-                  Surtiantojo Café
-                </h1>
-                <p className="text-[10px] md:text-xs font-semibold text-stone-500 tracking-wide mt-0.5">
-                  Dashboard de Administración
-                </p>
-              </div>
-            </div>
-
+            <img 
+              id="brand-logo-img"
+              src="https://cotecam.com//surtiantojo.jpg" 
+              alt="Surtiantojo Café Logo" 
+              referrerPolicy="no-referrer"
+              className="h-12 w-auto object-contain transition-transform duration-300"
+            />
           </div>
 
           {/* Quick status bar display items */}
           <div className="flex items-center gap-3 md:gap-5">
             
-            {/* Simulation of a real-time system connection indicator */}
-            <div className="hidden sm:flex items-center gap-2 bg-stone-100/80 hover:bg-stone-200/50 transition-colors px-3 py-1.5 rounded-full border border-stone-200/60">
-              <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
-              <span className="text-[11px] font-mono font-medium text-stone-600">Servicio Activo</span>
-            </div>
-
-            {/* Quick user avatar visual identifier matching the High Density Theme */}
-            <div id="header-user-badge" className="flex items-center gap-3 pl-3 border-l border-stone-200">
-              <div className="hidden md:flex flex-col items-end">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Administrador</span>
-                <span className="text-sm font-semibold text-amber-900 leading-tight">Gerencia Surtiantojo</span>
+            {/* Quick user avatar visual identifier */}
+            <div id="header-user-badge" className="flex items-center gap-3 pl-3 border-l border-white/20">
+              <div className="hidden md:flex flex-col items-end text-right">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Administrador</span>
+                <span className="text-sm font-semibold text-white leading-tight">Gerencia Surtiantojo</span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-amber-100 border-2 border-amber-600 flex items-center justify-center text-amber-800 font-bold shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-white/15 border-2 border-white/20 flex items-center justify-center text-white font-bold shadow-sm">
                 GS
               </div>
             </div>
@@ -128,12 +107,12 @@ export default function App() {
       {/* DETAILED CONTENT AREA & SIDEBAR */}
       <div className="flex-grow flex w-full mx-auto relative">
         
-        {/* DESKTOP SIDEBAR - CUSTOM COZY COFFEE COLOR FROM THE HIGH DENSITY THEME */}
+        {/* DESKTOP SIDEBAR - STYLED IN DEEP BLUE #043077 WITH PREMIUM GRADIENT */}
         <aside 
           id="desktop-sidebar" 
           className={`hidden lg:block transition-all duration-300 flex-shrink-0 sticky top-16 h-[calc(100vh-64px)] ${
             isSidebarCollapsed ? 'w-20' : 'w-64'
-          } bg-[#2C1810] text-slate-300`}
+          } bg-gradient-to-b from-[#043077] to-[#011432] text-slate-300`}
         >
           <div className="p-4 h-full flex flex-col justify-between overflow-y-auto">
             
@@ -141,7 +120,7 @@ export default function App() {
               
               {/* Collapsible Sidebar Title */}
               {!isSidebarCollapsed && (
-                <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                <div className="px-3 py-2 text-[10px] font-extrabold text-blue-200/60 uppercase tracking-widest">
                   OPERACIONES
                 </div>
               )}
@@ -159,11 +138,11 @@ export default function App() {
                       title={mod.name}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-all duration-155 focus:outline-none text-sm ${
                         isActive
-                          ? 'bg-amber-600/15 text-amber-400 font-semibold border-l-4 border-amber-500'
+                          ? 'bg-blue-500/20 text-blue-200 font-semibold border-l-4 border-blue-400'
                           : 'text-slate-300 hover:bg-white/5 hover:text-white transition-colors'
                       }`}
                     >
-                      <IconComponent className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                      <IconComponent className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-300' : 'text-slate-400'}`} />
                       {!isSidebarCollapsed && (
                         <div className="overflow-hidden truncate flex-1">
                           <span className="block leading-none">{mod.name}</span>
@@ -183,7 +162,7 @@ export default function App() {
               </div>
             ) : (
               <div className="text-center text-xs opacity-40 py-2">
-                ☕
+                ⚡
               </div>
             )}
 
@@ -210,7 +189,7 @@ export default function App() {
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="absolute top-0 bottom-0 left-0 w-80 max-w-[calc(100vw-3rem)] bg-[#2C1810] text-slate-300 shadow-2xl flex flex-col justify-between p-6 overflow-y-auto"
+                className="absolute top-0 bottom-0 left-0 w-80 max-w-[calc(100vw-3rem)] bg-gradient-to-b from-[#043077] to-[#011432] text-slate-300 shadow-2xl flex flex-col justify-between p-6 overflow-y-auto"
               >
                 <div className="space-y-6">
                   
@@ -221,11 +200,11 @@ export default function App() {
                         src="https://cotecam.com//surtiantojo.jpg" 
                         alt="Surtiantojo Logo" 
                         referrerPolicy="no-referrer"
-                        className="w-8 h-8 object-cover rounded border border-white/10"
+                        className="w-10 h-10 object-contain"
                       />
                       <div>
                         <span className="font-extrabold text-sm block font-display text-white">Surtiantojo Café</span>
-                        <span className="text-[9px] text-slate-400 font-mono font-bold uppercase tracking-wider block">Panel Móvil</span>
+                        <span className="text-[10px] text-blue-200 font-mono font-bold uppercase tracking-wider block">Panel Móvil</span>
                       </div>
                     </div>
                     
@@ -249,7 +228,7 @@ export default function App() {
                           onClick={() => selectModule(mod.id)}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors focus:outline-none text-sm ${
                             isActive
-                              ? 'bg-amber-600/15 text-amber-400 font-semibold border-l-4 border-amber-500'
+                              ? 'bg-blue-500/20 text-blue-200 font-semibold border-l-4 border-blue-400'
                               : 'text-slate-300 hover:bg-white/5 hover:text-white'
                           }`}
                         >
@@ -264,8 +243,8 @@ export default function App() {
 
                 <div className="border-t border-white/10 pt-5 text-center space-y-1">
                   <span className="text-[10px] text-slate-400 font-mono block">Módulos habilitados: 9</span>
-                  <span className="text-[11px] font-bold text-amber-400 bg-amber-600/10 px-3 py-1 rounded-full inline-block font-mono">
-                    Próxima Integración
+                  <span className="text-[11px] font-bold text-blue-200 bg-blue-500/20 px-3 py-1 rounded-full inline-block font-mono">
+                    Sistema Activo
                   </span>
                 </div>
               </motion.div>
@@ -277,19 +256,14 @@ export default function App() {
         {/* MAIN MODULE GRAPHIC INTERFACE */}
         <main id="main-content" className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-6">
           
-          {/* ELEGANT SERIF HEADER PRESCRIBED BY HIGH DENSITY SPEC */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-slate-200 pb-4 gap-2">
+          {/* ELEGANT SERIF HEADER PRESCRIBED BY HIGH DENSITY SPEC - CLEANED OF DATE AND TIME AS REQUESTED */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-slate-200 pb-3">
             <div>
-              <h1 className="text-3xl font-serif font-bold text-slate-900">
-                Panel de Control General
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Surtiantojo Café Administration</p>
+              <h1 className="text-2xl font-bold text-slate-900 mt-1">
+                {activeModuleData.name}
               </h1>
-              <p className="text-slate-500 text-xs mt-1">
-                Visualización de Surtiantojo Café • Módulo activo: <strong className="text-[#2C1810]">{activeModuleData.name}</strong>
-              </p>
             </div>
-            <p className="text-slate-500 text-xs font-mono">
-              Última actualización: {formattedDate}
-            </p>
           </div>
 
           {/* DYNAMIC COMPONENT RENDERER */}
@@ -297,26 +271,26 @@ export default function App() {
             <ModulePlaceholder moduleId={activeModule} />
           </div>
 
-          {/* TWO DECORATIVE HIGH-DENSITY HIGHLIGHT RAIL PANELS PRESCRIBED IN THE HTML SCHEMATIC */}
+          {/* TWO DECORATIVE HIGH-DENSITY HIGHLIGHT RAIL PANELS - STYLED IN BRAND BLUE #043077 WITH GRADIENTS and ZERO COFFEE COLORS */}
           <div className="flex flex-col md:flex-row gap-4 mt-2">
             <div 
               onClick={() => selectModule('routes')}
-              className="flex-1 h-20 bg-[#6F4E37]/10 rounded-xl border border-[#6F4E37]/20 flex items-center px-6 gap-4 cursor-pointer hover:bg-[#6F4E37]/15 transition-all"
+              className="flex-1 h-20 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
             >
-              <div className="p-3 bg-white rounded-lg shadow-sm text-xl flex items-center justify-center">🚚</div>
-              <div>
-                <p className="text-xs font-bold text-[#6F4E37] uppercase">Gestión de Rutas</p>
-                <p className="text-xs text-slate-500 font-medium italic">Regresar o programar camión de despacho...</p>
+              <div className="p-3 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-xl flex items-center justify-center shadow-sm">🚚</div>
+              <div className="text-left">
+                <p className="text-xs font-black text-[#043077] uppercase tracking-wide">Gestión de Rutas</p>
+                <p className="text-xs text-slate-500 font-medium italic">Monitorear entrega e itinerarios activos...</p>
               </div>
             </div>
             <div 
               onClick={() => selectModule('maintenance')}
-              className="flex-1 h-20 bg-[#6F4E37]/10 rounded-xl border border-[#6F4E37]/20 flex items-center px-6 gap-4 cursor-pointer hover:bg-[#6F4E37]/15 transition-all"
+              className="flex-1 h-20 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
             >
-              <div className="p-3 bg-white rounded-lg shadow-sm text-xl flex items-center justify-center">🛠️</div>
-              <div>
-                <p className="text-xs font-bold text-[#6F4E37] uppercase">Mantenimiento</p>
-                <p className="text-xs text-slate-500 font-medium italic">Revisar máquinas italianas y molinos espresso...</p>
+              <div className="p-3 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-xl flex items-center justify-center shadow-sm">🛠️</div>
+              <div className="text-left">
+                <p className="text-xs font-black text-[#043077] uppercase tracking-wide">Mantenimiento Preventivo</p>
+                <p className="text-xs text-slate-500 font-medium italic">Calibrar molinos y presiones de grupo...</p>
               </div>
             </div>
           </div>
@@ -324,10 +298,10 @@ export default function App() {
           {/* INTERACTIVE NAVIGATION MAP (GUIDE TO SYSTEM) */}
           <section className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-amber-800" />
+              <HelpCircle className="w-5 h-5 text-[#043077]" />
               <h3 className="font-bold text-slate-900 font-display">Mapa de Módulos Activos</h3>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed max-w-3xl">
+            <p className="text-xs text-slate-500 leading-relaxed max-w-3xl text-left">
               Este dashboard está diseñado con una estructura modular limpia. Para navegar entre los distintos espacios del negocio (Métricas, Productos, Surtido, etc.), usa la barra lateral en tu computador o despliega el menú móvil haciendo clic en el icono de hamburguesa en la esquina superior izquierda. 
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
@@ -337,12 +311,12 @@ export default function App() {
                   onClick={() => selectModule(m.id)}
                   className={`p-3 rounded-xl border text-center transition-all ${
                     m.id === activeModule 
-                      ? 'border-amber-800 bg-amber-50/50 text-amber-950 shadow-sm font-semibold' 
-                      : 'border-slate-100 hover:border-slate-300 bg-slate-50/40 text-stone-600'
+                      ? 'border-[#043077] bg-blue-50/50 text-[#043077] shadow-xs font-semibold' 
+                      : 'border-slate-100 hover:border-slate-250 bg-slate-50/40 text-slate-600'
                   }`}
                 >
                   <p className="text-xs truncate font-display font-medium leading-tight">{m.name}</p>
-                  <span className="text-[9px] text-stone-400 font-mono mt-0.5 block capitalize">Próximamente</span>
+                  <span className="text-[9px] text-[#043077]/80 font-mono mt-0.5 block font-bold capitalize">Módulo Activo</span>
                 </button>
               ))}
             </div>
