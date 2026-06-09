@@ -39,11 +39,36 @@ const APP_MODULES = [
   { id: 'profile', name: 'Perfil del usuario', icon: User, desc: 'Permisos de administradores y baristas' }
 ];
 
+const INITIAL_PRODUCTS : any[] = [];
+
 export default function App() {
   const [activeModule, setActiveModule] = useState<string>('metrics');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  
+  // Real active catalog of products state - Purges the old sample IDs in case they are stored
+  const [products, setProducts] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_products');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Permanently filter out the mock/sample items (IDs "1", "2", "3")
+          return parsed.filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3");
+        }
+      }
+    } catch (e) {
+      console.error("Error reading products list from localStorage", e);
+    }
+    return INITIAL_PRODUCTS;
+  });
+
+  // Local storage persistence sync
+  useEffect(() => {
+    localStorage.setItem('surtiantojo_products', JSON.stringify(products));
+  }, [products]);
+
   
   // PWA installation and splash screen states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -97,6 +122,91 @@ export default function App() {
     }
     checkSupabase();
   }, []);
+
+  // Sync from Supabase table on load if status is 'connected'
+  useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('id', { ascending: true });
+        
+        if (error) {
+          console.warn("Supabase pull warning: Table 'products' might not exist or lacks matching policies. Local storage remains fully operative.", error);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          const filtered = data.filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3");
+          setProducts(filtered);
+          
+          // Proactively delete any sample items with IDs "1", "2", "3" from Supabase if we found them
+          const hasSamples = data.some((p: any) => p && ["1", "2", "3"].includes(p.id));
+          if (hasSamples) {
+            try {
+              await supabase.from('products').delete().in('id', ["1", "2", "3"]);
+            } catch (err) {
+              console.warn("Could not prune sample products from Supabase table:", err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error reading from Supabase table 'products':", err);
+      }
+    }
+    if (dbStatus === 'connected') {
+      loadFromSupabase();
+    }
+  }, [dbStatus]);
+
+  // Integrated server + client callback triggers
+  const handleAddProduct = async (newProd: any) => {
+    const defaultId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9);
+    const fresh = {
+      ...newProd,
+      id: defaultId,
+      created_at: new Date().toISOString()
+    };
+
+    setProducts(prev => [fresh, ...prev]);
+
+    try {
+      if (dbStatus === 'connected') {
+        const { error } = await supabase.from('products').insert([fresh]);
+        if (error) console.warn("Supabase database insert warning:", error);
+      }
+    } catch (err) {
+      console.error("Supabase insert error:", err);
+    }
+  };
+
+  const handleUpdateProduct = async (id: string, updatedFields: any) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+
+    try {
+      if (dbStatus === 'connected') {
+        const { error } = await supabase.from('products').update(updatedFields).eq('id', id);
+        if (error) console.warn("Supabase database update warning:", error);
+      }
+    } catch (err) {
+      console.error("Supabase update error:", err);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+
+    try {
+      if (dbStatus === 'connected') {
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) console.warn("Supabase database delete warning:", error);
+      }
+    } catch (err) {
+      console.error("Supabase delete error:", err);
+    }
+  };
+
 
   // Trigger app installation prompt
   const handleInstallClick = async () => {
@@ -379,7 +489,13 @@ export default function App() {
           
           {/* DYNAMIC COMPONENT RENDERER */}
           <div className="transition-all duration-300">
-            <ModulePlaceholder moduleId={activeModule} />
+            <ModulePlaceholder 
+              moduleId={activeModule} 
+              products={products}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+            />
           </div>
 
           {/* TWO DECORATIVE HIGH-DENSITY HIGHLIGHT RAIL PANELS - STYLED IN BRAND BLUE #043077 WITH GRADIENTS and ZERO COFFEE COLORS */}

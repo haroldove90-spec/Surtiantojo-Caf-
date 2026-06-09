@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   TrendingUp, 
   Coffee, 
@@ -23,15 +23,410 @@ import {
   Shield,
   Activity,
   Layers,
-  Sparkles
+  Sparkles,
+  Search,
+  Trash2,
+  Edit,
+  Eye,
+  Download,
+  Check,
+  X,
+  FileSpreadsheet,
+  FileText,
+  Filter
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ModulePlaceholderProps {
   moduleId: string;
+  products?: any[];
+  onAddProduct?: (product: any) => Promise<void>;
+  onUpdateProduct?: (id: string, product: any) => Promise<void>;
+  onDeleteProduct?: (id: string) => Promise<void>;
 }
 
-export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) {
+export default function ModulePlaceholder({ 
+  moduleId,
+  products = [],
+  onAddProduct,
+  onUpdateProduct,
+  onDeleteProduct
+}: ModulePlaceholderProps) {
+  // Safe parsing helper helper for any numeric content loaded via DB/Sync to eliminate any NaN issues
+  const safeVal = (val: any): number => {
+    if (val === null || val === undefined) return 0;
+    const parsed = Number(val);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Product module state declarations
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [pagoFilter, setPagoFilter] = useState('all');
+
+  // Multi-selection state
+  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
+
+  // Modals active status
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [viewingItem, setViewingItem] = useState<any | null>(null);
+
+  // Form state
+  const defaultFormState = {
+    nombre: '',
+    precio_caja: 0,
+    precio_unidad: 0,
+    status: 'Activo',
+    forma_pago: 'Efectivo',
+    precio_venta: 0,
+    margen_pct: 0,
+    precio_sugerido: 0,
+    margen_ps_pct: 0,
+    cambio_precio_fecha: new Date().toISOString().split('T')[0],
+    notas: '',
+    resorte_usa: '',
+    filtro_especial: '',
+    existencias: 0
+  };
+  
+  const [form, setForm] = useState(defaultFormState);
+
+  // Helper to re-calculate margins automatically during input changes
+  const calculateMargins = (unitPrice: number, sellPrice: number, suggestedPrice: number) => {
+    const margin_pct = unitPrice > 0 ? ((sellPrice - unitPrice) / unitPrice) * 100 : 0;
+    const margin_ps_pct = unitPrice > 0 ? ((suggestedPrice - unitPrice) / unitPrice) * 100 : 0;
+    return { margin_pct, margin_ps_pct };
+  };
+
+  const handleFormChange = (field: string, value: any) => {
+    setForm(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-validate calculation if numeric prices are adjusted
+      if (['precio_unidad', 'precio_venta', 'precio_sugerido'].includes(field)) {
+        const uPrice = Number(field === 'precio_unidad' ? value : prev.precio_unidad);
+        const sPrice = Number(field === 'precio_venta' ? value : prev.precio_venta);
+        const sugPrice = Number(field === 'precio_sugerido' ? value : prev.precio_sugerido);
+        
+        const { margin_pct, margin_ps_pct } = calculateMargins(uPrice, sPrice, sugPrice);
+        updated.margen_pct = Number(margin_pct.toFixed(2));
+        updated.margen_ps_pct = Number(margin_ps_pct.toFixed(2));
+      }
+      return updated;
+    });
+  };
+
+  const openAddForm = () => {
+    setForm(defaultFormState);
+    setEditingItem(null);
+    setIsFormOpen(true);
+  };
+
+  const openEditForm = (item: any) => {
+    setForm({
+      nombre: item.nombre || '',
+      precio_caja: Number(item.precio_caja || 0),
+      precio_unidad: Number(item.precio_unitario || item.precio_unidad || 0),
+      status: item.status || 'Activo',
+      forma_pago: item.forma_pago || 'Efectivo',
+      precio_venta: Number(item.precio_venta || 0),
+      margen_pct: Number(item.margen_pct || 0),
+      precio_sugerido: Number(item.precio_sugerido || 0),
+      margen_ps_pct: Number(item.margen_ps_pct || 0),
+      cambio_precio_fecha: item.cambio_precio_fecha || new Date().toISOString().split('T')[0],
+      notas: item.notas || '',
+      resorte_usa: item.resorte_usa || '',
+      filtro_especial: item.filtro_especial || '',
+      existencias: Number(item.existencias || 0)
+    });
+    setEditingItem(item);
+    setIsFormOpen(true);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nombre.trim()) return;
+
+    if (editingItem) {
+      if (onUpdateProduct) {
+        await onUpdateProduct(editingItem.id, form);
+      }
+    } else {
+      if (onAddProduct) {
+        await onAddProduct(form);
+      }
+    }
+    setIsFormOpen(false);
+    setEditingItem(null);
+    setForm(defaultFormState);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+      if (onDeleteProduct) {
+        await onDeleteProduct(id);
+      }
+      // Clean selected
+      setSelectedItems(prev => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    }
+  };
+
+  // Bulk selections hooks
+  const toggleSelectItem = (id: string) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  // Filtered computed list
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      const matchesSearch = p.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            (p.notas || '').toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+      const matchesPago = pagoFilter === 'all' || p.forma_pago === pagoFilter;
+
+      return matchesSearch && matchesStatus && matchesPago;
+    });
+  }, [products, searchQuery, statusFilter, pagoFilter]);
+
+  const isAllSelected = useMemo(() => {
+    if (filteredProducts.length === 0) return false;
+    return filteredProducts.every(p => selectedItems[p.id]);
+  }, [filteredProducts, selectedItems]);
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      // Deselect all filtered
+      setSelectedItems(prev => {
+        const copy = { ...prev };
+        filteredProducts.forEach(p => {
+          copy[p.id] = false;
+        });
+        return copy;
+      });
+    } else {
+      // Select all filtered
+      setSelectedItems(prev => {
+        const copy = { ...prev };
+        filteredProducts.forEach(p => {
+          copy[p.id] = true;
+        });
+        return copy;
+      });
+    }
+  };
+
+  // Selection counts
+  const selectedCount = useMemo(() => {
+    return Object.keys(selectedItems).filter(id => selectedItems[id]).length;
+  }, [selectedItems]);
+
+  const selectedProductsList = useMemo(() => {
+    return products.filter(p => selectedItems[p.id]);
+  }, [products, selectedItems]);
+
+  // Bulk deletes
+  const handleBulkDelete = async () => {
+    const list = selectedProductsList;
+    if (list.length === 0) return;
+    if (confirm(`¿Estás seguro de que deseas eliminar los ${list.length} productos seleccionados?`)) {
+      if (onDeleteProduct) {
+        for (const item of list) {
+          await onDeleteProduct(item.id);
+        }
+      }
+      // Reset selections
+      setSelectedItems({});
+    }
+  };
+
+  // Bulk status change
+  const handleBulkToggleStatus = async (targetStatus: 'Activo' | 'Inactivo') => {
+    const list = selectedProductsList;
+    if (list.length === 0) return;
+    if (onUpdateProduct) {
+      for (const item of list) {
+        await onUpdateProduct(item.id, { status: targetStatus });
+      }
+    }
+  };
+
+  // Handlers for premium outputs
+  const handlePdfExport = (itemsList: any[]) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Por favor habilita las ventanas emergentes (popups) para exportar a PDF.");
+      return;
+    }
+    
+    // Dynamic real updated date
+    const today = new Date().toLocaleDateString('es-ES', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    const isFilteredOnly = itemsList.length !== products.length;
+
+    const tableRows = itemsList.map(p => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 8px; font-weight: 500; font-size: 13px; color: #1e293b;">${p.nombre}</td>
+        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">Caja: $${safeVal(p.precio_caja).toFixed(2)}<br><span style="font-size: 11px; color: #94a3b8;">Unid: $${safeVal(p.precio_unidad).toFixed(2)}</span></td>
+        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">$${safeVal(p.precio_venta).toFixed(2)}</td>
+        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #16a34a;">${safeVal(p.margen_pct).toFixed(1)}%</td>
+        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">$${safeVal(p.precio_sugerido).toFixed(2)}</td>
+        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #043077;">${safeVal(p.margen_ps_pct).toFixed(1)}%</td>
+        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">${p.forma_pago}</td>
+        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: ${p.existencias < 10 ? '#ef4444' : '#1e293b'};">${p.existencias} pzas</td>
+        <td style="padding: 10px 8px; font-size: 12px; font-weight: bold;"><span style="background-color: ${p.status === 'Activo' ? '#dcfce7' : '#fee2e2'}; color: ${p.status === 'Activo' ? '#166534' : '#991b1b'}; padding: 2px 8px; border-radius: 9999px;">${p.status}</span></td>
+        <td style="padding: 10px 8px; font-size: 11px; font-family: monospace; color: #64748b;">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : today}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Surtiantojo - Reporte Catálogo</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #334155; }
+          .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 25px; margin-bottom: 25px; }
+          .logo { height: 90px; object-fit: contain; margin-bottom: 15px; }
+          .title { font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: -0.5px; }
+          .subtitle { font-size: 12px; font-weight: 700; color: #043077; margin: 5px 0 0 0; letter-spacing: 2px; }
+          .meta-info { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 20px; font-weight: 600; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th { background-color: #f8fafc; padding: 12px 8px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; border-bottom: 2px solid #cbd5e1; }
+          .metric-cards { display: flex; gap: 15px; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 25px; }
+          .metric-card { flex: 1; background-color: #f8fafc; border: 1px solid #f1f5f9; padding: 12px; border-radius: 8px; text-align: center; }
+          .metric-title { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #94a3b8; display: block; }
+          .metric-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 3px; display: block; }
+          .no-print-bar { display: flex; justify-content: space-between; align-items: center; background-color: #f1f5f9; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 12px; margin-bottom: 25px; }
+          .print-btn { background-color: #043077; color: white; border: none; padding: 8px 18px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 12px; transition: opacity 0.2s; }
+          .print-btn:hover { opacity: 0.9; }
+          @media print {
+            .no-print-bar { display: none; }
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print-bar">
+          <span style="font-size: 12px; font-weight: bold; color: #475569;">
+            ${isFilteredOnly ? 'Exportando selección de productos' : 'Exportando catálogo completo'} (${itemsList.length} registros)
+          </span>
+          <button onclick="window.print()" class="print-btn">Imprimir / Guardar como PDF</button>
+        </div>
+
+        <div class="header">
+          <img src="https://cotecam.com//surtiantojo.jpg" alt="Logo de Surtiantojo" class="logo" />
+          <h1 class="title">Surtiantojo Café</h1>
+          <p class="subtitle">Catálogo de Productos y Márgenes Oficiales</p>
+          <div class="meta-info">
+            <span>FECHA REPORTE: ${today}</span>
+            <span>EMITIDO POR: Sistema Administrativo</span>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 26%">Producto</th>
+              <th style="width: 15%">Costo Caja / Unid</th>
+              <th style="width: 10%">Venta</th>
+              <th style="width: 9%">Margen</th>
+              <th style="width: 10%">Sugerido</th>
+              <th style="width: 10%">Margen Ps</th>
+              <th style="width: 10%">Pago</th>
+              <th style="width: 10%">Existencias</th>
+              <th style="width: 10%">Status</th>
+              <th style="text-align: right; width: 10%">Registro</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        <div class="metric-cards">
+          <div class="metric-card">
+            <span class="metric-title">Valor Costo Inventario</span>
+            <span class="metric-value">$${itemsList.reduce((acc, p) => acc + (safeVal(p.precio_unidad) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Valor Comercial Ventas</span>
+            <span class="metric-value">$${itemsList.reduce((acc, p) => acc + (safeVal(p.precio_venta) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Utilidad Bruta Proyectada</span>
+            <span class="metric-value" style="color: #16a34a;">$${itemsList.reduce((acc, p) => acc + ((safeVal(p.precio_venta) - safeVal(p.precio_unidad)) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Margen % Promedio</span>
+            <span class="metric-value" style="color: #043077;">${(itemsList.reduce((acc, p) => acc + safeVal(p.margen_pct), 0) / (itemsList.length || 1)).toFixed(1)}%</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic;">
+          Soporte Surtiantojo Café - Documento válido como inventariado oficial con registro histórico automatizado.
+        </div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handleExcelExport = (itemsList: any[]) => {
+    const headers = [
+      'Nombre del Producto', 'Precio Caja', 'Precio Unidad', 'Precio Venta', 
+      'Margen %', 'Precio Sugerido', 'Margen Ps %', 'Forma de Pago', 
+      'Status', 'Fecha Cambio Precio', 'Notas', 'Resorte que usa', 'Filtro Especial', 'Existencias',
+      'Fecha Registro'
+    ];
+    
+    // Dynamic real date
+    const today = new Date().toLocaleDateString('es-ES');
+
+    const csvRows = itemsList.map(p => {
+      return [
+        `"${p.nombre.replace(/"/g, '""')}"`,
+        p.precio_caja,
+        p.precio_unidad,
+        p.precio_venta,
+        p.margen_pct,
+        p.precio_sugerido,
+        p.margen_ps_pct,
+        `"${p.forma_pago}"`,
+        `"${p.status}"`,
+        `"${p.cambio_precio_fecha}"`,
+        `"${(p.notas || '').replace(/"/g, '""')}"`,
+        `"${(p.resorte_usa || '').replace(/"/g, '""')}"`,
+        `"${(p.filtro_especial || '').replace(/"/g, '""')}"`,
+        p.existencias,
+        p.created_at ? new Date(p.created_at).toLocaleDateString() : today
+      ].join(',');
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `inventario_surtiantojo_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Common animation setup
   const containerVariants = {
     hidden: { opacity: 0, y: 15 },
@@ -84,15 +479,20 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                 <div className="absolute right-0 top-0 w-24 h-24 bg-amber-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110"></div>
                 <span className="text-slate-400 text-xs font-black tracking-wider uppercase block">MARGEN DE UTILIDAD</span>
                 <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-3xl font-extrabold font-display text-slate-900">42.8%</span>
-                  <span className="text-sm font-bold text-slate-500 flex items-center gap-0.5">
-                    Estable
+                  <span className="text-3xl font-extrabold font-display text-slate-900">
+                    {products.length > 0 
+                      ? `${(products.reduce((acc, p) => acc + safeVal(p.margen_pct), 0) / products.length).toFixed(1)}%` 
+                      : '0.0%'
+                    }
+                  </span>
+                  <span className="text-sm font-bold text-emerald-600 flex items-center gap-0.5">
+                    Sincronizado
                   </span>
                 </div>
                 <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-                  <div className="bg-gradient-to-r from-amber-500 to-orange-600 h-full" style={{ width: '68%' }}></div>
+                  <div className="bg-gradient-to-r from-amber-500 to-[#043077] h-full" style={{ width: '82%' }}></div>
                 </div>
-                <span className="text-xs text-slate-400 mt-2 block">Optimización de insumos lograda</span>
+                <span className="text-xs text-slate-400 mt-2 block">Cálculo en vivo sobre productos activos</span>
               </div>
 
               <div className="p-5 rounded-xl bg-gradient-to-tr from-[#043077] to-blue-800 text-white shadow-md relative overflow-hidden group">
@@ -197,51 +597,699 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
 
       case 'products':
         return (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-[#043077]/10 text-[#043077]">
-                  <Layers className="w-5.5 h-5.5" />
-                </div>
-                <div className="text-left">
-                  <h4 className="text-base font-extrabold text-slate-900">Total en Menú: 48 Artículos</h4>
-                  <p className="text-sm text-slate-500">Divididos en: Cafetería, Repostería, Desayunos y extras</p>
-                </div>
+          <div className="space-y-6 text-left">
+            
+            {/* Header statistics grid for products catalog */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
+                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Menú Activo</span>
+                <span className="text-2xl font-black text-slate-800 mt-1 block">{products.length} Items</span>
+                <span className="text-xs text-slate-400 mt-1 block">Catálogo registrado</span>
               </div>
-              <button className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-[#043077] hover:opacity-90 text-white text-sm font-extrabold transition-all shadow-sm">
-                <Plus className="w-4.5 h-4.5" /> Agregar Platillo o Café
-              </button>
+              <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
+                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Stock Total</span>
+                <span className="text-2xl font-black text-slate-800 mt-1 block">
+                  {products.reduce((acc, p) => acc + safeVal(p.existencias), 0)} pzas
+                </span>
+                <span className="text-xs text-slate-400 mt-1 block">Existencias acumuladas</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
+                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Margen Promedio</span>
+                <span className="text-2xl font-black text-emerald-600 mt-1 block">
+                  {products.length > 0 
+                    ? `${(products.reduce((acc, p) => acc + safeVal(p.margen_pct), 0) / products.length).toFixed(1)}%` 
+                    : '0.0%'
+                  }
+                </span>
+                <span className="text-xs text-slate-400 mt-1 block">Sincronizado al dashboard</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
+                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Valor Estimado</span>
+                <span className="text-2xl font-black text-[#043077] mt-1 block">
+                  ${products.reduce((acc, p) => acc + (safeVal(p.precio_venta) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                </span>
+                <span className="text-xs text-slate-400 mt-1 block">Comercial de inventario</span>
+              </div>
             </div>
 
-            {/* Product Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-              {[
-                { name: 'Café Americano 12oz', price: '$35.00', category: 'Bebidas Calientes', popularity: 'Alto (940/mes)' },
-                { name: 'Capuchino Aromático 16oz', price: '$48.00', category: 'Bebidas Calientes', popularity: 'Alto (1,420/mes)' },
-                { name: 'Espresso Intenso Doble', price: '$30.00', category: 'Bebidas Calientes', popularity: 'Medio (480/mes)' },
-                { name: 'Rebanada Pastel Tres Leches', price: '$55.00', category: 'Repostería', popularity: 'Alto (820/mes)' },
-                { name: 'Cuernito de Mantequilla', price: '$28.00', category: 'Panadería', popularity: 'Medio (560/mes)' },
-                { name: 'Muffin de Arándanos', price: '$32.00', category: 'Panadería', popularity: 'Bajo (220/mes)' },
-              ].map((prod, i) => (
-                <div key={i} className="p-4.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:border-[#043077]/50 hover:shadow-md transition-all space-y-3 group text-left">
-                  <div className="relative w-full h-36 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
-                    <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded bg-slate-900/60 backdrop-blur-xs text-white text-xs font-bold">
-                      {prod.category}
-                    </div>
-                    <Coffee className="w-11 h-11 text-slate-300 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <div>
-                    <h5 className="text-base font-extrabold text-slate-800 line-clamp-1">{prod.name}</h5>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-xl font-black text-[#043077]">{prod.price}</span>
-                      <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-full">
-                        {prod.popularity}
-                      </span>
-                    </div>
-                  </div>
+            {/* Filter and controls bar */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                
+                {/* Search input field */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar producto por nombre o notas..."
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#043077] transition-all text-slate-800"
+                  />
                 </div>
-              ))}
+
+                {/* Status Dropdown filter */}
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full sm:w-40 appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] pr-8 text-slate-700 font-bold"
+                  >
+                    <option value="all">💳 Todos los Estados</option>
+                    <option value="Activo">🟢 Activos</option>
+                    <option value="Inactivo">🔴 Inactivos</option>
+                  </select>
+                </div>
+
+                {/* Forma de pago filter */}
+                <div className="relative">
+                  <select
+                    value={pagoFilter}
+                    onChange={(e) => setPagoFilter(e.target.value)}
+                    className="w-full sm:w-44 appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] pr-8 text-slate-700 font-bold"
+                  >
+                    <option value="all">💵 Modos de Pago</option>
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Tarjeta bancaria">💳 Tarjeta bancaria</option>
+                  </select>
+                </div>
+
+              </div>
+
+              {/* PDF - Excel outputs and Add Product Button */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExcelExport(filteredProducts)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-emerald-200 hover:bg-emerald-50 text-emerald-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider"
+                  title="Exportar registros actuales a archivo excel CSV"
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> Excel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePdfExport(filteredProducts)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-red-200 hover:bg-red-50 text-red-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider"
+                  title="Exportar reporte de catálogo pdf oficial con logotipo"
+                >
+                  <FileText className="w-4 h-4" /> PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={openAddForm}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-[#043077] hover:opacity-90 active:scale-95 text-white text-xs font-black transition-all shadow-sm uppercase tracking-wider cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Registrar Producto
+                </button>
+              </div>
+
             </div>
+
+            {/* List and table main responsive wrapper */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[1000px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                      <th className="py-4 px-4 w-12 text-center">
+                        <button 
+                          type="button"
+                          onClick={toggleSelectAll} 
+                          className="p-1 rounded hover:bg-slate-200/60 focus:outline-none cursor-pointer"
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={isAllSelected} 
+                            onChange={() => {}} // Controlled manually at button container level
+                            className="w-4 h-4 rounded text-[#043077] focus:ring-[#043077] pointer-events-none" 
+                          />
+                        </button>
+                      </th>
+                      <th className="py-4 px-4 text-slate-500">Producto</th>
+                      <th className="py-4 px-4 text-slate-500">Precios Costo</th>
+                      <th className="py-4 px-4 text-slate-500">Precio Venta</th>
+                      <th className="py-4 px-4 text-slate-500">Margen %</th>
+                      <th className="py-4 px-4 text-slate-500 font-bold text-[#043077]">Pre. Sugerido</th>
+                      <th className="py-4 px-4 text-slate-500 font-bold text-[#043077]">Margen Ps%</th>
+                      <th className="py-4 px-4 text-slate-500">Métodos de Pago</th>
+                      <th className="py-4 px-4 text-slate-500">Existencias</th>
+                      <th className="py-4 px-4 text-slate-500">Estado</th>
+                      <th className="py-4 px-4 text-slate-500">Fecha Registro</th>
+                      <th className="py-4 px-4 text-center text-slate-500">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={12} className="py-12 text-center text-slate-500 font-medium">
+                          No se encontraron productos registrados con los filtros aplicados.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredProducts.map((p) => {
+                        const isChecked = !!selectedItems[p.id];
+                        const isStockLow = Number(p.existencias || 0) < 10;
+                        const formattedRegisterDate = p.created_at 
+                          ? new Date(p.created_at).toLocaleDateString() 
+                          : new Date().toLocaleDateString();
+
+                        return (
+                          <tr 
+                            key={p.id} 
+                            className={`hover:bg-slate-50/50 transition-colors ${
+                              isChecked ? 'bg-blue-50/20' : ''
+                            }`}
+                          >
+                            <td className="py-3 px-4 text-center">
+                              <button 
+                                type="button"
+                                onClick={() => toggleSelectItem(p.id)}
+                                className="p-1 rounded cursor-pointer"
+                              >
+                                <input 
+                                  type="checkbox" 
+                                  checked={isChecked}
+                                  onChange={() => {}} // Controlled by outer button
+                                  className="w-4 h-4 rounded text-[#043077] focus:ring-[#043077] pointer-events-none" 
+                                />
+                              </button>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <span className="font-extrabold text-slate-800 text-sm block">{p.nombre}</span>
+                                {p.notas && (
+                                  <span className="text-xs text-slate-400 font-medium line-clamp-1 italic max-w-[200px]">
+                                    {p.notas}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="text-xs text-slate-600 leading-tight">
+                                <div>Caja: <span className="font-bold font-mono">${safeVal(p.precio_caja).toFixed(1)}</span></div>
+                                <div>Unid: <span className="font-bold font-mono text-slate-800">${safeVal(p.precio_unidad).toFixed(1)}</span></div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-sm font-extrabold text-slate-900 font-mono">
+                                ${safeVal(p.precio_venta).toFixed(1)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-700">
+                                {safeVal(p.margen_pct).toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-sm font-extrabold text-slate-900 font-mono">
+                                ${safeVal(p.precio_sugerido).toFixed(1)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-[#043077]/5 text-[#043077]">
+                                {safeVal(p.margen_ps_pct).toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-xs text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-md">
+                                {p.forma_pago}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center gap-1 text-xs font-extrabold px-2.5 py-1 rounded-md ${
+                                isStockLow 
+                                  ? 'bg-red-50 text-red-700 border border-red-200/40 animate-pulse' 
+                                  : 'bg-stone-50 text-slate-700'
+                              }`}>
+                                {p.existencias} pzas
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <button
+                                type="button"
+                                onClick={() => onUpdateProduct && onUpdateProduct(p.id, { status: p.status === 'Activo' ? 'Inactivo' : 'Activo' })}
+                                className="focus:outline-none cursor-pointer"
+                                title="Haga clic para cambiar de estado rápidamente"
+                              >
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                  p.status === 'Activo' 
+                                    ? 'bg-emerald-100 text-emerald-800' 
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${p.status === 'Activo' ? 'bg-emerald-600' : 'bg-rose-600'}`}></span>
+                                  {p.status}
+                                </span>
+                              </button>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-xs text-slate-500 font-mono block">
+                                {formattedRegisterDate}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingItem(p)}
+                                  className="p-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-lg transition-all focus:outline-none cursor-pointer"
+                                  title="Ver detalles completos del producto"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditForm(p)}
+                                  className="p-1 px-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 rounded-lg transition-all focus:outline-none cursor-pointer"
+                                  title="Editar registro del producto"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(p.id)}
+                                  className="p-1 px-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 rounded-lg transition-all focus:outline-none cursor-pointer"
+                                  title="Eliminar este producto"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Sticky multi-selection floating bar */}
+            <AnimatePresence>
+              {selectedCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-slate-700 flex flex-col sm:flex-row items-center gap-4 max-w-[calc(100vw-3rem)] w-full sm:w-auto"
+                >
+                  <div className="text-left">
+                    <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Acción en Lote</span>
+                    <span className="text-sm font-black text-white">{selectedCount} productos seleccionados</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleExcelExport(selectedProductsList)}
+                      className="px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" /> Descargar Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePdfExport(selectedProductsList)}
+                      className="px-3 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Descargar PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkToggleStatus('Activo')}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-extrabold rounded-xl transition-all cursor-pointer"
+                    >
+                      Activar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkToggleStatus('Inactivo')}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-extrabold rounded-xl transition-all cursor-pointer"
+                    >
+                      Desactivar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkDelete}
+                      className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Borrar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItems({})}
+                      className="p-2 text-slate-400 hover:text-white rounded-lg focus:outline-none cursor-pointer"
+                      title="Limpiar selección actual"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* FORM MODAL ADD AND EDIT */}
+            <AnimatePresence>
+              {isFormOpen && (
+                <div id="product-form-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.6 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsFormOpen(false)}
+                    className="absolute inset-0 bg-stone-900"
+                  />
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative max-w-2xl w-full max-h-[90vh] flex flex-col"
+                  >
+                    {/* Header border line */}
+                    <div className="h-1.5 w-full bg-[#043077]" />
+
+                    <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                      <h4 className="text-lg font-black text-slate-900">
+                        {editingItem ? 'Editar Producto Catálogo' : 'Registrar Nuevo Producto'}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setIsFormOpen(false)}
+                        className="p-1 px-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+                      
+                      {/* Name row */}
+                      <div>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Nombre del producto *</label>
+                        <input
+                          type="text"
+                          required
+                          value={form.nombre}
+                          onChange={(e) => handleFormChange('nombre', e.target.value)}
+                          placeholder="Ej: Café Latte Sabores Premium 16oz"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
+                        />
+                      </div>
+
+                      {/* Split cost and status info */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio caja (Costo)</label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={form.precio_caja}
+                            onChange={(e) => handleFormChange('precio_caja', Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio unidad porción *</label>
+                          <input
+                            type="number"
+                            step="any"
+                            required
+                            value={form.precio_unidad}
+                            onChange={(e) => handleFormChange('precio_unidad', Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Existencias iniciales *</label>
+                          <input
+                            type="number"
+                            required
+                            value={form.existencias}
+                            onChange={(e) => handleFormChange('existencias', Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Sell price and auto margins */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Venta Público *</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
+                            <input
+                              type="number"
+                              required
+                              step="any"
+                              value={form.precio_venta}
+                              onChange={(e) => handleFormChange('precio_venta', Number(e.target.value))}
+                              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-extrabold font-mono"
+                            />
+                          </div>
+                          <span className="text-[10px] text-emerald-600 font-black mt-1.5 block">
+                            MARGEN CALCULADO: % {form.margen_pct}
+                          </span>
+                        </div>
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Sugerido Venta</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
+                            <input
+                              type="number"
+                              step="any"
+                              value={form.precio_sugerido}
+                              onChange={(e) => handleFormChange('precio_sugerido', Number(e.target.value))}
+                              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-extrabold font-mono"
+                            />
+                          </div>
+                          <span className="text-[10px] text-[#043077] font-black mt-1.5 block">
+                            MARGEN PS ESTIMADO: % {form.margen_ps_pct}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Dropdowns status, pago y fecha */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Estado Catálogo</label>
+                          <select
+                            value={form.status}
+                            onChange={(e) => handleFormChange('status', e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-bold"
+                          >
+                            <option value="Activo">🟢 Activo</option>
+                            <option value="Inactivo">🔴 Inactivo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Forma de Pago Asociada</label>
+                          <select
+                            value={form.forma_pago}
+                            onChange={(e) => handleFormChange('forma_pago', e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-bold"
+                          >
+                            <option value="Efectivo">💵 Efectivo</option>
+                            <option value="Tarjeta bancaria">💳 Tarjeta bancaria</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Cambio de Precio (Fecha)</label>
+                          <input
+                            type="date"
+                            value={form.cambio_precio_fecha}
+                            onChange={(e) => handleFormChange('cambio_precio_fecha', e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Technical specifications */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Resorte de uso cafetera</label>
+                          <input
+                            type="text"
+                            value={form.resorte_usa}
+                            onChange={(e) => handleFormChange('resorte_usa', e.target.value)}
+                            placeholder="Ej: Resorte calibrado IMS 58mm"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Filtro especial o empaque</label>
+                          <input
+                            type="text"
+                            value={form.filtro_especial}
+                            onChange={(e) => handleFormChange('filtro_especial', e.target.value)}
+                            placeholder="Ej: Filtro de papel blanco V60"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Notes area */}
+                      <div>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Notas internas / Comentario</label>
+                        <textarea
+                          rows={2}
+                          value={form.notas}
+                          onChange={(e) => handleFormChange('notas', e.target.value)}
+                          placeholder="Detalles sobre preparación, ingredientes, o alertas para baristas..."
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
+                        ></textarea>
+                      </div>
+
+                    </form>
+
+                    <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+                      <button
+                        type="button"
+                        onClick={() => setIsFormOpen(false)}
+                        className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-sm font-extrabold cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFormSubmit}
+                        disabled={!form.nombre.trim()}
+                        className="px-6 py-2.5 rounded-xl bg-[#043077] hover:opacity-90 disabled:opacity-50 text-white text-sm font-extrabold cursor-pointer"
+                      >
+                        {editingItem ? 'Guardar Cambios' : 'Confirmar Registro'}
+                      </button>
+                    </div>
+
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* VIEW DETAILS DIALOG MODEL */}
+            <AnimatePresence>
+              {viewingItem && (
+                <div id="product-details-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.6 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setViewingItem(null)}
+                    className="absolute inset-0 bg-stone-900"
+                  />
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative max-w-xl w-full p-6 text-left"
+                  >
+                    {/* Header line */}
+                    <div className="h-1.5 w-full bg-[#043077] absolute top-0 left-0" />
+                    
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
+                      <div>
+                        <span className="text-[9px] font-black uppercase text-[#043077] tracking-widest block">Código Identificador: {viewingItem.id.slice(0, 8)}</span>
+                        <h4 className="text-lg font-black text-slate-900 mt-0.5">{viewingItem.nombre}</h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewingItem(null)}
+                        className="p-1 px-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 cursor-pointer focus:outline-none"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-4 text-sm">
+                      
+                      {/* Cost and inventory values card block */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                          <span className="text-xs text-slate-400 font-extrabold block uppercase">Costo Insumo (Unidad)</span>
+                          <span className="text-base font-extrabold text-slate-800 font-mono">${safeVal(viewingItem.precio_unidad).toFixed(2)}</span>
+                          <span className="text-[11px] text-slate-400 font-mono block mt-0.5">Por caja: ${safeVal(viewingItem.precio_caja).toFixed(2)}</span>
+                        </div>
+                        <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                          <span className="text-xs text-slate-400 font-extrabold block uppercase">Existencias en Almacén</span>
+                          <span className={`text-base font-extrabold font-mono ${safeVal(viewingItem.existencias) < 10 ? 'text-red-600' : 'text-slate-800'}`}>
+                            {safeVal(viewingItem.existencias)} piezas
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pricing matrix block */}
+                      <div className="grid grid-cols-2 gap-3 bg-blue-50/25 p-4 rounded-2xl border border-blue-100/30">
+                        <div>
+                          <span className="text-xs text-slate-500 font-extrabold block uppercase">Precio de Venta</span>
+                          <span className="text-xl font-black text-slate-900 font-mono">${safeVal(viewingItem.precio_venta).toFixed(2)}</span>
+                          <span className="inline-flex items-center gap-0.5 mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 text-center">
+                            Margen: {safeVal(viewingItem.margen_pct).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-xs text-slate-500 font-extrabold block uppercase">Precio Sugerido Alterno</span>
+                          <span className="text-xl font-black text-[#043077] font-mono">${safeVal(viewingItem.precio_sugerido).toFixed(2)}</span>
+                          <span className="inline-flex items-center gap-0.5 mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-[#043077]/10 text-[#043077] text-center">
+                            Margen: {safeVal(viewingItem.margen_ps_pct).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Filter lists and physical parts */}
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div>
+                          <span className="text-xs text-slate-400 font-extrabold block">Resorte de Uso:</span>
+                          <span className="font-extrabold text-slate-700 text-xs">
+                            {viewingItem.resorte_usa || 'Ninguno especificado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-xs text-slate-400 font-extrabold block">Filtro Especial:</span>
+                          <span className="font-extrabold text-slate-700 text-xs">
+                            {viewingItem.filtro_especial || 'Filtro regular / Estándar'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Payment, change status metrics */}
+                      <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-xs">
+                        <div>
+                          <span className="text-slate-400 font-extrabold block uppercase text-[9px]">Forma Pago</span>
+                          <span className="font-bold text-slate-800">{viewingItem.forma_pago}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-extrabold block uppercase text-[9px]">Ult. Cambio de Pr.</span>
+                          <span className="font-bold text-[#043077] font-mono">{viewingItem.cambio_precio_fecha || 'No registrado'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-extrabold block uppercase text-[9px]">Fecha Registro</span>
+                          <span className="font-bold text-slate-800 font-mono">
+                            {viewingItem.created_at ? new Date(viewingItem.created_at).toLocaleDateString() : new Date().toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {viewingItem.notas && (
+                        <div className="border-t border-slate-100 pt-3">
+                          <span className="text-xs text-slate-400 font-extrabold block">Comentarios / Notas Internas</span>
+                          <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100/50 mt-1 italic leading-relaxed">
+                            "{viewingItem.notas}"
+                          </p>
+                        </div>
+                      )}
+
+                    </div>
+
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setViewingItem(null)}
+                        className="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider cursor-pointer"
+                      >
+                        Cerrar Ventana
+                      </button>
+                    </div>
+
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
           </div>
         );
 

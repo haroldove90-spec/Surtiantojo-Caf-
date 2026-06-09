@@ -13,4 +13,20 @@ body {
   color: #0F172A; /* Slate 900 */
 }
 
+/* Global comfortable root scale of 106.25% (exact sweet-spot base of 17px) */
+html {
+  font-size: 106.25% !important;
+}
+
+/* Enhance form elements to be even more legible, accessible and comfortable */
+input, select, textarea, button {
+  font-size: inherit;
+}
+
+/* Make custom labels extremely distinct and easy to read */
+label {
+  letter-spacing: 0.025em;
+  font-weight: 700;
+}
+
 
