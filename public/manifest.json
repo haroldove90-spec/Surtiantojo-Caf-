@@ -1,0 +1,26 @@
+{
+  "name": "Surtiantojo Café",
+  "short_name": "Surtiantojo",
+  "description": "Sistema de Administración de Surtiantojo Café",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#043077",
+  "theme_color": "#043077",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "https://cotecam.com/surtiantojoicono.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cotecam.com/surtiantojoicono.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

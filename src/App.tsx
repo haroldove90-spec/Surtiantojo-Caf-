@@ -17,7 +17,10 @@ import {
   Coffee as CupIcon, 
   Clock,
   ArrowRight,
-  Database
+  Database,
+  Download,
+  Smartphone,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ModulePlaceholder from './components/ModulePlaceholder';
@@ -41,6 +44,32 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  
+  // PWA installation and splash screen states
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallModal, setShowInstallModal] = useState<boolean>(false);
+  const [isSplashActive, setIsSplashActive] = useState<boolean>(true);
+
+  // Sync PWA triggers and auto-dismiss splash layout
+  useEffect(() => {
+    // 2.2 seconds display time for the unencapsulated full-screen launch splash
+    const splashTimer = setTimeout(() => {
+      setIsSplashActive(false);
+    }, 2200);
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      console.log('PWA installation prompt event captured.');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      clearTimeout(splashTimer);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   // Async connection verify ping to Supabase rest server
   useEffect(() => {
@@ -48,8 +77,7 @@ export default function App() {
       try {
         const rawUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://kwumqqselehgrbppuoyu.supabase.co';
         const rawKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-        
-        // Sanitize the endpoint for a base status ping
+        if (!rawUrl) return;
         const urlObj = new URL(rawUrl);
         const res = await fetch(`${urlObj.origin}/rest/v1/`, {
           method: 'GET',
@@ -57,9 +85,7 @@ export default function App() {
             'apikey': rawKey
           }
         });
-        
         if (res.ok || res.status === 401 || res.status === 404) {
-          // Response received or API exists (401 means auth is alive, 200/other is success)
           setDbStatus('connected');
         } else {
           setDbStatus('error');
@@ -72,11 +98,31 @@ export default function App() {
     checkSupabase();
   }, []);
 
-  // Quick helper to close menu on mobile selection
+  // Trigger app installation prompt
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`PWA installation outcome: ${outcome}`);
+      setDeferredPrompt(null);
+    } else {
+      // Show explicit manual guide modal (especially valuable for iOS/Safari or when running inside preview frames)
+      setShowInstallModal(true);
+    }
+  };
 
   const selectModule = (id: string) => {
     setActiveModule(id);
     setIsMobileMenuOpen(false);
+    
+    // Automatically resets vertical scroll positioning for active modules
+    setTimeout(() => {
+      const mainContainer = document.getElementById('main-content');
+      if (mainContainer) {
+        mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 20);
   };
 
   const activeModuleData = APP_MODULES.find(m => m.id === activeModule) || APP_MODULES[0];
@@ -85,7 +131,7 @@ export default function App() {
   const formattedDate = "Hoy, 09:45 AM";
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] flex flex-col font-sans text-slate-800 antialiased">
+    <div className="min-h-screen bg-[#F1F5F9] flex flex-col font-sans text-slate-800 antialiased overflow-x-hidden max-w-full w-full">
       
       {/* GLOBAL NAVBAR / HEADER - STYLED IN DEEP BLUE #043077 */}
       <header id="global-header" className="sticky top-0 z-40 bg-[#043077] border-b border-blue-900/40 shadow-sm px-6 h-16 flex items-center shrink-0">
@@ -99,7 +145,7 @@ export default function App() {
               id="hamburger-btn"
               onClick={() => {
                 if (window.innerWidth >= 1024) {
-                  setIsSidebarCollapsed(!isSidebarCollapsed);
+                   setIsSidebarCollapsed(!isSidebarCollapsed);
                 } else {
                   setIsMobileMenuOpen(!isMobileMenuOpen);
                 }
@@ -122,28 +168,8 @@ export default function App() {
           {/* Quick status bar display items */}
           <div className="flex items-center gap-3 md:gap-5">
             
-            {/* Supabase Status Indicator */}
-            <div 
-              id="supabase-status-badge"
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/15 transition-all px-3.5 py-1.5 rounded-full border border-white/20 cursor-help"
-              title="Supabase Backend Integrado"
-            >
-              <Database className={`w-3.5 h-3.5 ${
-                dbStatus === 'connected' ? 'text-emerald-400' : 
-                dbStatus === 'checking' ? 'text-blue-300 animate-pulse' : 'text-red-400'
-              }`} />
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                dbStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 
-                dbStatus === 'checking' ? 'bg-blue-350 animate-pulse' : 'bg-red-400'
-              }`}></span>
-              <span className="text-[10px] sm:text-xs font-bold text-white tracking-tight">
-                {dbStatus === 'connected' ? 'Supabase' : 
-                 dbStatus === 'checking' ? 'Conectando...' : 'Error Supabase'}
-              </span>
-            </div>
-
             {/* Quick user avatar visual identifier */}
-            <div id="header-user-badge" className="flex items-center gap-3 pl-3 border-l border-white/20">
+            <div id="header-user-badge" className="flex items-center gap-3">
               <div className="hidden md:flex flex-col items-end text-right">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Administrador</span>
                 <span className="text-sm font-semibold text-white leading-tight">Gerencia Surtiantojo</span>
@@ -159,22 +185,22 @@ export default function App() {
       </header>
 
       {/* DETAILED CONTENT AREA & SIDEBAR */}
-      <div className="flex-grow flex w-full mx-auto relative">
+      <div className="flex-grow flex w-full max-w-full overflow-x-hidden mx-auto relative min-w-0">
         
         {/* DESKTOP SIDEBAR - STYLED IN DEEP BLUE #043077 WITH PREMIUM GRADIENT */}
         <aside 
           id="desktop-sidebar" 
           className={`hidden lg:block transition-all duration-300 flex-shrink-0 sticky top-16 h-[calc(100vh-64px)] ${
             isSidebarCollapsed ? 'w-20' : 'w-64'
-          } bg-gradient-to-b from-[#043077] to-[#011432] text-slate-300`}
+          } bg-gradient-to-b from-[#043077] to-[#011432] text-slate-300 overflow-y-auto scrollbar-thin`}
         >
-          <div className="p-4 h-full flex flex-col justify-between overflow-y-auto">
+          <div className="p-4 min-h-full flex flex-col justify-between gap-6">
             
-            <div className="space-y-4">
+            <div className="space-y-5">
               
               {/* Collapsible Sidebar Title */}
               {!isSidebarCollapsed && (
-                <div className="px-3 py-2 text-[10px] font-extrabold text-blue-200/60 uppercase tracking-widest">
+                <div className="px-3 py-1 text-[10px] font-extrabold text-blue-200/60 uppercase tracking-widest">
                   OPERACIONES
                 </div>
               )}
@@ -206,6 +232,35 @@ export default function App() {
                   );
                 })}
               </nav>
+
+              {/* Premium mobile install app triggers incorporated in sidebar */}
+              <div className="pt-2 border-t border-white/10">
+                {!isSidebarCollapsed ? (
+                  <div className="space-y-2">
+                    <div className="px-3 text-[10px] font-extrabold text-blue-200/60 uppercase tracking-widest">
+                      APLICATIVO MÓVIL
+                    </div>
+                    <button 
+                      onClick={handleInstallClick}
+                      className="w-full flex items-center justify-center gap-2.5 px-3.5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 transition-all text-white font-extrabold rounded-xl border border-emerald-400/20 shadow-md text-xs focus:outline-none cursor-pointer"
+                      title="Instalar aplicación móvil de Surtiantojo"
+                    >
+                      <Download className="w-4 h-4 text-white animate-bounce shrink-0" />
+                      <span className="block leading-none uppercase tracking-wider text-[10px]">Instalar App</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex justify-center px-1">
+                    <button 
+                      onClick={handleInstallClick}
+                      className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-90 transition-all text-white rounded-lg shadow-md border border-emerald-400/20 focus:outline-none"
+                      title="Instalar App móvil"
+                    >
+                      <Download className="w-4 h-4 text-white animate-bounce" />
+                    </button>
+                  </div>
+                )}
+              </div>
 
             </div>
 
@@ -243,7 +298,7 @@ export default function App() {
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="absolute top-0 bottom-0 left-0 w-80 max-w-[calc(100vw-3rem)] bg-gradient-to-b from-[#043077] to-[#011432] text-slate-300 shadow-2xl flex flex-col justify-between p-6 overflow-y-auto"
+                className="absolute top-0 bottom-0 left-0 w-80 max-w-[calc(100vw-3rem)] bg-gradient-to-b from-[#043077] to-[#011432] text-slate-300 shadow-2xl flex flex-col justify-between p-6 overflow-y-auto scrollbar-none"
               >
                 <div className="space-y-6">
                   
@@ -287,6 +342,24 @@ export default function App() {
                     })}
                   </nav>
 
+                  {/* Mobile Install App Section */}
+                  <div className="pt-4 border-t border-white/10 space-y-2">
+                    <span className="text-[10px] font-extrabold text-blue-200/60 uppercase tracking-widest pl-2">
+                      APLICACIÓN DISPOSITIVO
+                    </span>
+                    <button 
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        handleInstallClick();
+                      }}
+                      className="w-full flex items-center justify-center gap-2.5 px-3.5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 transition-all text-white font-extrabold rounded-xl border border-emerald-400/20 shadow-md text-xs focus:outline-none cursor-pointer"
+                      title="Instalar aplicación móvil de Surtiantojo"
+                    >
+                      <Download className="w-4 h-4 text-white animate-bounce shrink-0" />
+                      <span className="block leading-none uppercase tracking-wider text-[10px]">Instalar App Móvil</span>
+                    </button>
+                  </div>
+
                 </div>
 
                 <div className="border-t border-white/10 pt-5 text-center space-y-1">
@@ -302,7 +375,7 @@ export default function App() {
         </AnimatePresence>
 
         {/* MAIN MODULE GRAPHIC INTERFACE */}
-        <main id="main-content" className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col gap-6">
+        <main id="main-content" className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden flex flex-col gap-6 w-full max-w-full">
           
           {/* DYNAMIC COMPONENT RENDERER */}
           <div className="transition-all duration-300">
@@ -363,6 +436,116 @@ export default function App() {
         </main>
 
       </div>
+
+      {/* MANUAL PWA INSTALLATION HELPER STEP DIALOG */}
+      <AnimatePresence>
+        {showInstallModal && (
+          <div id="pwa-install-modal-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            
+            {/* Opaque dark overlay backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowInstallModal(false)}
+              className="absolute inset-0 bg-stone-950/80 backdrop-blur-xs"
+            />
+
+            {/* Modal Body Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 z-10 text-left"
+            >
+              <div className="p-6 bg-[#043077] text-white relative">
+                <button
+                  onClick={() => setShowInstallModal(false)}
+                  className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all focus:outline-none"
+                  aria-label="Cerrar ventana"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/15 rounded-xl">
+                    <Smartphone className="w-6 h-6 text-yellow-300" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-lg tracking-tight font-display">Instalar Surtiantojo</h3>
+                    <p className="text-xs text-blue-200">Guía de instalación rápida para móviles</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-5 text-slate-700">
+                
+                {/* iOS Instructions Section */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-[#043077] font-mono border border-blue-100">iOS (iPhone / iPad)</span>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-slate-600 pl-1 leading-relaxed">
+                    <li>Abre esta página en el navegador <strong className="text-slate-900 font-extrabold">Safari</strong>.</li>
+                    <li>
+                      Toca el botón de <strong className="text-slate-900 font-extrabold">Compartir</strong> <Share2 className="w-4 h-4 inline-block text-blue-600 font-bold mx-0.5" /> en la parte inferior o menú de opciones.
+                    </li>
+                    <li>Selecciona <strong className="text-slate-900 font-extrabold">"Agregar a Pantalla de Inicio"</strong>.</li>
+                    <li>Confirma arriba a la derecha indicando <strong className="text-[#043077] font-extrabold">"Agregar"</strong>.</li>
+                  </ol>
+                </div>
+
+                <hr className="border-slate-100" />
+
+                {/* Android / Desktop Instructions */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-[#043077] font-mono border border-blue-100">Android / Otros</span>
+                  </div>
+                  <p className="text-sm text-slate-600 leading-relaxed pl-1">
+                    En navegadores como <strong className="text-slate-900">Chrome</strong> o Firefox, haz clic en los tres puntos de menú o pulsa directamente el botón <strong className="text-emerald-600">"Instalar App"</strong> en la cabecera superior para disfrutar del acceso directo instantáneo.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => setShowInstallModal(false)}
+                    className="w-full py-3 bg-gradient-to-r from-blue-700 to-[#043077] hover:opacity-95 text-white font-extrabold text-sm rounded-xl transition-all text-center shadow-md focus:outline-none"
+                  >
+                    Entendido, ¡Listo!
+                  </button>
+                </div>
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* INTEGRATED PREMIUM FULL SCREEN UNENCAPSULATED SPLASH SCREEN */}
+      <AnimatePresence>
+        {isSplashActive && (
+          <motion.div 
+            id="app-splash-screen"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: 'easeInOut' }}
+            className="fixed inset-0 z-50 bg-[#043077] flex flex-col items-center justify-center p-4 overflow-hidden"
+          >
+            <div className="w-full h-full max-w-lg max-h-[85vh] flex flex-col items-center justify-center relative">
+              <img 
+                src="https://cotecam.com//surtiantojo.jpg" 
+                alt="Surtiantojo Splash Logo" 
+                className="w-full h-full object-contain select-none transition-all"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute bottom-10 flex flex-col items-center gap-2">
+                <div className="w-10 h-10 rounded-full border-4 border-white/20 border-t-emerald-400 animate-spin"></div>
+                <p className="text-white/70 font-mono tracking-widest text-[11px] uppercase font-bold mt-2.5">Administración Surtiantojo</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
