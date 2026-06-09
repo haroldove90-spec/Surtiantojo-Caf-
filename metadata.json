@@ -1,0 +1,6 @@
+{
+  "name": "Surtiantojo Café Dashboard",
+  "description": "Panel de administración y control para el negocio Surtiantojo Café.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
