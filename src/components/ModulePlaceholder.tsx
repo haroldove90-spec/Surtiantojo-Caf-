@@ -52,56 +52,56 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
                 <div className="absolute right-0 top-0 w-24 h-24 bg-blue-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110"></div>
-                <span className="text-slate-400 text-[11px] font-bold tracking-wider uppercase block">VENTAS TOTALES DEL MES</span>
+                <span className="text-slate-400 text-xs font-black tracking-wider uppercase block">VENTAS TOTALES DEL MES</span>
                 <div className="flex items-baseline gap-2 mt-2">
                   <span className="text-3xl font-extrabold font-display text-slate-900">$284,350</span>
-                  <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
-                    <TrendingUp className="w-3 h-3" /> +14.2%
+                  <span className="text-sm font-bold text-emerald-600 flex items-center gap-0.5">
+                    <TrendingUp className="w-3.5 h-3.5" /> +14.2%
                   </span>
                 </div>
                 <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
                   <div className="bg-gradient-to-r from-blue-600 to-[#043077] h-full" style={{ width: '74%' }}></div>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-2 block">Meta mensual: $380,000</span>
+                <span className="text-xs text-slate-500 mt-2 block">Meta mensual: $380,000</span>
               </div>
 
               <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
                 <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110"></div>
-                <span className="text-slate-400 text-[11px] font-bold tracking-wider uppercase block">TICKET PROMEDIO</span>
+                <span className="text-slate-400 text-xs font-black tracking-wider uppercase block">TICKET PROMEDIO</span>
                 <div className="flex items-baseline gap-2 mt-2">
                   <span className="text-3xl font-extrabold font-display text-slate-900">$94.50</span>
-                  <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
-                    <TrendingUp className="w-3 h-3" /> +5.8%
+                  <span className="text-sm font-bold text-emerald-600 flex items-center gap-0.5">
+                    <TrendingUp className="w-3.5 h-3.5" /> +5.8%
                   </span>
                 </div>
                 <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
                   <div className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full" style={{ width: '85%' }}></div>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-2 block">Mayor consumo: Capuchinos + Postres</span>
+                <span className="text-xs text-slate-500 mt-2 block">Mayor consumo: Capuchinos + Postres</span>
               </div>
 
               <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
                 <div className="absolute right-0 top-0 w-24 h-24 bg-amber-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110"></div>
-                <span className="text-slate-400 text-[11px] font-bold tracking-wider uppercase block">MARGEN DE UTILIDAD</span>
+                <span className="text-slate-400 text-xs font-black tracking-wider uppercase block">MARGEN DE UTILIDAD</span>
                 <div className="flex items-baseline gap-2 mt-2">
                   <span className="text-3xl font-extrabold font-display text-slate-900">42.8%</span>
-                  <span className="text-xs font-bold text-slate-500 flex items-center gap-0.5">
+                  <span className="text-sm font-bold text-slate-500 flex items-center gap-0.5">
                     Estable
                   </span>
                 </div>
                 <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
                   <div className="bg-gradient-to-r from-amber-500 to-orange-600 h-full" style={{ width: '68%' }}></div>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-2 block">Optimización de insumos lograda</span>
+                <span className="text-xs text-slate-400 mt-2 block">Optimización de insumos lograda</span>
               </div>
 
               <div className="p-5 rounded-xl bg-gradient-to-tr from-[#043077] to-blue-800 text-white shadow-md relative overflow-hidden group">
-                <span className="text-blue-200/80 text-[11px] font-bold tracking-wider uppercase block">TRANSACCIONES</span>
+                <span className="text-blue-200/90 text-xs font-black tracking-wider uppercase block">TRANSACCIONES</span>
                 <div className="flex items-baseline gap-2 mt-2">
                   <span className="text-3xl font-extrabold font-display text-white">3,120</span>
-                  <span className="text-xs font-bold text-blue-200 block">Este Mes</span>
+                  <span className="text-sm font-bold text-blue-200 block">Este Mes</span>
                 </div>
-                <div className="mt-4 pt-1 flex items-center justify-between text-xs text-blue-100">
+                <div className="mt-4 pt-1 flex items-center justify-between text-sm text-blue-100">
                   <span>96% Completadas</span>
                   <span>4% Crédito VIP</span>
                 </div>
@@ -198,23 +198,23 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
       case 'products':
         return (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4.5 rounded-2xl border border-slate-200/60 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-lg bg-[#043077]/10 text-[#043077]">
-                  <Layers className="w-5 h-5" />
+                  <Layers className="w-5.5 h-5.5" />
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">Total en Menú: 48 Artículos</h4>
-                  <p className="text-xs text-slate-400">Divididos en: Cafetería, Repostería, Desayunos y extras</p>
+                <div className="text-left">
+                  <h4 className="text-base font-extrabold text-slate-900">Total en Menú: 48 Artículos</h4>
+                  <p className="text-sm text-slate-500">Divididos en: Cafetería, Repostería, Desayunos y extras</p>
                 </div>
               </div>
-              <button className="flex items-center gap-1 px-4.5 py-2 rounded-xl bg-gradient-to-r from-blue-700 to-[#043077] hover:opacity-90 text-white text-xs font-bold transition-all shadow-sm">
-                <Plus className="w-4 h-4" /> Agregar Platillo o Café
+              <button className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-[#043077] hover:opacity-90 text-white text-sm font-extrabold transition-all shadow-sm">
+                <Plus className="w-4.5 h-4.5" /> Agregar Platillo o Café
               </button>
             </div>
 
             {/* Product Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
               {[
                 { name: 'Café Americano 12oz', price: '$35.00', category: 'Bebidas Calientes', popularity: 'Alto (940/mes)' },
                 { name: 'Capuchino Aromático 16oz', price: '$48.00', category: 'Bebidas Calientes', popularity: 'Alto (1,420/mes)' },
@@ -223,18 +223,18 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                 { name: 'Cuernito de Mantequilla', price: '$28.00', category: 'Panadería', popularity: 'Medio (560/mes)' },
                 { name: 'Muffin de Arándanos', price: '$32.00', category: 'Panadería', popularity: 'Bajo (220/mes)' },
               ].map((prod, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:border-[#043077]/50 hover:shadow-md transition-all space-y-3 group text-left">
-                  <div className="relative w-full h-32 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-slate-900/60 backdrop-blur-xs text-white text-[9px] font-bold">
+                <div key={i} className="p-4.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:border-[#043077]/50 hover:shadow-md transition-all space-y-3 group text-left">
+                  <div className="relative w-full h-36 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
+                    <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded bg-slate-900/60 backdrop-blur-xs text-white text-xs font-bold">
                       {prod.category}
                     </div>
-                    <Coffee className="w-10 h-10 text-slate-300 group-hover:scale-110 transition-transform" />
+                    <Coffee className="w-11 h-11 text-slate-300 group-hover:scale-110 transition-transform" />
                   </div>
                   <div>
-                    <h5 className="text-sm font-bold text-slate-800 line-clamp-1">{prod.name}</h5>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-md font-extrabold text-[#043077]">{prod.price}</span>
-                      <span className="text-[10px] bg-blue-50 text-blue-700 font-medium px-2 py-0.5 rounded-full">
+                    <h5 className="text-base font-extrabold text-slate-800 line-clamp-1">{prod.name}</h5>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xl font-black text-[#043077]">{prod.price}</span>
+                      <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-1 rounded-full">
                         {prod.popularity}
                       </span>
                     </div>
@@ -249,28 +249,28 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
         return (
           <div className="space-y-6">
             {/* Top Indicator bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-white border border-slate-150 rounded-2xl shadow-xs">
-                <span className="text-xs text-slate-400 font-bold block">GRANO CAFÉ MATRIZ RESGUARDO</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">18.5 kgs</span>
-                <span className="text-[10px] text-emerald-600 font-medium font-mono">Suficiente para 12 días</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl shadow-xs">
+                <span className="text-xs text-slate-400 font-extrabold block">GRANO CAFÉ MATRIZ RESGUARDO</span>
+                <span className="text-3xl font-black text-slate-900 mt-1 block">18.5 kgs</span>
+                <span className="text-xs text-emerald-600 font-semibold font-mono">Suficiente para 12 días</span>
               </div>
-              <div className="p-4 bg-white border border-slate-150 rounded-2xl shadow-xs">
-                <span className="text-xs text-slate-400 font-bold block">VASOS CRÍTICOS 12oz</span>
-                <span className="text-2xl font-black text-red-600 mt-1 block">150 pzas</span>
-                <span className="text-[10px] text-red-500 font-semibold font-mono">Reordenar urgente</span>
+              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl shadow-xs">
+                <span className="text-xs text-slate-400 font-extrabold block">VASOS CRÍTICOS 12oz</span>
+                <span className="text-3xl font-black text-red-600 mt-1 block">150 pzas</span>
+                <span className="text-xs text-red-500 font-bold font-mono">Reordenar urgente</span>
               </div>
-              <div className="p-4 bg-white border border-slate-150 rounded-2xl shadow-xs">
-                <span className="text-xs text-slate-400 font-bold block">LECHES & COMPLEMENTOS</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">74% de Capacidad</span>
-                <span className="text-[10px] text-emerald-600 font-medium font-mono">Último surtido: Ayer</span>
+              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl shadow-xs">
+                <span className="text-xs text-slate-400 font-extrabold block">LECHES & COMPLEMENTOS</span>
+                <span className="text-3xl font-black text-slate-900 mt-1 block">74% de Capacidad</span>
+                <span className="text-xs text-emerald-600 font-semibold font-mono">Último surtido: Ayer</span>
               </div>
             </div>
 
             {/* Insumo tables with customized SVG graphic bar indicators */}
             <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-base font-bold text-slate-900">Niveles de Resguardo e Insumos</h4>
-              <div className="space-y-4">
+              <h4 className="text-md md:text-lg font-extrabold text-slate-900 text-left">Niveles de Resguardo e Insumos</h4>
+              <div className="space-y-4 text-left">
                 {[
                   { item: 'Grano de Café Blend Surtiantojo', type: 'Materia prima', level: 78, qty: '18.5 kg', status: 'Sano', color: '#043077' },
                   { item: 'Vasos Desechables Bio 16oz', type: 'Insumos', level: 32, qty: '420 pzas', status: 'Revisión', color: '#F59E0B' },
@@ -279,10 +279,10 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                   { item: 'Azúcar Refinada Mascabado', type: 'Endulzantes', level: 65, qty: '12.0 kg', status: 'Sano', color: '#043077' },
                 ].map((sup, idx) => (
                   <div key={idx} className="space-y-1.5">
-                    <div className="flex justify-between items-center text-xs">
+                    <div className="flex justify-between items-center text-sm">
                       <div>
-                        <span className="font-bold text-slate-800">{sup.item}</span>
-                        <span className="text-[10px] text-slate-400 ml-2">({sup.type})</span>
+                        <span className="font-extrabold text-slate-800">{sup.item}</span>
+                        <span className="text-xs text-slate-400 ml-2">({sup.type})</span>
                       </div>
                       <div className="font-mono text-slate-700">
                         <strong className="text-slate-900">{sup.qty}</strong> / {sup.level}%
@@ -312,7 +312,7 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
               
               {/* Leaderboard */}
               <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm space-y-4 text-left">
-                <h4 className="text-base font-bold text-slate-900">Top 5 Favoritos de la Semana</h4>
+                <h4 className="text-md md:text-lg font-extrabold text-slate-900">Top 5 Favoritos de la Semana</h4>
                 <div className="space-y-4">
                   {[
                     { rank: 1, name: 'Capuchino Aromático 16oz', sales: '320 tazas', rev: '$15,360', pct: 40 },
@@ -323,17 +323,17 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                   ].map((top, idx) => (
                     <div key={idx} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="w-5 h-5 rounded-full bg-blue-50 text-[#043077] font-bold text-xs flex items-center justify-center">
+                        <span className="w-6 h-6 rounded-full bg-blue-50 text-[#043077] font-black text-sm flex items-center justify-center">
                           {top.rank}
                         </span>
                         <div>
-                          <span className="text-xs font-bold text-slate-800 block leading-tight">{top.name}</span>
-                          <span className="text-[10px] text-slate-400">{top.sales} despachados</span>
+                          <span className="text-sm font-extrabold text-slate-800 block leading-tight">{top.name}</span>
+                          <span className="text-xs text-slate-500">{top.sales} despachados</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs font-mono font-bold text-[#043077] block">{top.rev}</span>
-                        <span className="text-[9px] text-slate-400 font-mono block">{top.pct}% del total</span>
+                        <span className="text-sm font-mono font-black text-[#043077] block">{top.rev}</span>
+                        <span className="text-xs text-slate-500 font-mono block">{top.pct}% del total</span>
                       </div>
                     </div>
                   ))}
@@ -342,7 +342,7 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
 
               {/* Pie graph simulation with visual HTML / CSS */}
               <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
-                <h4 className="text-base font-bold text-slate-900 text-left">Participación de Venta</h4>
+                <h4 className="text-md md:text-lg font-extrabold text-slate-900 text-left">Participación de Venta</h4>
                 
                 <div className="py-4 flex justify-center items-center">
                   <div className="relative w-40 h-40">
@@ -363,17 +363,17 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" strokeWidth="3.2" strokeDasharray="16 84" strokeDashoffset="16" />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">PRINCIPAL</span>
-                      <span className="text-xl font-extrabold text-[#043077]">Cafés</span>
+                      <span className="text-xs text-slate-500 font-black uppercase tracking-wide">PRINCIPAL</span>
+                      <span className="text-2xl font-black text-[#043077]">Cafés</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 pt-2 border-t border-slate-50">
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-[#043077]"></span> Capuchinos (40%)</div>
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Americanos (28%)</div>
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Postres (16%)</div>
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-amber-500"></span> Panadería (16%)</div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-2 border-t border-slate-50">
+                  <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-[#043077]"></span> Capuchinos (40%)</div>
+                  <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500"></span> Americanos (28%)</div>
+                  <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500"></span> Postres (16%)</div>
+                  <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500"></span> Panadería (16%)</div>
                 </div>
               </div>
 
@@ -384,26 +384,26 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
       case 'expenses':
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-white border border-slate-150 rounded-2xl">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">SERVICIOS FIJOS (LUZ/AGUA)</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">$4,080.00</span>
-                <span className="text-[10px] text-slate-400 font-mono block">Vencimiento: En 15 días</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl">
+                <span className="text-xs text-slate-400 font-extrabold block uppercase">SERVICIOS FIJOS (LUZ/AGUA)</span>
+                <span className="text-3xl font-black text-slate-900 mt-1 block">$4,080.00</span>
+                <span className="text-xs text-slate-500 font-mono block">Vencimiento: En 15 días</span>
               </div>
-              <div className="p-4 bg-white border border-slate-150 rounded-2xl">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">INSUMOS & PROVEEDORES</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">$18,450.20</span>
-                <span className="text-[10px] text-emerald-600 font-semibold font-mono block">80% Facturado con IVA</span>
+              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl">
+                <span className="text-xs text-slate-400 font-extrabold block uppercase">INSUMOS & PROVEEDORES</span>
+                <span className="text-3xl font-black text-slate-900 mt-1 block">$18,450.20</span>
+                <span className="text-xs text-emerald-600 font-bold font-mono block">80% Facturado con IVA</span>
               </div>
-              <div className="p-4 bg-white border border-slate-150 rounded-2xl">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">MANTENIMIENTOS</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">$980.00</span>
-                <span className="text-[10px] text-slate-400 font-mono block">Filtros de agua reemplazados</span>
+              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl">
+                <span className="text-xs text-slate-400 font-extrabold block uppercase">MANTENIMIENTOS</span>
+                <span className="text-3xl font-black text-slate-900 mt-1 block">$980.00</span>
+                <span className="text-xs text-slate-500 font-mono block">Filtros de agua reemplazados</span>
               </div>
             </div>
 
             <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm text-left space-y-4">
-              <h4 className="text-base font-bold text-slate-900">Historial Reciente de Egresos</h4>
+              <h4 className="text-md md:text-lg font-extrabold text-slate-900">Historial Reciente de Egresos</h4>
               <div className="space-y-3">
                 {[
                   { concept: 'Compra de Sacos de Café Arábiga', cat: 'Insumos', cost: '$6,400.00', date: '08 Jun 2026', method: 'Transferencia' },
@@ -411,14 +411,14 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                   { concept: 'Refacciones para Molino Italiano', cat: 'Mantenimiento', cost: '$980.00', date: '02 Jun 2026', method: 'Efectivo' },
                   { concept: 'Empaques de Muffin y Vasos Bio', cat: 'Insumos', cost: '$1,850.00', date: '28 May 2026', method: 'Transferencia' },
                 ].map((exp, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 rounded-xl hover:bg-slate-50 border border-slate-100 transition-colors">
+                  <div key={idx} className="flex justify-between items-center p-3.5 rounded-xl hover:bg-slate-50 border border-slate-100 transition-colors">
                     <div>
-                      <h5 className="text-xs font-bold text-slate-800">{exp.concept}</h5>
-                      <p className="text-[10px] text-slate-400 flex gap-2 mt-0.5">
+                      <h5 className="text-sm font-extrabold text-slate-800">{exp.concept}</h5>
+                      <p className="text-xs text-slate-500 flex gap-2.5 mt-1">
                         <span>{exp.date}</span>•<span>Categoria: {exp.cat}</span>•<span>{exp.method}</span>
                       </p>
                     </div>
-                    <span className="text-xs font-mono font-black text-red-600">-{exp.cost}</span>
+                    <span className="text-sm font-mono font-black text-red-600">-{exp.cost}</span>
                   </div>
                 ))}
               </div>
@@ -429,40 +429,40 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
       case 'client_accounts':
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
               
-              <div className="p-4 bg-white border border-slate-150 rounded-2xl text-left space-y-3">
+              <div className="p-5 bg-white border border-slate-150 rounded-2xl text-left space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-[#043077]">Ranking VIP de Clientes</span>
-                  <span className="text-[9px] font-mono text-slate-400">Total: 182 Registros</span>
+                  <span className="text-sm font-extrabold text-[#043077]">Ranking VIP de Clientes</span>
+                  <span className="text-xs font-mono text-slate-500">Total: 182 Registros</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {[
                     { name: 'Sofía Rodríguez', spent: '42 visitas', points: '14 Sellos Acumulados' },
                     { name: 'Gabriel Martínez', spent: '28 visitas', points: '9 Sellos Acumulados' },
                     { name: 'Carlos Mendoza', spent: '19 visitas', points: '4 Sellos Acumulados' },
                   ].map((vip, i) => (
-                    <div key={i} className="flex justify-between items-center p-2 rounded bg-slate-50 border-r-4 border-r-[#043077] text-left">
+                    <div key={i} className="flex justify-between items-center p-3 rounded-lg bg-slate-50 border-r-4 border-r-[#043077] text-left">
                       <div>
-                        <span className="text-xs font-bold text-slate-800 block">{vip.name}</span>
-                        <span className="text-[10px] text-slate-400">{vip.spent}</span>
+                        <span className="text-sm font-extrabold text-slate-800 block">{vip.name}</span>
+                        <span className="text-xs text-slate-500 mt-0.5">{vip.spent}</span>
                       </div>
-                      <span className="text-xs font-mono font-bold text-[#043077]">{vip.points}</span>
+                      <span className="text-sm font-mono font-bold text-[#043077]">{vip.points}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="p-4 bg-[#043077] text-white rounded-2xl text-left flex flex-col justify-between">
+              <div className="p-5 bg-[#043077] text-white rounded-2xl text-left flex flex-col justify-between">
                 <div>
-                  <Sparkles className="w-6 h-6 text-yellow-300 animate-pulse mb-2" />
-                  <h4 className="text-sm font-bold">Tarjeta Digital de Lealtad Activa</h4>
-                  <p className="text-xs text-blue-100/90 leading-relaxed mt-1">
+                  <Sparkles className="w-7 h-7 text-yellow-300 animate-pulse mb-3" />
+                  <h4 className="text-base font-extrabold">Tarjeta Digital de Lealtad Activa</h4>
+                  <p className="text-sm text-blue-100/90 leading-relaxed mt-2">
                     Cada 10 cafés consumidos por el cliente registrados en su perfil generan una bebida gratis de cortesía tamaño mediano de repostería.
                   </p>
                 </div>
-                <div className="pt-2">
-                  <span className="inline-block text-[10px] font-bold font-mono bg-white/20 px-3 py-1 rounded">
+                <div className="pt-3">
+                  <span className="inline-block text-xs font-bold font-mono bg-white/20 px-3.5 py-1.5 rounded">
                     Código de Promoción: CAFEVIP10
                   </span>
                 </div>
@@ -472,30 +472,30 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
 
             {/* Loyalty details list */}
             <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm text-left space-y-4">
-              <h4 className="text-base font-bold text-slate-900">Estado de Cuentas y Fidelidad</h4>
+              <h4 className="text-sm md:text-md font-extrabold text-slate-900">Estado de Cuentas y Fidelidad</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { name: 'Gabriela Martínez', activeStamps: 7, totalCofees: 32, phone: '55-1234-5678' },
                   { name: 'Héctor Vega', activeStamps: 1, totalCofees: 11, phone: '55-3456-7890' },
                 ].map((client, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 rounded-xl space-y-3 border border-slate-100">
+                  <div key={idx} className="p-3.5 bg-slate-50 rounded-xl space-y-3.5 border border-slate-100">
                     <div className="flex justify-between">
                       <div>
-                        <h5 className="text-xs font-bold text-slate-900">{client.name}</h5>
-                        <p className="text-[10px] text-slate-400">{client.phone}</p>
+                        <h5 className="text-sm font-extrabold text-slate-900">{client.name}</h5>
+                        <p className="text-xs text-slate-500">{client.phone}</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs font-bold text-slate-700 block">{client.totalCofees} consumidos</span>
+                        <span className="text-sm font-bold text-slate-700 block">{client.totalCofees} consumidos</span>
                       </div>
                     </div>
                     {/* Visual Stamp Card */}
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-[#043077] font-bold uppercase block font-mono">TARJETA DE SELLOS:</span>
-                      <div className="flex gap-1.5 flex-wrap">
+                    <div className="space-y-1.5">
+                      <span className="text-xs text-[#043077] font-black uppercase block font-mono">TARJETA DE SELLOS:</span>
+                      <div className="flex gap-2 flex-wrap">
                         {Array.from({ length: 10 }).map((_, stampIdx) => (
                           <div 
                             key={stampIdx} 
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
                               stampIdx < client.activeStamps 
                                 ? 'bg-gradient-to-tr from-[#043077] to-blue-600 text-white shadow-xs' 
                                 : 'bg-slate-200 text-slate-500'
@@ -519,11 +519,11 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
             <div className="p-5 rounded-2xl bg-white border border-slate-150 shadow-sm text-left space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-base font-bold text-slate-900">Mapa de Distribución y Rutas</h4>
-                  <p className="text-xs text-slate-400">Entrega de repostería fresca e insumos a sucursal y pedidos VIP</p>
+                  <h4 className="text-md md:text-lg font-extrabold text-slate-900">Mapa de Distribución y Rutas</h4>
+                  <p className="text-sm text-slate-500">Entrega de repostería fresca e insumos a sucursal y pedidos VIP</p>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <span className="inline-flex items-center gap-1.5 text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                <div className="flex items-center gap-2 text-sm font-mono">
+                  <span className="inline-flex items-center gap-1.5 text-blue-700 bg-blue-50 px-2.5 py-1.5 rounded">
                     <Truck className="w-3.5 h-3.5" /> Ruta Activa #1
                   </span>
                 </div>
@@ -537,34 +537,34 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                   <path d="M 40,110 C 180,30 280,150 480,90 T 700,100" />
                 </svg>
 
-                <div className="absolute top-18 left-8 bg-white p-2 rounded-lg border border-slate-200 text-[10px] font-bold shadow-sm flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#043077]" />
+                <div className="absolute top-18 left-8 bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-bold shadow-sm flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-[#043077]" />
                   <span>Matriz Surtiantojo</span>
                 </div>
 
-                <div className="absolute bottom-6 right-20 bg-white p-2 rounded-lg border border-slate-200 text-[10px] font-bold shadow-sm flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#043077]" />
+                <div className="absolute bottom-6 right-20 bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-bold shadow-sm flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-[#043077]" />
                   <span>Sucursal Norte (Carga #3)</span>
                 </div>
 
                 {/* Animated delivery truck representation marker */}
-                <div className="absolute left-[45%] top-[25%] p-1 rounded-full bg-gradient-to-tr from-[#043077] to-blue-600 text-white shadow-md animate-bounce">
-                  <Truck className="w-4 h-4" />
+                <div className="absolute left-[45%] top-[25%] p-1.5 rounded-full bg-gradient-to-tr from-[#043077] to-blue-600 text-white shadow-md animate-bounce">
+                  <Truck className="w-5 h-5" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl">
-                  <span className="text-slate-400 block tracking-wide font-bold uppercase text-[9px]">DIRECCIÓN ACTUAL</span>
-                  <span className="font-bold text-slate-800 mt-1 block">Calle 24 No. 402, Sucursal Norte</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="p-3.5 bg-slate-50 rounded-xl">
+                  <span className="text-slate-400 block tracking-wide font-black uppercase text-xs">DIRECCIÓN ACTUAL</span>
+                  <span className="font-extrabold text-slate-800 mt-1 block">Calle 24 No. 402, Sucursal Norte</span>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-xl">
-                  <span className="text-slate-400 block tracking-wide font-bold uppercase text-[9px]">AVANCE DE TRANSITO</span>
-                  <span className="font-bold text-slate-800 mt-1 block">2 / 3 Puntos Entregados</span>
+                <div className="p-3.5 bg-slate-50 rounded-xl">
+                  <span className="text-slate-400 block tracking-wide font-black uppercase text-xs">AVANCE DE TRANSITO</span>
+                  <span className="font-extrabold text-slate-800 mt-1 block">2 / 3 Puntos Entregados</span>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-xl">
-                  <span className="text-slate-400 block tracking-wide font-bold uppercase text-[9px]">ENVIOS DE REPOSTERÍA</span>
-                  <span className="font-bold text-slate-800 mt-1 block">82% Capacidad Camioneta</span>
+                <div className="p-3.5 bg-slate-50 rounded-xl">
+                  <span className="text-slate-400 block tracking-wide font-black uppercase text-xs">ENVIOS DE REPOSTERÍA</span>
+                  <span className="font-extrabold text-slate-800 mt-1 block">82% Capacidad Camioneta</span>
                 </div>
               </div>
             </div>
@@ -574,22 +574,22 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
       case 'maintenance':
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
               
-              <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-3">
-                <h4 className="text-sm font-bold text-slate-900">Salud General de Maquinaria</h4>
-                <div className="space-y-3">
+              <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
+                <h4 className="text-base font-extrabold text-slate-900">Salud General de Maquinaria</h4>
+                <div className="space-y-4">
                   {[
                     { machine: 'Máquina Espresso Italiana', health: 94, state: 'Excelente' },
                     { machine: 'Molino de Café Principal', health: 88, state: 'Óptimo' },
                     { machine: 'Refrigerador Vitrina Postres', health: 76, state: 'Revisión Filtro' },
                   ].map((mch, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-semibold text-slate-800">{mch.machine}</span>
-                        <span className="font-mono text-[#043077]">{mch.health}%</span>
+                    <div key={idx} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-bold text-slate-800">{mch.machine}</span>
+                        <span className="font-mono text-[#043077] font-black">{mch.health}%</span>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div className="bg-[#043077] h-full rounded-full" style={{ width: `${mch.health}%` }}></div>
                       </div>
                     </div>
@@ -597,15 +597,15 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
                 </div>
               </div>
 
-              <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-3">
-                <h4 className="text-sm font-bold text-slate-900">Programas de Limpieza Próximos</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 p-2 rounded bg-red-50 text-red-800 border-l-4 border-l-red-600 text-xs">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
+              <div className="p-5 bg-white border border-slate-150 rounded-2xl shadow-sm space-y-4">
+                <h4 className="text-base font-extrabold text-slate-900">Programas de Limpieza Próximos</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5 p-3 rounded-lg bg-red-50 text-red-800 border-l-4 border-l-red-600 text-sm font-bold">
+                    <AlertTriangle className="w-5 h-5 shrink-0" />
                     <span>Descalcificación Espresso es requerida en 12 días</span>
                   </div>
-                  <div className="flex items-center gap-2 p-2 rounded bg-amber-50 text-amber-800 border-l-4 border-l-amber-600 text-xs">
-                    <Clock className="w-4 h-4 shrink-0" />
+                  <div className="flex items-center gap-2.5 p-3 rounded-lg bg-amber-50 text-amber-800 border-l-4 border-l-amber-600 text-sm font-bold">
+                    <Clock className="w-5 h-5 shrink-0" />
                     <span>Calibración de muelas del molino: Fin de mes</span>
                   </div>
                 </div>
@@ -622,41 +622,41 @@ export default function ModulePlaceholder({ moduleId }: ModulePlaceholderProps) 
               
               <div className="flex flex-col sm:flex-row sm:items-center gap-5 justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#043077] to-blue-600 text-white font-extrabold text-xl flex items-center justify-center">
+                  <div className="w-18 h-18 rounded-full bg-gradient-to-tr from-[#043077] to-blue-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-xs">
                     GS
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Gerencia Surtiantojo</h3>
-                    <p className="text-xs text-[#043077] font-bold">Administrador General del Sistema</p>
-                    <p className="text-[10px] text-slate-400">Permisos Totales: Lectura, Escritura, Edición de Catálogos</p>
+                    <h3 className="text-xl font-extrabold text-slate-900">Gerencia Surtiantojo</h3>
+                    <p className="text-sm text-[#043077] font-extrabold">Administrador General del Sistema</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Permisos Totales: Lectura, Escritura, Edición de Catálogos</p>
                   </div>
                 </div>
-                <button className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors">
+                <button className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-extrabold rounded-xl transition-all">
                   Editar Información
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-sm">
                 <div className="space-y-3">
                   <div>
-                    <span className="text-slate-400 font-bold block uppercase text-[10px]">CORREO ACCESO</span>
-                    <span className="font-semibold text-slate-800">gerencia@surtiantojocafe.com</span>
+                    <span className="text-slate-400 font-extrabold block uppercase text-xs">CORREO ACCESO</span>
+                    <span className="font-extrabold text-slate-800">gerencia@surtiantojocafe.com</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 font-bold block uppercase text-[10px]">TELÉFONO DE CONTACTO</span>
-                    <span className="font-semibold text-slate-800">55-8422-9011</span>
+                    <span className="text-slate-400 font-extrabold block uppercase text-xs">TELÉFONO DE CONTACTO</span>
+                    <span className="font-extrabold text-slate-800">55-8422-9011</span>
                   </div>
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <span className="text-slate-400 font-bold block uppercase text-[10px]">ROL ASIGNADO</span>
-                    <span className="inline-flex items-center gap-1.5 text-xs text-white bg-[#043077] px-2 py-0.5 rounded font-mono font-bold uppercase">
-                      <Shield className="w-3 h-3" /> Superadministrador
+                    <span className="text-slate-400 font-extrabold block uppercase text-xs">ROL ASIGNADO</span>
+                    <span className="inline-flex items-center gap-1.5 text-xs text-white bg-[#043077] px-2.5 py-1 rounded font-mono font-bold uppercase mt-1">
+                      <Shield className="w-3.5 h-3.5" /> Superadministrador
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 font-bold block uppercase text-[10px]">ÚLTIMA SESIÓN</span>
-                    <span className="font-semibold text-slate-800">Hoy, 22:16 UTC desde Navegador Local</span>
+                    <span className="text-slate-400 font-extrabold block uppercase text-xs">ÚLTIMA SESIÓN</span>
+                    <span className="font-extrabold text-slate-800">Hoy, 22:16 UTC desde Navegador Local</span>
                   </div>
                 </div>
               </div>

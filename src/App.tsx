@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Menu, 
   X, 
@@ -16,10 +16,12 @@ import {
   Bell, 
   Coffee as CupIcon, 
   Clock,
-  ArrowRight
+  ArrowRight,
+  Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ModulePlaceholder from './components/ModulePlaceholder';
+import { supabase } from './lib/supabase';
 
 // Module structure matches requested Spanish names exactly
 const APP_MODULES = [
@@ -38,8 +40,40 @@ export default function App() {
   const [activeModule, setActiveModule] = useState<string>('metrics');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+
+  // Async connection verify ping to Supabase rest server
+  useEffect(() => {
+    async function checkSupabase() {
+      try {
+        const rawUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://kwumqqselehgrbppuoyu.supabase.co';
+        const rawKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+        
+        // Sanitize the endpoint for a base status ping
+        const urlObj = new URL(rawUrl);
+        const res = await fetch(`${urlObj.origin}/rest/v1/`, {
+          method: 'GET',
+          headers: {
+            'apikey': rawKey
+          }
+        });
+        
+        if (res.ok || res.status === 401 || res.status === 404) {
+          // Response received or API exists (401 means auth is alive, 200/other is success)
+          setDbStatus('connected');
+        } else {
+          setDbStatus('error');
+        }
+      } catch (err) {
+        console.error('Supabase query validation error:', err);
+        setDbStatus('error');
+      }
+    }
+    checkSupabase();
+  }, []);
 
   // Quick helper to close menu on mobile selection
+
   const selectModule = (id: string) => {
     setActiveModule(id);
     setIsMobileMenuOpen(false);
@@ -81,13 +115,33 @@ export default function App() {
               src="https://cotecam.com//surtiantojo.jpg" 
               alt="Surtiantojo Café Logo" 
               referrerPolicy="no-referrer"
-              className="h-12 w-auto object-contain transition-transform duration-300"
+              className="h-8 sm:h-9 max-w-[140px] w-auto object-contain transition-all duration-300"
             />
           </div>
 
           {/* Quick status bar display items */}
           <div className="flex items-center gap-3 md:gap-5">
             
+            {/* Supabase Status Indicator */}
+            <div 
+              id="supabase-status-badge"
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/15 transition-all px-3.5 py-1.5 rounded-full border border-white/20 cursor-help"
+              title="Supabase Backend Integrado"
+            >
+              <Database className={`w-3.5 h-3.5 ${
+                dbStatus === 'connected' ? 'text-emerald-400' : 
+                dbStatus === 'checking' ? 'text-blue-300 animate-pulse' : 'text-red-400'
+              }`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                dbStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 
+                dbStatus === 'checking' ? 'bg-blue-350 animate-pulse' : 'bg-red-400'
+              }`}></span>
+              <span className="text-[10px] sm:text-xs font-bold text-white tracking-tight">
+                {dbStatus === 'connected' ? 'Supabase' : 
+                 dbStatus === 'checking' ? 'Conectando...' : 'Error Supabase'}
+              </span>
+            </div>
+
             {/* Quick user avatar visual identifier */}
             <div id="header-user-badge" className="flex items-center gap-3 pl-3 border-l border-white/20">
               <div className="hidden md:flex flex-col items-end text-right">
@@ -136,13 +190,13 @@ export default function App() {
                       id={`sidebar-link-${mod.id}`}
                       onClick={() => selectModule(mod.id)}
                       title={mod.name}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-all duration-155 focus:outline-none text-sm ${
+                      className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-lg text-left transition-all duration-155 focus:outline-none text-base ${
                         isActive
-                          ? 'bg-blue-500/20 text-blue-200 font-semibold border-l-4 border-blue-400'
-                          : 'text-slate-300 hover:bg-white/5 hover:text-white transition-colors'
+                          ? 'bg-blue-500/20 text-blue-100 font-extrabold border-l-4 border-blue-400 shadow-xs'
+                          : 'text-slate-200 hover:bg-white/5 hover:text-white transition-colors'
                       }`}
                     >
-                      <IconComponent className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-300' : 'text-slate-400'}`} />
+                      <IconComponent className={`w-5.5 h-5.5 flex-shrink-0 ${isActive ? 'text-blue-300 font-bold' : 'text-slate-400'}`} />
                       {!isSidebarCollapsed && (
                         <div className="overflow-hidden truncate flex-1">
                           <span className="block leading-none">{mod.name}</span>
@@ -193,18 +247,12 @@ export default function App() {
               >
                 <div className="space-y-6">
                   
-                  {/* Drawer header with logo and close button */}
+                  {/* Drawer header with close button */}
                   <div className="flex items-center justify-between border-b border-white/10 pb-4">
                     <div className="flex items-center gap-2.5">
-                      <img 
-                        src="https://cotecam.com//surtiantojo.jpg" 
-                        alt="Surtiantojo Logo" 
-                        referrerPolicy="no-referrer"
-                        className="w-10 h-10 object-contain"
-                      />
                       <div>
-                        <span className="font-extrabold text-sm block font-display text-white">Surtiantojo Café</span>
-                        <span className="text-[10px] text-blue-200 font-mono font-bold uppercase tracking-wider block">Panel Móvil</span>
+                        <span className="font-extrabold text-lg block font-display text-white tracking-tight">Surtiantojo Café</span>
+                        <span className="text-xs text-blue-200 font-mono font-bold uppercase tracking-wider block">Panel de Control</span>
                       </div>
                     </div>
                     
@@ -226,13 +274,13 @@ export default function App() {
                           key={mod.id}
                           id={`mobile-sidebar-link-${mod.id}`}
                           onClick={() => selectModule(mod.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors focus:outline-none text-sm ${
+                          className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-lg text-left transition-colors focus:outline-none text-base ${
                             isActive
-                              ? 'bg-blue-500/20 text-blue-200 font-semibold border-l-4 border-blue-400'
-                              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                              ? 'bg-blue-500/20 text-blue-100 font-extrabold border-l-4 border-blue-300'
+                              : 'text-slate-200 hover:bg-white/5 hover:text-white'
                           }`}
                         >
-                          <IconComponent className="w-5 h-5 flex-shrink-0 text-slate-400" />
+                          <IconComponent className="w-5.5 h-5.5 flex-shrink-0 text-slate-300" />
                           <span className="flex-1 block truncate">{mod.name}</span>
                         </button>
                       );
@@ -259,8 +307,8 @@ export default function App() {
           {/* ELEGANT SERIF HEADER PRESCRIBED BY HIGH DENSITY SPEC - CLEANED OF DATE AND TIME AS REQUESTED */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-slate-200 pb-3">
             <div>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Surtiantojo Café Administration</p>
-              <h1 className="text-2xl font-bold text-slate-900 mt-1">
+              <p className="text-[#043077] text-xs font-bold uppercase tracking-wider font-mono">Surtiantojo Café Administration</p>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-1.5 font-display">
                 {activeModuleData.name}
               </h1>
             </div>
@@ -275,22 +323,22 @@ export default function App() {
           <div className="flex flex-col md:flex-row gap-4 mt-2">
             <div 
               onClick={() => selectModule('routes')}
-              className="flex-1 h-20 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
+              className="flex-1 h-24 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100/80 hover:to-indigo-100/80 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
             >
-              <div className="p-3 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-xl flex items-center justify-center shadow-sm">🚚</div>
+              <div className="p-3.5 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-2xl flex items-center justify-center shadow-sm">🚚</div>
               <div className="text-left">
-                <p className="text-xs font-black text-[#043077] uppercase tracking-wide">Gestión de Rutas</p>
-                <p className="text-xs text-slate-500 font-medium italic">Monitorear entrega e itinerarios activos...</p>
+                <p className="text-sm font-black text-[#043077] uppercase tracking-wide">Gestión de Rutas</p>
+                <p className="text-xs text-slate-500 font-medium italic mt-0.5">Monitorear entrega e itinerarios activos...</p>
               </div>
             </div>
             <div 
               onClick={() => selectModule('maintenance')}
-              className="flex-1 h-20 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
+              className="flex-1 h-24 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100/80 hover:to-indigo-100/80 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
             >
-              <div className="p-3 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-xl flex items-center justify-center shadow-sm">🛠️</div>
+              <div className="p-3.5 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-2xl flex items-center justify-center shadow-sm">🛠️</div>
               <div className="text-left">
-                <p className="text-xs font-black text-[#043077] uppercase tracking-wide">Mantenimiento Preventivo</p>
-                <p className="text-xs text-slate-500 font-medium italic">Calibrar molinos y presiones de grupo...</p>
+                <p className="text-sm font-black text-[#043077] uppercase tracking-wide">Mantenimiento Preventivo</p>
+                <p className="text-xs text-slate-500 font-medium italic mt-0.5">Calibrar molinos y presiones de grupo...</p>
               </div>
             </div>
           </div>
@@ -298,10 +346,10 @@ export default function App() {
           {/* INTERACTIVE NAVIGATION MAP (GUIDE TO SYSTEM) */}
           <section className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-[#043077]" />
-              <h3 className="font-bold text-slate-900 font-display">Mapa de Módulos Activos</h3>
+              <HelpCircle className="w-6 h-6 text-[#043077]" />
+              <h3 className="font-extrabold text-lg text-slate-900 font-display">Mapa de Módulos Activos</h3>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed max-w-3xl text-left">
+            <p className="text-sm text-slate-500 leading-relaxed max-w-3xl text-left">
               Este dashboard está diseñado con una estructura modular limpia. Para navegar entre los distintos espacios del negocio (Métricas, Productos, Surtido, etc.), usa la barra lateral en tu computador o despliega el menú móvil haciendo clic en el icono de hamburguesa en la esquina superior izquierda. 
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
@@ -309,14 +357,14 @@ export default function App() {
                 <button
                   key={m.id}
                   onClick={() => selectModule(m.id)}
-                  className={`p-3 rounded-xl border text-center transition-all ${
+                  className={`p-3.5 rounded-xl border text-center transition-all ${
                     m.id === activeModule 
-                      ? 'border-[#043077] bg-blue-50/50 text-[#043077] shadow-xs font-semibold' 
-                      : 'border-slate-100 hover:border-slate-250 bg-slate-50/40 text-slate-600'
+                      ? 'border-[#043077] bg-blue-50/50 text-[#043077] shadow-xs font-extrabold' 
+                      : 'border-slate-150 hover:border-slate-300 bg-slate-50/40 text-slate-700'
                   }`}
                 >
-                  <p className="text-xs truncate font-display font-medium leading-tight">{m.name}</p>
-                  <span className="text-[9px] text-[#043077]/80 font-mono mt-0.5 block font-bold capitalize">Módulo Activo</span>
+                  <p className="text-sm truncate font-display font-medium leading-tight">{m.name}</p>
+                  <span className="text-[10px] text-[#043077]/80 font-mono mt-0.5 block font-bold capitalize">Módulo Activo</span>
                 </button>
               ))}
             </div>
