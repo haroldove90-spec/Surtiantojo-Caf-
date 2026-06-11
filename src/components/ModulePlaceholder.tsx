@@ -494,7 +494,6 @@ export default function ModulePlaceholder({
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">$${safeVal(p.precio_sugerido).toFixed(2)}</td>
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #043077;">${safeVal(p.margen_ps_pct).toFixed(1)}%</td>
         <td style="padding: 10px 8px; font-size: 13px; color: #475569;">${p.forma_pago}</td>
-        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: ${p.existencias < 10 ? '#ef4444' : '#1e293b'};">${p.existencias} pzas</td>
         <td style="padding: 10px 8px; font-size: 12px; font-weight: bold;"><span style="background-color: ${p.status === 'Activo' ? '#dcfce7' : '#fee2e2'}; color: ${p.status === 'Activo' ? '#166534' : '#991b1b'}; padding: 2px 8px; border-radius: 9999px;">${p.status}</span></td>
         <td style="padding: 10px 8px; font-size: 11px; font-family: monospace; color: #64748b;">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : today}</td>
       </tr>
@@ -546,19 +545,18 @@ export default function ModulePlaceholder({
           </div>
         </div>
 
-        <table>
+         <table>
           <thead>
             <tr>
-              <th style="width: 26%">Producto</th>
+              <th style="width: 31%">Producto</th>
               <th style="width: 15%">Costo Caja / Unid</th>
               <th style="width: 10%">Venta</th>
               <th style="width: 9%">Margen</th>
-              <th style="width: 10%">Sugerido</th>
-              <th style="width: 10%">Margen Ps</th>
-              <th style="width: 10%">Pago</th>
-              <th style="width: 10%">Existencias</th>
-              <th style="width: 10%">Status</th>
-              <th style="text-align: right; width: 10%">Registro</th>
+              <th style="width: 11%">Sugerido</th>
+              <th style="width: 11%">Margen Ps</th>
+              <th style="width: 11%">Pago</th>
+              <th style="width: 11%">Status</th>
+              <th style="text-align: right; width: 11%">Registro</th>
             </tr>
           </thead>
           <tbody>
@@ -568,16 +566,16 @@ export default function ModulePlaceholder({
 
         <div class="metric-cards">
           <div class="metric-card">
-            <span class="metric-title">Valor Costo Inventario</span>
-            <span class="metric-value">$${itemsList.reduce((acc, p) => acc + (safeVal(p.precio_unidad) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span class="metric-title">Productos Registrados</span>
+            <span class="metric-value">${itemsList.length} ítems</span>
           </div>
           <div class="metric-card">
-            <span class="metric-title">Valor Comercial Ventas</span>
-            <span class="metric-value">$${itemsList.reduce((acc, p) => acc + (safeVal(p.precio_venta) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span class="metric-title">Productos Activos</span>
+            <span class="metric-value" style="color: #166534;">${itemsList.filter(p => p.status === 'Activo').length} ítems</span>
           </div>
           <div class="metric-card">
-            <span class="metric-title">Utilidad Bruta Proyectada</span>
-            <span class="metric-value" style="color: #16a34a;">$${itemsList.reduce((acc, p) => acc + ((safeVal(p.precio_venta) - safeVal(p.precio_unidad)) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span class="metric-title">Precio Promedio Venta</span>
+            <span class="metric-value">$${(itemsList.reduce((acc, p) => acc + safeVal(p.precio_venta), 0) / (itemsList.length || 1)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div class="metric-card">
             <span class="metric-title">Margen % Promedio</span>
@@ -599,7 +597,7 @@ export default function ModulePlaceholder({
     const headers = [
       'Código', 'Nombre del Producto', 'Proveedor', 'Piezas por Caja', 'Precio Caja', 'Precio Unitario', 'Precio Venta', 
       'Margen de ganancia %', 'Ganancia ($)', 'Precio Sugerido', 'Margen Ps %', 'Forma de Pago', 
-      'Status', 'Fecha Cambio Precio', 'Notas', 'Existencias',
+      'Status', 'Fecha Cambio Precio', 'Notas',
       'Fecha Registro'
     ];
     
@@ -624,7 +622,6 @@ export default function ModulePlaceholder({
         `"${p.status}"`,
         `"${p.cambio_precio_fecha}"`,
         `"${(p.notas || '').replace(/"/g, '""')}"`,
-        p.existencias,
         p.created_at ? new Date(p.created_at).toLocaleDateString() : today
       ].join(',');
     });
@@ -820,11 +817,11 @@ export default function ModulePlaceholder({
                 <span className="text-xs text-slate-400 mt-1 block">Catálogo registrado</span>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
-                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Stock Total</span>
+                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Productos Activos</span>
                 <span className="text-2xl font-black text-slate-800 mt-1 block">
-                  {products.reduce((acc, p) => acc + safeVal(p.existencias), 0)} pzas
+                  {products.filter(p => p.status === 'Activo').length} Items
                 </span>
-                <span className="text-xs text-slate-400 mt-1 block">Existencias acumuladas</span>
+                <span className="text-xs text-slate-400 mt-1 block">Disponibles al público</span>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
                 <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Margen Promedio</span>
@@ -837,11 +834,14 @@ export default function ModulePlaceholder({
                 <span className="text-xs text-slate-400 mt-1 block">Sincronizado al dashboard</span>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
-                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Valor Estimado</span>
+                <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Precio Promedio</span>
                 <span className="text-2xl font-black text-[#043077] mt-1 block">
-                  ${products.reduce((acc, p) => acc + (safeVal(p.precio_venta) * safeVal(p.existencias)), 0).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                  ${products.length > 0 
+                    ? (products.reduce((acc, p) => acc + safeVal(p.precio_venta), 0) / products.length).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                    : '0.0'
+                  }
                 </span>
-                <span className="text-xs text-slate-400 mt-1 block">Comercial de inventario</span>
+                <span className="text-xs text-slate-400 mt-1 block">Venta unitaria promedio</span>
               </div>
             </div>
 
@@ -960,7 +960,6 @@ export default function ModulePlaceholder({
                       <th className="py-4 px-4 text-slate-500 font-bold text-[#043077]">Pre. Sugerido</th>
                       <th className="py-4 px-4 text-slate-500 font-bold text-[#043077]">Margen Ps%</th>
                       <th className="py-4 px-4 text-slate-500">Métodos de Pago</th>
-                      <th className="py-4 px-4 text-slate-500">Existencias</th>
                       <th className="py-4 px-4 text-slate-500">Estado</th>
                       <th className="py-4 px-4 text-slate-500">Fecha Registro</th>
                       <th className="py-4 px-4 text-center text-slate-500">Acción</th>
@@ -969,14 +968,13 @@ export default function ModulePlaceholder({
                   <tbody className="divide-y divide-slate-100">
                     {filteredProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={12} className="py-12 text-center text-slate-500 font-medium">
+                        <td colSpan={11} className="py-12 text-center text-slate-500 font-medium">
                           No se encontraron productos registrados con los filtros aplicados.
                         </td>
                       </tr>
                     ) : (
                       filteredProducts.map((p) => {
                         const isChecked = !!selectedItems[p.id];
-                        const isStockLow = Number(p.existencias || 0) < 10;
                         const formattedRegisterDate = p.created_at 
                           ? new Date(p.created_at).toLocaleDateString() 
                           : new Date().toLocaleDateString();
@@ -1051,15 +1049,6 @@ export default function ModulePlaceholder({
                             <td className="py-3 px-4">
                               <span className="text-xs text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-md">
                                 {p.forma_pago}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`inline-flex items-center gap-1 text-xs font-extrabold px-2.5 py-1 rounded-md ${
-                                isStockLow 
-                                  ? 'bg-red-50 text-red-700 border border-red-200/40 animate-pulse' 
-                                  : 'bg-stone-50 text-slate-700'
-                              }`}>
-                                {p.existencias} pzas
                               </span>
                             </td>
                             <td className="py-3 px-4">
@@ -1490,7 +1479,6 @@ export default function ModulePlaceholder({
                               <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-right">Precio Unitario</th>
                               <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-right text-indigo-905 bg-indigo-50/50">Venta Pública</th>
                               <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-center text-emerald-905 bg-emerald-50/50">Margen Calculado</th>
-                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-center">Existencias</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-slate-200 min-h-0">
@@ -1504,7 +1492,6 @@ export default function ModulePlaceholder({
                                 <td className="px-4 py-2.5 text-xs font-mono text-right font-semibold">${p.precio_unidad.toFixed(2)}</td>
                                 <td className="px-4 py-2.5 text-xs font-mono text-right font-black text-indigo-700 bg-indigo-50/20">${p.precio_venta.toFixed(2)}</td>
                                 <td className="px-4 py-2.5 text-xs font-mono text-center font-black text-emerald-700 bg-emerald-50/20">{p.margen_pct.toFixed(1)}%</td>
-                                <td className="px-4 py-2.5 text-xs font-mono text-center font-bold">{p.existencias} pzas</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1602,23 +1589,24 @@ export default function ModulePlaceholder({
 
                     <div className="space-y-4 text-sm">
                       
-                      {/* Cost and inventory values card block */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                          <span className="text-xs text-slate-400 font-extrabold block uppercase">Precio Unitario</span>
-                          <span className="text-base font-extrabold text-slate-800 font-mono">${safeVal(viewingItem.precio_unidad).toFixed(2)}</span>
-                          <div className="text-[11px] text-slate-400 font-mono mt-0.5 space-y-0.5">
-                            <div>Por caja: ${safeVal(viewingItem.precio_caja).toFixed(2)}</div>
-                            {safeVal(viewingItem.piezas_por_caja) > 0 && (
-                              <div>Piezas por caja: {safeVal(viewingItem.piezas_por_caja)}</div>
-                            )}
+                      {/* Cost values card block */}
+                      <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                        <span className="text-xs text-slate-400 font-extrabold block uppercase">Costo y Presentación</span>
+                        <div className="flex flex-wrap justify-between items-center mt-1">
+                          <div>
+                            <span className="text-xs text-slate-500 font-bold block">Precio Unitario:</span>
+                            <span className="text-base font-extrabold text-slate-800 font-mono">${safeVal(viewingItem.precio_unidad).toFixed(2)}</span>
                           </div>
-                        </div>
-                        <div className="p-3 bg-[#043077]/5 border border-slate-100 rounded-xl">
-                          <span className="text-xs text-slate-400 font-extrabold block uppercase">Existencias en Almacén</span>
-                          <span className={`text-base font-extrabold font-mono ${safeVal(viewingItem.existencias) < 10 ? 'text-red-600' : 'text-slate-800'}`}>
-                            {safeVal(viewingItem.existencias)} piezas
-                          </span>
+                          <div>
+                            <span className="text-xs text-slate-500 font-bold block">Precio Caja Costo:</span>
+                            <span className="text-base font-extrabold text-slate-800 font-mono">${safeVal(viewingItem.precio_caja).toFixed(2)}</span>
+                          </div>
+                          {safeVal(viewingItem.piezas_por_caja) > 0 && (
+                            <div>
+                              <span className="text-xs text-slate-500 font-bold block">Piezas por caja:</span>
+                              <span className="text-base font-extrabold text-slate-800 font-mono">{safeVal(viewingItem.piezas_por_caja)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
