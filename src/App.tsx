@@ -42,10 +42,25 @@ const APP_MODULES = [
 const INITIAL_PRODUCTS : any[] = [];
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState<string>('metrics');
+  const [activeModule, setActiveModule] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_active_module');
+      if (stored && APP_MODULES.some(m => m.id === stored)) {
+        return stored;
+      }
+    } catch (e) {}
+    return 'metrics';
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+
+  // Sync active module to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_active_module', activeModule);
+    } catch (e) {}
+  }, [activeModule]);
   
   // Real active catalog of products state - Purges the old sample IDs in case they are stored
   const [products, setProducts] = useState<any[]>(() => {
