@@ -123,6 +123,88 @@ export default function App() {
     checkSupabase();
   }, []);
 
+  // Helper to map robust product objects into the restricted Supabase 'products' table columns
+  const mapProductToSupabase = (p: any) => {
+    return {
+      id: p.id,
+      nombre: p.nombre || '',
+      precio: Number(p.precio_venta || 0),
+      categoria: 'json:' + JSON.stringify({
+        codigo: p.codigo || '',
+        proveedor: p.proveedor || '',
+        piezas_por_caja: Number(p.piezas_por_caja || 0),
+        precio_caja: Number(p.precio_caja || 0),
+        precio_unidad: Number(p.precio_unidad || 0),
+        status: p.status || 'Activo',
+        forma_pago: p.forma_pago || 'Efectivo',
+        precio_venta: Number(p.precio_venta || 0),
+        margen_pct: Number(p.margen_pct || 0),
+        precio_sugerido: Number(p.precio_sugerido || 0),
+        margen_ps_pct: Number(p.margen_ps_pct || 0),
+        cambio_precio_fecha: p.cambio_precio_fecha || '',
+        notas: p.notas || '',
+        resorte_usa: p.resorte_usa || '',
+        existencias: Number(p.existencias || 0)
+      }),
+      popularidad_ventas: p.proveedor || '',
+      disponible: p.status !== 'Inactivo',
+      creado_en: p.created_at || new Date().toISOString()
+    };
+  };
+
+  // Helper to parse database rows back into robust product objects
+  const mapProductFromSupabase = (dbRow: any) => {
+    const base = {
+      id: dbRow.id,
+      nombre: dbRow.nombre || '',
+      precio_venta: Number(dbRow.precio || 0),
+      created_at: dbRow.creado_en || dbRow.creado_en || new Date().toISOString()
+    };
+
+    if (dbRow.categoria && dbRow.categoria.startsWith('json:')) {
+      try {
+        const parsed = JSON.parse(dbRow.categoria.substring(5));
+        return {
+          ...base,
+          ...parsed,
+          // Guarantee numbers and string values
+          piezas_por_caja: Number(parsed.piezas_por_caja || 0),
+          precio_caja: Number(parsed.precio_caja || 0),
+          precio_unidad: Number(parsed.precio_unidad || 0),
+          precio_venta: Number(parsed.precio_venta || base.precio_venta || 0),
+          margen_pct: Number(parsed.margen_pct || 0),
+          precio_sugerido: Number(parsed.precio_sugerido || 0),
+          margen_ps_pct: Number(parsed.margen_ps_pct || 0),
+          existencias: Number(parsed.existencias || 0)
+        };
+      } catch (e) {
+        console.error("Failed to parse nested json from category column:", e);
+      }
+    }
+
+    // fallback for normal rows
+    return {
+      id: dbRow.id,
+      nombre: dbRow.nombre || '',
+      codigo: '',
+      proveedor: dbRow.popularidad_ventas || '',
+      piezas_por_caja: 0,
+      precio_caja: 0,
+      precio_unidad: Number(dbRow.precio || 0),
+      status: dbRow.disponible ? 'Activo' : 'Inactivo',
+      forma_pago: 'Efectivo',
+      precio_venta: Number(dbRow.precio || 0),
+      margen_pct: 0,
+      precio_sugerido: Number(dbRow.precio || 0),
+      margen_ps_pct: 0,
+      cambio_precio_fecha: new Date().toISOString().split('T')[0],
+      notas: '',
+      resorte_usa: '',
+      existencias: 10,
+      created_at: dbRow.creado_en || new Date().toISOString()
+    };
+  };
+
   // Sync from Supabase table on load if status is 'connected'
   useEffect(() => {
     async function loadFromSupabase() {
@@ -138,7 +220,9 @@ export default function App() {
         }
         
         if (data && data.length > 0) {
-          const filtered = data.filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3");
+          const filtered = data
+            .filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3")
+            .map(mapProductFromSupabase);
           setProducts(filtered);
           
           // Proactively delete any sample items with IDs "1", "2", "3" from Supabase if we found them
@@ -173,7 +257,8 @@ export default function App() {
 
     try {
       if (dbStatus === 'connected') {
-        const { error } = await supabase.from('products').insert([fresh]);
+        const mapped = mapProductToSupabase(fresh);
+        const { error } = await supabase.from('products').insert([mapped]);
         if (error) console.warn("Supabase database insert warning:", error);
       }
     } catch (err) {
@@ -182,11 +267,19 @@ export default function App() {
   };
 
   const handleUpdateProduct = async (id: string, updatedFields: any) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+    let freshFullItem: any = null;
+    setProducts(prev => prev.map(p => {
+      if (p.id === id) {
+        freshFullItem = { ...p, ...updatedFields };
+        return freshFullItem;
+      }
+      return p;
+    }));
 
     try {
-      if (dbStatus === 'connected') {
-        const { error } = await supabase.from('products').update(updatedFields).eq('id', id);
+      if (dbStatus === 'connected' && freshFullItem) {
+        const mapped = mapProductToSupabase(freshFullItem);
+        const { error } = await supabase.from('products').update(mapped).eq('id', id);
         if (error) console.warn("Supabase database update warning:", error);
       }
     } catch (err) {

@@ -399,7 +399,7 @@ export default function ModulePlaceholder({
   const handleExcelExport = (itemsList: any[]) => {
     const headers = [
       'Código', 'Nombre del Producto', 'Proveedor', 'Piezas por Caja', 'Precio Caja', 'Precio Unitario', 'Precio Venta', 
-      'Margen de ganancia ($)', 'Margen %', 'Precio Sugerido', 'Margen Ps %', 'Forma de Pago', 
+      'Margen de ganancia %', 'Ganancia ($)', 'Precio Sugerido', 'Margen Ps %', 'Forma de Pago', 
       'Status', 'Fecha Cambio Precio', 'Notas', 'Existencias',
       'Fecha Registro'
     ];
@@ -417,8 +417,8 @@ export default function ModulePlaceholder({
         p.precio_caja,
         p.precio_unidad,
         p.precio_venta,
-        profitMargin,
         p.margen_pct,
+        profitMargin,
         p.precio_sugerido,
         p.margen_ps_pct,
         `"${p.forma_pago}"`,
@@ -1119,25 +1119,24 @@ export default function ModulePlaceholder({
                               className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-extrabold font-mono"
                             />
                           </div>
-                          <span className="text-[10px] text-emerald-600 font-black mt-1.5 block">
-                            MARGEN %: {form.margen_pct}%
+                          <span className="text-[10px] text-emerald-600 font-bold mt-1.5 block">
+                            Precio al público actual
                           </span>
                         </div>
 
                         <div>
                           <label className="text-xs font-black text-slate-600 block mb-1">Margen de ganancia</label>
                           <div className="relative">
-                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
                             <input
                               type="text"
                               readOnly
                               disabled
-                              value={safeVal(form.precio_venta - form.precio_unidad).toFixed(2)}
-                              className="w-full bg-slate-100/80 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm text-emerald-800 font-extrabold font-mono"
+                              value={`${form.margen_pct}%`}
+                              className="w-full bg-slate-100/80 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-emerald-800 font-extrabold font-mono"
                             />
                           </div>
-                          <span className="text-[10px] text-slate-400 font-medium mt-1.5 block">
-                            Ganancia neta (Pesos)
+                          <span className="text-[10px] text-emerald-600 font-bold mt-1.5 block">
+                            Porcentaje de ganancia calculado
                           </span>
                         </div>
 
@@ -1180,6 +1179,18 @@ export default function ModulePlaceholder({
                           placeholder="Notas internas, detalles del producto o comentarios..."
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
                         ></textarea>
+                      </div>
+
+                      {/* Resorte que usa (Movido después de Notas) */}
+                      <div>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Resorte de uso cafetera</label>
+                        <input
+                          type="text"
+                          value={form.resorte_usa}
+                          onChange={(e) => handleFormChange('resorte_usa', e.target.value)}
+                          placeholder="Ej: Resorte calibrado IMS 58mm"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
+                        />
                       </div>
 
                     </form>
@@ -1293,15 +1304,15 @@ export default function ModulePlaceholder({
                         </div>
                       </div>
 
-                      {/* Margen de ganancia absoluto */}
+                      {/* Margen de ganancia */}
                       <div className="pt-2">
                         <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                          <span className="text-xs text-emerald-700 font-extrabold block uppercase">Margen de ganancia (Pesos)</span>
+                          <span className="text-xs text-emerald-700 font-extrabold block uppercase">Margen de ganancia</span>
                           <span className="text-lg font-black text-emerald-800 font-mono">
-                            ${(safeVal(viewingItem.precio_venta) - safeVal(viewingItem.precio_unidad)).toFixed(2)}
+                            {safeVal(viewingItem.margen_pct).toFixed(1)}%
                           </span>
                           <span className="text-[10px] text-emerald-600 block mt-0.5">
-                            Ganancia neta directa por cada unidad vendida.
+                            Ganancia neta directa de ${(safeVal(viewingItem.precio_venta) - safeVal(viewingItem.precio_unidad)).toFixed(2)} pesos por unidad.
                           </span>
                         </div>
                       </div>
@@ -1330,6 +1341,15 @@ export default function ModulePlaceholder({
                           <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100/50 mt-1 italic leading-relaxed">
                             "{viewingItem.notas}"
                           </p>
+                        </div>
+                      )}
+
+                      {viewingItem.resorte_usa && (
+                        <div className="border-t border-slate-100 pt-3">
+                          <span className="text-xs text-slate-400 font-extrabold block">Resorte de uso cafetera</span>
+                          <span className="font-extrabold text-slate-700 text-xs block mt-1">
+                            {viewingItem.resorte_usa}
+                          </span>
                         </div>
                       )}
 
