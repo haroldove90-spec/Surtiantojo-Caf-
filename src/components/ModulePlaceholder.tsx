@@ -362,35 +362,60 @@ export default function ModulePlaceholder({
         const rawHeaders = scoredLines[finalHeaderIdx];
         const headers = rawHeaders.map(cleanHeader);
 
-        // Find match in column mapping index
+        // Find match in column mapping index with a smart multi-pass algorithm
         const colMap: Record<string, number> = {};
         const headerKeywords: Record<string, string[]> = {
-          codigo: ['codigo', 'code', 'idprod', 'codigobarras'],
-          nombre: ['nombre', 'nombredelproducto', 'producto', 'name', 'item'],
-          proveedor: ['proveedor', 'provider', 'marca', 'brand'],
-          piezas_por_caja: ['piezasporcaja', 'pzascaja', 'piezas', 'piezas_por_caja', 'unidadesporcaja', 'pzasporcaja', 'pzas'],
-          precio_caja: ['preciocaja', 'precio_caja', 'costocaja', 'costo_caja', 'preciodebox'],
-          precio_unidad: ['preciounitario', 'preciounidad', 'costounitario', 'precio_unidad', 'precio_unitario'],
-          precio_venta: ['precioventa', 'precio_venta', 'venta', 'precioalpublico'],
-          margen_pct: ['margenpct', 'margen', 'margengana', 'margendeganancia'],
-          precio_sugerido: ['preciosugerido', 'sugerido', 'precio_sugerido'],
-          margen_ps_pct: ['margenpspct', 'margenps', 'margenpass', 'margen_ps_pct'],
-          forma_pago: ['formadepago', 'formapago', 'metododepago', 'pago', 'formapago'],
-          status: ['status', 'estado', 'disponible'],
-          notas: ['notas', 'descripcion', 'detalles', 'comentarios'],
-          resorte_usa: ['resorte', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa', 'resortequeusa'],
+          codigo: ['codigo', 'codigo', 'cod', 'barcode', 'barras', 'ref', 'sku', 'id', 'code', 'idprod', 'codigobarras', 'codigos'],
+          nombre: ['nombre', 'nombredelproducto', 'producto', 'name', 'item', 'descripcionproducto'],
+          proveedor: ['proveedor', 'provider', 'marca', 'brand', 'fabricante', 'distribuidor'],
+          piezas_por_caja: ['piezasporcaja', 'pzascaja', 'piezas', 'piezas_por_caja', 'unidadesporcaja', 'pzasporcaja', 'pzas', 'caja_piezas'],
+          precio_caja: ['preciocaja', 'precio_caja', 'costocaja', 'costo_caja', 'preciodebox', 'costo_por_caja'],
+          precio_unidad: ['preciounitario', 'preciounidad', 'costounitario', 'precio_unidad', 'precio_unitario', 'costo_unitario'],
+          precio_venta: ['precioventa', 'precio_venta', 'venta', 'precioalpublico', 'precio_de_venta'],
+          margen_pct: ['margenpct', 'margen', 'margengana', 'margendeganancia', 'margen_ganancia'],
+          precio_sugerido: ['preciosugerido', 'sugerido', 'precio_sugerido', 'precio_recom', 'sugerido_precio'],
+          margen_ps_pct: ['margenpspct', 'margenps', 'margenpass', 'margen_ps_pct', 'margen_sugerido'],
+          forma_pago: ['formadepago', 'formapago', 'metododepago', 'pago', 'forma_de_pago'],
+          status: ['status', 'estado', 'disponible', 'habilitado'],
+          notas: ['notas', 'descripcion', 'detalles', 'comentarios', 'observaciones'],
+          resorte_usa: ['resorte', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa', 'resortequeusa', 'resortes'],
           cambio_precio_fecha: ['cambiodeprecio', 'cambiodepreciofecha', 'fechadecambio', 'cambioprecio']
         };
 
+        // Pass 1: Exact matches or direct includes
         headers.forEach((h, idx) => {
           for (const [key, list] of Object.entries(headerKeywords)) {
-            if (list.includes(h) || h.indexOf(key) !== -1 || list.some(k => h.indexOf(k) !== -1)) {
-              if (colMap[key] === undefined) {
+            if (colMap[key] === undefined) {
+              if (h === key || list.includes(h)) {
                 colMap[key] = idx;
               }
             }
           }
         });
+
+        // Pass 2: Fuzzy keyword matches
+        headers.forEach((h, idx) => {
+          for (const [key, list] of Object.entries(headerKeywords)) {
+            if (colMap[key] === undefined) {
+              const matchedKey = h.indexOf(key) !== -1 || list.some(k => h.indexOf(k) !== -1 || k.indexOf(h) !== -1);
+              if (matchedKey) {
+                colMap[key] = idx;
+              }
+            }
+          }
+        });
+
+        // Pass 3: Smart fallbacks for crucial fields
+        if (colMap['codigo'] === undefined && headers.length > 0) {
+          // Look for any header that sounds like code
+          const foundIdx = headers.findIndex(h => h.includes('cod') || h.includes('id') || h.includes('ref') || h.includes('sku') || h.includes('code'));
+          if (foundIdx !== -1) {
+            colMap['codigo'] = foundIdx;
+          } else if (colMap['nombre'] !== 0) {
+            // Default to first column if it's not the product name
+            colMap['codigo'] = 0;
+          }
+        }
 
         const initialItems = processRowsWithMap(scoredLines, colMap, finalHeaderIdx);
 
@@ -560,8 +585,12 @@ export default function ModulePlaceholder({
   // Filtered computed list
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      const matchesSearch = p.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            (p.notas || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q ||
+                            (p.nombre || '').toLowerCase().includes(q) || 
+                            (p.codigo || '').toLowerCase().includes(q) || 
+                            (p.proveedor || '').toLowerCase().includes(q) || 
+                            (p.notas || '').toLowerCase().includes(q);
       
       const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
       const matchesPago = pagoFilter === 'all' || p.forma_pago === pagoFilter;
@@ -1014,40 +1043,50 @@ export default function ModulePlaceholder({
             </div>
 
             {/* Filter and controls bar */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col gap-4">
+              
+              {/* Row 1: Search and Dropdowns (Full Width & Dynamic Search Optioning) */}
+              <div className="flex flex-col lg:flex-row gap-3 w-full">
                 
                 {/* Search input field */}
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-[280px]">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar producto por nombre o notas..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#043077] transition-all text-slate-800"
+                    placeholder="Buscar producto por nombre, código, proveedor o marca..."
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#043077] focus:ring-1 focus:ring-[#043077] transition-all text-slate-800 font-medium shadow-2xs"
                   />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none text-xs bg-slate-200/50 hover:bg-slate-200 px-1.5 py-0.5 rounded-md"
+                    >
+                      Limpiar
+                    </button>
+                  )}
                 </div>
 
                 {/* Status Dropdown filter */}
-                <div className="relative">
+                <div className="relative min-w-[160px]">
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full sm:w-40 appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] pr-8 text-slate-700 font-bold"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-700 font-bold transition-all shadow-2xs"
                   >
-                    <option value="all">💳 Todos los Estados</option>
-                    <option value="Activo">🟢 Activos</option>
-                    <option value="Inactivo">🔴 Inactivos</option>
+                    <option value="all">🟢 Todos los Estados</option>
+                    <option value="Activo">🟢 Habilitado / Activo</option>
+                    <option value="Inactivo">🔴 Deshabilitado / F/O</option>
                   </select>
                 </div>
 
                 {/* Forma de pago filter */}
-                <div className="relative">
+                <div className="relative min-w-[165px]">
                   <select
                     value={pagoFilter}
                     onChange={(e) => setPagoFilter(e.target.value)}
-                    className="w-full sm:w-44 appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] pr-8 text-slate-700 font-bold"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-700 font-bold transition-all shadow-2xs"
                   >
                     <option value="all">💵 Modos de Pago</option>
                     <option value="Efectivo">💵 Efectivo</option>
@@ -1057,46 +1096,56 @@ export default function ModulePlaceholder({
 
               </div>
 
-              {/* PDF - Excel outputs and Add Product Button */}
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept=".csv"
-                  onChange={handleImportCSV}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-blue-200 hover:bg-blue-50 text-blue-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider animated-subtle-pulse"
-                  title="Importar productos desde un archivo Excel (CSV)"
-                >
-                  <Download className="w-4 h-4 rotate-180 text-blue-600" /> Importar Excel/CSV
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExcelExport(filteredProducts)}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-emerald-200 hover:bg-emerald-50 text-emerald-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider"
-                  title="Exportar registros actuales a archivo excel CSV"
-                >
-                  <FileSpreadsheet className="w-4 h-4" /> Excel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePdfExport(filteredProducts)}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-red-200 hover:bg-red-50 text-red-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider"
-                  title="Exportar reporte de catálogo pdf oficial con logotipo"
-                >
-                  <FileText className="w-4 h-4" /> PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={openAddForm}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-[#043077] hover:opacity-90 active:scale-95 text-white text-xs font-black transition-all shadow-sm uppercase tracking-wider cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" /> Registrar Producto
-                </button>
+              {/* Row 2: Metadata counters and exports/actions */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                
+                {/* Result count metadata */}
+                <div className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                  Resultados: <span className="text-[#043077] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">{filteredProducts.length}</span> de <span className="text-slate-600">{products.length}</span> registrados
+                </div>
+
+                {/* PDF - Excel outputs and Add Product Button */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".csv"
+                    onChange={handleImportCSV}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-blue-200 hover:bg-blue-50 text-blue-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider"
+                    title="Importar productos desde un archivo Excel (CSV)"
+                  >
+                    <Download className="w-4 h-4 rotate-180 text-blue-600" /> Importar Excel/CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExcelExport(filteredProducts)}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-emerald-200 hover:bg-emerald-50 text-emerald-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider"
+                    title="Exportar registros actuales a archivo excel CSV"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 animate-pulse" /> Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePdfExport(filteredProducts)}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-red-200 hover:bg-red-50 text-red-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider"
+                    title="Exportar reporte de catálogo pdf oficial con logotipo"
+                  >
+                    <FileText className="w-4 h-4" /> PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openAddForm}
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-[#043077] hover:opacity-90 active:scale-95 text-white text-xs font-black transition-all shadow-sm uppercase tracking-wider cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Registrar Producto
+                  </button>
+                </div>
+
               </div>
 
             </div>

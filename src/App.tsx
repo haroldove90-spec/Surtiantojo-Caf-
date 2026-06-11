@@ -302,7 +302,13 @@ export default function App() {
             .filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3")
             .map(mapProductFromSupabase)
             .filter((p: any) => !delArr.includes(p.id));
-          setProducts(filtered);
+          
+          // Merge local products (which may have been successfully imported but failed to save in Supabase due to initial RLS rules)
+          setProducts(prev => {
+            const existingIds = new Set(filtered.map(p => p.id));
+            const localOnly = prev.filter(p => p && p.id && !existingIds.has(p.id) && !delArr.includes(p.id));
+            return [...filtered, ...localOnly];
+          });
           
           // Proactively delete any sample items with IDs "1", "2", "3" from Supabase if we found them
           const hasSamples = data.some((p: any) => p && ["1", "2", "3"].includes(p.id));
