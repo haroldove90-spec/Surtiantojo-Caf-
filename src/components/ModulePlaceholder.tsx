@@ -41,6 +41,7 @@ interface ModulePlaceholderProps {
   moduleId: string;
   products?: any[];
   onAddProduct?: (product: any) => Promise<void>;
+  onAddProducts?: (productsList: any[]) => Promise<void>;
   onUpdateProduct?: (id: string, product: any) => Promise<void>;
   onDeleteProduct?: (id: string) => Promise<void>;
 }
@@ -49,6 +50,7 @@ export default function ModulePlaceholder({
   moduleId,
   products = [],
   onAddProduct,
+  onAddProducts,
   onUpdateProduct,
   onDeleteProduct
 }: ModulePlaceholderProps) {
@@ -80,7 +82,7 @@ export default function ModulePlaceholder({
   } | null>(null);
   const [isImportingProgress, setIsImportingProgress] = useState(false);
 
-  // Parse custom CSV format
+  // Parse custom CSV format with automatic Excel-friendly detection, header scoring & margin reconstruction
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -98,12 +100,25 @@ export default function ModulePlaceholder({
           return;
         }
 
-        // Parse header row
-        const headersLine = lines[0];
-        // Clean BOM if present
-        const cleanHeaderRow = headersLine.startsWith('\uFEFF') ? headersLine.substring(1) : headersLine;
+        // 1. Detect delimiter (comma, semicolon or tab)
+        const detectDelimiter = (textStr: string): string => {
+          const sampleLines = textStr.split(/\r?\n/).slice(0, 15).filter(l => l.trim().length > 0);
+          let commaCount = 0;
+          let semiCount = 0;
+          let tabCount = 0;
+          for (const line of sampleLines) {
+            commaCount += (line.match(/,/g) || []).length;
+            semiCount += (line.match(/;/g) || []).length;
+            tabCount += (line.match(/\t/g) || []).length;
+          }
+          if (semiCount > commaCount && semiCount > tabCount) return ';';
+          if (tabCount > commaCount && tabCount > semiCount) return '\t';
+          return ',';
+        };
         
-        // Custom parser line for CSV quotes and commas
+        const delimiter = detectDelimiter(text);
+
+        // 2. CSV Line parser with dynamic delimiter & quote awareness
         const parseCSVLine = (line: string): string[] => {
           const result: string[] = [];
           let current = '';
@@ -117,7 +132,7 @@ export default function ModulePlaceholder({
               } else {
                 inQuotes = !inQuotes;
               }
-            } else if (char === ',' && !inQuotes) {
+            } else if (char === delimiter && !inQuotes) {
               result.push(current.trim());
               current = '';
             } else {
@@ -128,9 +143,6 @@ export default function ModulePlaceholder({
           return result;
         };
 
-        const rawHeaders = parseCSVLine(cleanHeaderRow);
-        
-        // Clean and normalize headers
         const cleanHeader = (h: string) => {
           return h.toLowerCase()
             .normalize("NFD")
@@ -139,11 +151,39 @@ export default function ModulePlaceholder({
             .trim();
         };
 
+        // 3. Score first 15 lines to find where the actual header is (since Excel sheets can have notes/instructions at the top)
+        const scoredLines = lines.map(line => parseCSVLine(line));
+        let headerIdx = -1;
+        let maxScore = -1;
+        
+        const headerKeywordsSearch = [
+          'codigo', 'producto', 'nombre', 'venta', 'margen', 'sugerido', 'pago', 'notas', 'resorte'
+        ];
+        
+        for (let i = 0; i < Math.min(scoredLines.length, 15); i++) {
+          const parsedCols = scoredLines[i];
+          let score = 0;
+          for (const col of parsedCols) {
+            const cleanCol = cleanHeader(col);
+            for (const keyword of headerKeywordsSearch) {
+              if (cleanCol.includes(keyword)) {
+                score++;
+                break;
+              }
+            }
+          }
+          if (score > maxScore && score >= 2) {
+            maxScore = score;
+            headerIdx = i;
+          }
+        }
+        
+        const finalHeaderIdx = headerIdx !== -1 ? headerIdx : 0;
+        const rawHeaders = scoredLines[finalHeaderIdx];
         const headers = rawHeaders.map(cleanHeader);
 
         // Find match in column mapping index
         const colMap: Record<string, number> = {};
-        
         const headerKeywords: Record<string, string[]> = {
           codigo: ['codigo', 'code', 'idprod', 'codigobarras'],
           nombre: ['nombre', 'nombredelproducto', 'producto', 'name', 'item'],
@@ -155,10 +195,9 @@ export default function ModulePlaceholder({
           margen_pct: ['margenpct', 'margen', 'margengana', 'margendeganancia'],
           precio_sugerido: ['preciosugerido', 'sugerido', 'precio_sugerido'],
           margen_ps_pct: ['margenpspct', 'margenps', 'margenpass', 'margen_ps_pct'],
-          forma_pago: ['formadepago', 'formapago', 'metododepago', 'pago'],
+          forma_pago: ['formadepago', 'formapago', 'metododepago', 'pago', 'formapago'],
           status: ['status', 'estado', 'disponible'],
           notas: ['notas', 'descripcion', 'detalles', 'comentarios'],
-          existencias: ['existencias', 'existencia', 'inventario', 'stock', 'cantidad'],
           resorte_usa: ['resorte', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa']
         };
 
@@ -172,43 +211,86 @@ export default function ModulePlaceholder({
           }
         });
 
+        // Robust number parsing with currency sign and comma decimal safety
+        const cleanNumberStr = (str: string): string => {
+          if (!str) return '0';
+          let clean = str.trim();
+          
+          // Remove currency characters, blank spaces, % signs or any garbage text
+          clean = clean.replace(/[^0-9.,-]/g, '').trim();
+          if (!clean) return '0';
+          
+          if (clean.includes(',') && !clean.includes('.')) {
+            // e.g. "20,50" -> "20.50"
+            clean = clean.replace(',', '.');
+          } else if (clean.includes(',') && clean.includes('.')) {
+            // e.g. "1,234.50" -> remove comma -> "1234.50"
+            clean = clean.replace(/,/g, '');
+          }
+          return clean;
+        };
+
+        const parseNumber = (str: string): number => {
+          const val = parseFloat(cleanNumberStr(str));
+          return isNaN(val) ? 0 : val;
+        };
+
         const parsedItems: any[] = [];
 
-        // Parse each actual row
-        for (let i = 1; i < lines.length; i++) {
-          const rowData = parseCSVLine(lines[i]);
+        // Parse each actual row AFTER the discovered header row
+        for (let i = finalHeaderIdx + 1; i < lines.length; i++) {
+          const rowData = scoredLines[i];
+          if (!rowData || rowData.length <= 1) continue; // Skip empty rows
           
           const getVal = (key: string, defaultVal: any = '') => {
             const idx = colMap[key];
             if (idx !== undefined && rowData[idx] !== undefined) {
-              const rawVal = rowData[idx].replace(/^"(.*)"$/, '$1').trim(); // strip outer quotes
+              let rawVal = rowData[idx].trim();
+              if (rawVal.startsWith('"') && rawVal.endsWith('"')) {
+                rawVal = rawVal.substring(1, rawVal.length - 1).trim();
+              }
               return rawVal;
             }
             return defaultVal;
           };
 
           const nombre = getVal('nombre');
-          if (!nombre) continue; // skip row if product has no name
+          // Skip if product has no name or if it matches header word literally
+          if (!nombre || nombre.toLowerCase() === 'producto' || nombre.toLowerCase() === 'nombre') {
+            continue; 
+          }
 
-          const piezas_por_caja = Number(getVal('piezas_por_caja') || 0);
-          const precio_caja = Number(getVal('precio_caja') || 0);
+          const piezas_por_caja = parseNumber(getVal('piezas_por_caja') || '0');
+          const precio_caja = parseNumber(getVal('precio_caja') || '0');
+          const precio_venta = parseNumber(getVal('precio_venta') || '0');
+          const margen_pct = parseNumber(getVal('margen_pct') || '0');
           
-          let precio_unidad = Number(getVal('precio_unidad') || 0);
-          if (precio_unidad === 0 && precio_caja > 0 && piezas_por_caja > 0) {
+          // Back-calculate unit cost if absent but margin & sale price are present:
+          // cost = sell_price * (1 - margin / 100)
+          let precio_unidad = parseNumber(getVal('precio_unidad') || '0');
+          if (precio_unidad === 0 && precio_venta > 0 && margen_pct > 0) {
+            precio_unidad = Number((precio_venta * (1 - (margen_pct / 100))).toFixed(2));
+          } else if (precio_unidad === 0 && precio_caja > 0 && piezas_por_caja > 0) {
             precio_unidad = Number((precio_caja / piezas_por_caja).toFixed(2));
+          } else if (precio_unidad === 0 && precio_venta > 0) {
+            precio_unidad = precio_venta; // Fallback to avoid division or zero metrics
           }
 
-          const precio_venta = Number(getVal('precio_venta') || 0);
+          // Complete box cost from pieces * unit cost if empty
+          let final_precio_caja = precio_caja;
+          if (final_precio_caja === 0 && precio_unidad > 0 && piezas_por_caja > 0) {
+            final_precio_caja = Number((precio_unidad * piezas_por_caja).toFixed(2));
+          }
           
-          let margen_pct = Number(getVal('margen_pct') || 0);
-          if (margen_pct === 0 && precio_venta > 0) {
-            margen_pct = Number((((precio_venta - precio_unidad) / precio_venta) * 100).toFixed(2));
+          let final_margen_pct = margen_pct;
+          if (final_margen_pct === 0 && precio_venta > 0 && precio_unidad > 0) {
+            final_margen_pct = Number((((precio_venta - precio_unidad) / precio_venta) * 100).toFixed(2));
           }
 
-          const precio_sugerido = Number(getVal('precio_sugerido') || precio_venta || 0);
+          const precio_sugerido = parseNumber(getVal('precio_sugerido') || '') || precio_venta;
           
-          let margen_ps_pct = Number(getVal('margen_ps_pct') || 0);
-          if (margen_ps_pct === 0 && precio_sugerido > 0) {
+          let margen_ps_pct = parseNumber(getVal('margen_ps_pct') || '0');
+          if (margen_ps_pct === 0 && precio_sugerido > 0 && precio_unidad > 0) {
             margen_ps_pct = Number((((precio_sugerido - precio_unidad) / precio_sugerido) * 100).toFixed(2));
           }
 
@@ -217,19 +299,19 @@ export default function ModulePlaceholder({
             nombre: nombre,
             proveedor: getVal('proveedor', 'Genérico'),
             piezas_por_caja: piezas_por_caja,
-            precio_caja: precio_caja,
+            precio_caja: final_precio_caja,
             precio_unidad: precio_unidad,
             status: getVal('status', 'Activo'),
             forma_pago: getVal('forma_pago', 'Efectivo'),
             precio_venta: precio_venta,
-            margen_pct: margen_pct,
+            margen_pct: final_margen_pct,
             precio_sugerido: precio_sugerido,
             margen_ps_pct: margen_ps_pct,
             cambio_precio_fecha: getVal('cambio_precio_fecha', new Date().toISOString().split('T')[0]),
             notas: getVal('notas', ''),
             resorte_usa: getVal('resorte_usa', ''),
             filtro_especial: '',
-            existencias: Number(getVal('existencias', '10'))
+            existencias: 0
           };
 
           parsedItems.push(itemForm);
@@ -251,16 +333,20 @@ export default function ModulePlaceholder({
       }
     };
 
-    reader.readAsText(file, "UTF-8"); // Support UTF-8 directly
+    reader.readAsText(file, "UTF-8"); // Direct UTF-8 loading
     e.target.value = '';
   };
 
   const handleConfirmImport = async () => {
-    if (!importSummary || !onAddProduct) return;
+    if (!importSummary) return;
     setIsImportingProgress(true);
     try {
-      for (const item of importSummary.items) {
-        await onAddProduct(item);
+      if (onAddProducts) {
+        await onAddProducts(importSummary.items);
+      } else if (onAddProduct) {
+        for (const item of importSummary.items) {
+          await onAddProduct(item);
+        }
       }
       setImportSummary(null);
     } catch (err) {

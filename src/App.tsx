@@ -296,6 +296,36 @@ export default function App() {
     }
   };
 
+  const handleAddMultipleProducts = async (newProds: any[]) => {
+    if (!newProds || newProds.length === 0) return;
+    
+    const freshProds = newProds.map(prod => {
+      const defaultId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9);
+      return {
+        ...prod,
+        id: defaultId,
+        created_at: new Date().toISOString()
+      };
+    });
+
+    setProducts(prev => [...freshProds, ...prev]);
+
+    try {
+      if (dbStatus === 'connected') {
+        const mappedList = freshProds.map(p => mapProductToSupabase(p));
+        // Bulk insert to Supabase for extremely fast and reliable database save
+        const { error } = await supabase.from('products').insert(mappedList);
+        if (error) {
+          console.warn("Supabase database bulk insert warning:", error);
+        } else {
+          console.log(`Successfully bulk inserted ${freshProds.length} products to Supabase.`);
+        }
+      }
+    } catch (err) {
+      console.error("Supabase bulk insert error:", err);
+    }
+  };
+
   const handleUpdateProduct = async (id: string, updatedFields: any) => {
     let freshFullItem: any = null;
     setProducts(prev => prev.map(p => {
@@ -626,6 +656,7 @@ export default function App() {
               moduleId={activeModule} 
               products={products}
               onAddProduct={handleAddProduct}
+              onAddProducts={handleAddMultipleProducts}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
             />
