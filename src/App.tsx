@@ -148,29 +148,36 @@ export default function App() {
 
   // Helper to map robust product objects into the restricted Supabase 'products' table columns
   const mapProductToSupabase = (p: any) => {
+    // Truncate notes and sanitize delimiters to safely fit in character varying(100) column
+    const cleanNotes = String(p.notas || '').substring(0, 45).replace(/\|/g, ' ').trim();
+    const statusVal = p.status || 'Activo';
+    
+    // We construct a custom positional pipe format:
+    // "v1:codigo|piezas|precio_unidad|forma_pago|fecha|resorte|existencias|status|precio_caja|precio_sugerido|notas"
+    const positional = [
+      p.codigo || '',
+      p.piezas_por_caja || 0,
+      p.precio_unidad || 0,
+      p.forma_pago || 'Efectivo',
+      p.cambio_precio_fecha || '',
+      p.resorte_usa || '',
+      p.existencias || 0,
+      statusVal,
+      p.precio_caja || 0,
+      p.precio_sugerido || 0,
+      cleanNotes
+    ].join('|');
+
+    // Force strict 100-character upper ceiling to guarantee absolutely zero DB truncation errors
+    const categoriaVal = `v1:${positional}`.substring(0, 100);
+
     return {
       id: p.id,
       nombre: p.nombre || '',
       precio: Number(p.precio_venta || 0),
-      categoria: 'json:' + JSON.stringify({
-        codigo: p.codigo || '',
-        proveedor: p.proveedor || '',
-        piezas_por_caja: Number(p.piezas_por_caja || 0),
-        precio_caja: Number(p.precio_caja || 0),
-        precio_unidad: Number(p.precio_unidad || 0),
-        status: p.status || 'Activo',
-        forma_pago: p.forma_pago || 'Efectivo',
-        precio_venta: Number(p.precio_venta || 0),
-        margen_pct: Number(p.margen_pct || 0),
-        precio_sugerido: Number(p.precio_sugerido || 0),
-        margen_ps_pct: Number(p.margen_ps_pct || 0),
-        cambio_precio_fecha: p.cambio_precio_fecha || '',
-        notas: p.notas || '',
-        resorte_usa: p.resorte_usa || '',
-        existencias: Number(p.existencias || 0)
-      }),
+      categoria: categoriaVal,
       popularidad_ventas: p.proveedor || '',
-      disponible: p.status !== 'Inactivo',
+      disponible: statusVal !== 'Inactivo',
       creado_en: p.created_at || new Date().toISOString()
     };
   };
@@ -181,16 +188,17 @@ export default function App() {
       id: dbRow.id,
       nombre: dbRow.nombre || '',
       precio_venta: Number(dbRow.precio || 0),
-      created_at: dbRow.creado_en || dbRow.creado_en || new Date().toISOString()
+      created_at: dbRow.creado_en || new Date().toISOString()
     };
 
-    if (dbRow.categoria && dbRow.categoria.startsWith('json:')) {
+    const catStr = dbRow.categoria || '';
+
+    if (catStr.startsWith('json:')) {
       try {
-        const parsed = JSON.parse(dbRow.categoria.substring(5));
+        const parsed = JSON.parse(catStr.substring(5));
         return {
           ...base,
           ...parsed,
-          // Guarantee numbers and string values
           piezas_por_caja: Number(parsed.piezas_por_caja || 0),
           precio_caja: Number(parsed.precio_caja || 0),
           precio_unidad: Number(parsed.precio_unidad || 0),
@@ -202,6 +210,47 @@ export default function App() {
         };
       } catch (e) {
         console.error("Failed to parse nested json from category column:", e);
+      }
+    } else if (catStr.startsWith('v1:')) {
+      try {
+        const parts = catStr.substring(3).split('|');
+        const codigo = parts[0] || '';
+        const piezas_por_caja = Number(parts[1] || 0);
+        const precio_unidad = Number(parts[2] || 0);
+        const forma_pago = parts[3] || 'Efectivo';
+        const cambio_precio_fecha = parts[4] || '';
+        const resorte_usa = parts[5] || '';
+        const existencias = Number(parts[6] || 0);
+        const status = parts[7] || 'Activo';
+        const precio_caja = Number(parts[8] || 0);
+        const precio_sugerido = Number(parts[9] || 0);
+        const notas = parts[10] || '';
+
+        // Safely infer prices and margins
+        const precio_venta = base.precio_venta || precio_sugerido || 0;
+        const margen_pct = precio_venta > 0 ? Number((((precio_venta - precio_unidad) / precio_venta) * 100).toFixed(2)) : 0;
+        const margen_ps_pct = precio_sugerido > 0 ? Number((((precio_sugerido - precio_unidad) / precio_sugerido) * 100).toFixed(2)) : 0;
+
+        return {
+          ...base,
+          codigo,
+          proveedor: dbRow.popularidad_ventas || '',
+          piezas_por_caja,
+          precio_caja,
+          precio_unidad,
+          status,
+          forma_pago,
+          precio_venta,
+          margen_pct,
+          precio_sugerido,
+          margen_ps_pct,
+          cambio_precio_fecha,
+          notas,
+          resorte_usa,
+          existencias
+        };
+      } catch (e) {
+        console.error("Failed to parse positional string from category column:", e);
       }
     }
 
