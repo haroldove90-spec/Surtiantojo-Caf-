@@ -33,9 +33,26 @@ import {
   X,
   FileSpreadsheet,
   FileText,
-  Filter
+  Filter,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+const PRODUCT_FIELDS = [
+  { key: 'codigo', label: 'Código / Ref ID' },
+  { key: 'nombre', label: 'Nombre del Producto' },
+  { key: 'proveedor', label: 'Proveedor / Marca' },
+  { key: 'precio_venta', label: 'Precio de Venta Pública' },
+  { key: 'margen_pct', label: 'Margen de Ganancia %' },
+  { key: 'piezas_por_caja', label: 'Piezas por Caja' },
+  { key: 'precio_caja', label: 'Costo por Caja' },
+  { key: 'precio_unidad', label: 'Costo Unitario' },
+  { key: 'precio_sugerido', label: 'Precio Sugerido' },
+  { key: 'margen_ps_pct', label: 'Margen Sugerido %' },
+  { key: 'forma_pago', label: 'Forma de Pago' },
+  { key: 'notas', label: 'Notas / Detalles' },
+  { key: 'resorte_usa', label: 'Resorte' }
+];
 
 interface ModulePlaceholderProps {
   moduleId: string;
@@ -79,8 +96,146 @@ export default function ModulePlaceholder({
   const [importSummary, setImportSummary] = useState<{
     items: any[];
     fileName: string;
+    rawLines: string[][];
+    headers: string[];
+    delimiter: string;
+    colMap: Record<string, number>;
+    finalHeaderIdx: number;
   } | null>(null);
-  const [isImportingProgress, setIsImportingProgress] = useState(false);
+  const [isImportingProgress, setIsImportingProgress] = useState(false);  // Robust number parsing with currency sign and comma decimal safety
+  const cleanNumberStr = (str: string): string => {
+    if (!str) return '0';
+    let clean = str.trim();
+    
+    // Remove currency characters, blank spaces, % signs or any garbage text
+    clean = clean.replace(/[^0-9.,-]/g, '').trim();
+    if (!clean) return '0';
+    
+    if (clean.includes(',') && !clean.includes('.')) {
+      // e.g. "20,50" -> "20.50"
+      clean = clean.replace(',', '.');
+    } else if (clean.includes(',') && clean.includes('.')) {
+      // e.g. "1,234.50" -> remove comma -> "1234.50"
+      clean = clean.replace(/,/g, '');
+    }
+    return clean;
+  };
+
+  const parseNumber = (str: string): number => {
+    const val = parseFloat(cleanNumberStr(str));
+    return isNaN(val) ? 0 : val;
+  };
+
+  const processRowsWithMap = (
+    scoredLines: string[][], 
+    colMap: Record<string, number>, 
+    finalHeaderIdx: number
+  ) => {
+    const parsedItems: any[] = [];
+    
+    for (let i = finalHeaderIdx + 1; i < scoredLines.length; i++) {
+      const rowData = scoredLines[i];
+      if (!rowData || rowData.length <= 1) continue; // Skip empty rows
+      
+      const getVal = (key: string, defaultVal: any = '') => {
+        const idx = colMap[key];
+        if (idx !== undefined && rowData[idx] !== undefined) {
+          let rawVal = rowData[idx].trim();
+          if (rawVal.startsWith('"') && rawVal.endsWith('"')) {
+            rawVal = rawVal.substring(1, rawVal.length - 1).trim();
+          }
+          return rawVal;
+        }
+        return defaultVal;
+      };
+
+      const nombre = getVal('nombre');
+      // Skip if product has no name or if it matches header word literally
+      if (!nombre || nombre.toLowerCase() === 'producto' || nombre.toLowerCase() === 'nombre') {
+        continue; 
+      }
+
+      const piezas_por_caja = parseNumber(getVal('piezas_por_caja') || '0');
+      const precio_caja = parseNumber(getVal('precio_caja') || '0');
+      const precio_venta = parseNumber(getVal('precio_venta') || '0');
+      const margen_pct = parseNumber(getVal('margen_pct') || '0');
+      
+      // Back-calculate unit cost if absent but margin & sale price are present:
+      let precio_unidad = parseNumber(getVal('precio_unidad') || '0');
+      if (precio_unidad === 0 && precio_venta > 0 && margen_pct > 0) {
+        precio_unidad = Number((precio_venta * (1 - (margen_pct / 100))).toFixed(2));
+      } else if (precio_unidad === 0 && precio_caja > 0 && piezas_por_caja > 0) {
+        precio_unidad = Number((precio_caja / piezas_por_caja).toFixed(2));
+      } else if (precio_unidad === 0 && precio_venta > 0) {
+        precio_unidad = precio_venta; // Fallback to avoid division or zero metrics
+      }
+
+      // Complete box cost from pieces * unit cost if empty
+      let final_precio_caja = precio_caja;
+      if (final_precio_caja === 0 && precio_unidad > 0 && piezas_por_caja > 0) {
+        final_precio_caja = Number((precio_unidad * piezas_por_caja).toFixed(2));
+      }
+      
+      let final_margen_pct = margen_pct;
+      if (final_margen_pct === 0 && precio_venta > 0 && precio_unidad > 0) {
+        final_margen_pct = Number((((precio_venta - precio_unidad) / precio_venta) * 100).toFixed(2));
+      }
+
+      const precio_sugerido = parseNumber(getVal('precio_sugerido') || '') || precio_venta;
+      
+      let margen_ps_pct = parseNumber(getVal('margen_ps_pct') || '0');
+      if (margen_ps_pct === 0 && precio_sugerido > 0 && precio_unidad > 0) {
+        margen_ps_pct = Number((((precio_sugerido - precio_unidad) / precio_sugerido) * 100).toFixed(2));
+      }
+
+      const itemForm = {
+        codigo: getVal('codigo', `REF-${Math.floor(Math.random() * 90000) + 10000}`),
+        nombre: nombre,
+        proveedor: getVal('proveedor', 'Genérico'),
+        piezas_por_caja: piezas_por_caja,
+        precio_caja: final_precio_caja,
+        precio_unidad: precio_unidad,
+        status: getVal('status', 'Activo'),
+        forma_pago: getVal('forma_pago', 'Efectivo'),
+        precio_venta: precio_venta,
+        margen_pct: final_margen_pct,
+        precio_sugerido: precio_sugerido,
+        margen_ps_pct: margen_ps_pct,
+        cambio_precio_fecha: getVal('cambio_precio_fecha', new Date().toISOString().split('T')[0]),
+        notas: getVal('notas', ''),
+        resorte_usa: getVal('resorte_usa', ''),
+        filtro_especial: '',
+        existencias: 0
+      };
+
+      parsedItems.push(itemForm);
+    }
+    return parsedItems;
+  };
+
+  const handleMapChange = (fieldKey: string, colIdx: number) => {
+    if (!importSummary) return;
+    
+    const nextColMap = { ...importSummary.colMap };
+    if (colIdx === -1) {
+      delete nextColMap[fieldKey];
+    } else {
+      nextColMap[fieldKey] = colIdx;
+    }
+    
+    // Re-process raw rows with updated map
+    const nextItems = processRowsWithMap(
+      importSummary.rawLines,
+      nextColMap,
+      importSummary.finalHeaderIdx
+    );
+    
+    setImportSummary({
+      ...importSummary,
+      colMap: nextColMap,
+      items: nextItems
+    });
+  };
 
   // Parse custom CSV format with automatic Excel-friendly detection, header scoring & margin reconstruction
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,120 +366,21 @@ export default function ModulePlaceholder({
           }
         });
 
-        // Robust number parsing with currency sign and comma decimal safety
-        const cleanNumberStr = (str: string): string => {
-          if (!str) return '0';
-          let clean = str.trim();
-          
-          // Remove currency characters, blank spaces, % signs or any garbage text
-          clean = clean.replace(/[^0-9.,-]/g, '').trim();
-          if (!clean) return '0';
-          
-          if (clean.includes(',') && !clean.includes('.')) {
-            // e.g. "20,50" -> "20.50"
-            clean = clean.replace(',', '.');
-          } else if (clean.includes(',') && clean.includes('.')) {
-            // e.g. "1,234.50" -> remove comma -> "1234.50"
-            clean = clean.replace(/,/g, '');
-          }
-          return clean;
-        };
+        const initialItems = processRowsWithMap(scoredLines, colMap, finalHeaderIdx);
 
-        const parseNumber = (str: string): number => {
-          const val = parseFloat(cleanNumberStr(str));
-          return isNaN(val) ? 0 : val;
-        };
-
-        const parsedItems: any[] = [];
-
-        // Parse each actual row AFTER the discovered header row
-        for (let i = finalHeaderIdx + 1; i < lines.length; i++) {
-          const rowData = scoredLines[i];
-          if (!rowData || rowData.length <= 1) continue; // Skip empty rows
-          
-          const getVal = (key: string, defaultVal: any = '') => {
-            const idx = colMap[key];
-            if (idx !== undefined && rowData[idx] !== undefined) {
-              let rawVal = rowData[idx].trim();
-              if (rawVal.startsWith('"') && rawVal.endsWith('"')) {
-                rawVal = rawVal.substring(1, rawVal.length - 1).trim();
-              }
-              return rawVal;
-            }
-            return defaultVal;
-          };
-
-          const nombre = getVal('nombre');
-          // Skip if product has no name or if it matches header word literally
-          if (!nombre || nombre.toLowerCase() === 'producto' || nombre.toLowerCase() === 'nombre') {
-            continue; 
-          }
-
-          const piezas_por_caja = parseNumber(getVal('piezas_por_caja') || '0');
-          const precio_caja = parseNumber(getVal('precio_caja') || '0');
-          const precio_venta = parseNumber(getVal('precio_venta') || '0');
-          const margen_pct = parseNumber(getVal('margen_pct') || '0');
-          
-          // Back-calculate unit cost if absent but margin & sale price are present:
-          // cost = sell_price * (1 - margin / 100)
-          let precio_unidad = parseNumber(getVal('precio_unidad') || '0');
-          if (precio_unidad === 0 && precio_venta > 0 && margen_pct > 0) {
-            precio_unidad = Number((precio_venta * (1 - (margen_pct / 100))).toFixed(2));
-          } else if (precio_unidad === 0 && precio_caja > 0 && piezas_por_caja > 0) {
-            precio_unidad = Number((precio_caja / piezas_por_caja).toFixed(2));
-          } else if (precio_unidad === 0 && precio_venta > 0) {
-            precio_unidad = precio_venta; // Fallback to avoid division or zero metrics
-          }
-
-          // Complete box cost from pieces * unit cost if empty
-          let final_precio_caja = precio_caja;
-          if (final_precio_caja === 0 && precio_unidad > 0 && piezas_por_caja > 0) {
-            final_precio_caja = Number((precio_unidad * piezas_por_caja).toFixed(2));
-          }
-          
-          let final_margen_pct = margen_pct;
-          if (final_margen_pct === 0 && precio_venta > 0 && precio_unidad > 0) {
-            final_margen_pct = Number((((precio_venta - precio_unidad) / precio_venta) * 100).toFixed(2));
-          }
-
-          const precio_sugerido = parseNumber(getVal('precio_sugerido') || '') || precio_venta;
-          
-          let margen_ps_pct = parseNumber(getVal('margen_ps_pct') || '0');
-          if (margen_ps_pct === 0 && precio_sugerido > 0 && precio_unidad > 0) {
-            margen_ps_pct = Number((((precio_sugerido - precio_unidad) / precio_sugerido) * 100).toFixed(2));
-          }
-
-          const itemForm = {
-            codigo: getVal('codigo', `REF-${Math.floor(Math.random() * 90000) + 10000}`),
-            nombre: nombre,
-            proveedor: getVal('proveedor', 'Genérico'),
-            piezas_por_caja: piezas_por_caja,
-            precio_caja: final_precio_caja,
-            precio_unidad: precio_unidad,
-            status: getVal('status', 'Activo'),
-            forma_pago: getVal('forma_pago', 'Efectivo'),
-            precio_venta: precio_venta,
-            margen_pct: final_margen_pct,
-            precio_sugerido: precio_sugerido,
-            margen_ps_pct: margen_ps_pct,
-            cambio_precio_fecha: getVal('cambio_precio_fecha', new Date().toISOString().split('T')[0]),
-            notas: getVal('notas', ''),
-            resorte_usa: getVal('resorte_usa', ''),
-            filtro_especial: '',
-            existencias: 0
-          };
-
-          parsedItems.push(itemForm);
-        }
-
-        if (parsedItems.length === 0) {
+        if (initialItems.length === 0) {
           alert('No se pudieron leer registros válidos del archivo. Asegúrate de que las columnas tengan nombres compatibles.');
           return;
         }
 
         setImportSummary({
-          items: parsedItems,
-          fileName: file.name
+          items: initialItems,
+          fileName: file.name,
+          rawLines: scoredLines,
+          headers: rawHeaders,
+          delimiter,
+          colMap,
+          finalHeaderIdx
         });
 
       } catch (err) {
@@ -1546,10 +1602,47 @@ export default function ModulePlaceholder({
                       </button>
                     </div>
 
-                    {/* Explanatory banner */}
+                     {/* Explanatory banner */}
                     <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-2.5 text-xs text-blue-800 font-extrabold">
                       <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
-                      <span>Detección inteligente de columnas activada. Los márgenes y precios unitarios ausentes se calcularon de forma automática.</span>
+                      <span>Detección inteligente de columnas activada. Los márgenes y precios de venta se recalculan dinámicamente si cambias el mapeo.</span>
+                    </div>
+
+                    {/* Collapsible Column Settings with instant re-parsing feedback */}
+                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 max-h-[220px] overflow-y-auto">
+                      <details className="group" open>
+                        <summary className="flex items-center justify-between cursor-pointer text-xs font-black text-slate-800 select-none">
+                          <span className="flex items-center gap-2">
+                            <Settings className="w-4 h-4 text-[#043077] animate-spin-slow" />
+                            AJUSTAR ASIGNACIÓN DE COLUMNAS (MODO MANUAL / INTELIGENTE)
+                          </span>
+                          <span className="text-[#043077] hover:underline text-[11px] font-bold">
+                            Ver/Ocultar selectores
+                          </span>
+                        </summary>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-4 text-xs">
+                          {PRODUCT_FIELDS.map(f => {
+                            const currentIdx = importSummary.colMap[f.key];
+                            return (
+                              <div key={f.key} className="flex flex-col gap-1 p-2 bg-white border border-slate-200 rounded-xl shadow-2xs">
+                                <span className="font-bold text-slate-800 truncate text-[11px]">{f.label}</span>
+                                <select
+                                  value={currentIdx !== undefined ? currentIdx : -1}
+                                  onChange={(e) => handleMapChange(f.key, parseInt(e.target.value))}
+                                  className="w-full text-[11px] font-semibold p-1.5 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#043077] cursor-pointer"
+                                >
+                                  <option value={-1}>-- No emparejado / Auto --</option>
+                                  {importSummary.headers.map((h, hIdx) => (
+                                    <option key={hIdx} value={hIdx}>
+                                      Col {hIdx + 1}: {h || `(Vacía)`}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </details>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 max-h-[50vh]">

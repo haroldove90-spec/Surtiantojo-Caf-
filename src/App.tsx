@@ -274,9 +274,23 @@ export default function App() {
     }
   }, [dbStatus]);
 
+  // Robust RFC4122 v4 UUID generator that operates correctly in all contexts (including HTTP iframe sandboxes)
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try {
+        return crypto.randomUUID();
+      } catch (e) {}
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
   // Integrated server + client callback triggers
   const handleAddProduct = async (newProd: any) => {
-    const defaultId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9);
+    const defaultId = generateUUID();
     const fresh = {
       ...newProd,
       id: defaultId,
@@ -300,7 +314,7 @@ export default function App() {
     if (!newProds || newProds.length === 0) return;
     
     const freshProds = newProds.map(prod => {
-      const defaultId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9);
+      const defaultId = generateUUID();
       return {
         ...prod,
         id: defaultId,
@@ -317,12 +331,14 @@ export default function App() {
         const { error } = await supabase.from('products').insert(mappedList);
         if (error) {
           console.warn("Supabase database bulk insert warning:", error);
+          alert(`Error de base de datos al importar: ${error.message || 'No se pudieron guardar.'}`);
         } else {
           console.log(`Successfully bulk inserted ${freshProds.length} products to Supabase.`);
         }
       }
     } catch (err) {
       console.error("Supabase bulk insert error:", err);
+      alert('Error de conexión al guardar los productos en la base de datos.');
     }
   };
 
