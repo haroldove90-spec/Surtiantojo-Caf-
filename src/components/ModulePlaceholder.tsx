@@ -74,7 +74,10 @@ export default function ModulePlaceholder({
 
   // Form state
   const defaultFormState = {
+    codigo: '',
     nombre: '',
+    proveedor: '',
+    piezas_por_caja: 0,
     precio_caja: 0,
     precio_unidad: 0,
     status: 'Activo',
@@ -94,8 +97,8 @@ export default function ModulePlaceholder({
 
   // Helper to re-calculate margins automatically during input changes
   const calculateMargins = (unitPrice: number, sellPrice: number, suggestedPrice: number) => {
-    const margin_pct = unitPrice > 0 ? ((sellPrice - unitPrice) / unitPrice) * 100 : 0;
-    const margin_ps_pct = unitPrice > 0 ? ((suggestedPrice - unitPrice) / unitPrice) * 100 : 0;
+    const margin_pct = sellPrice > 0 ? ((sellPrice - unitPrice) / sellPrice) * 100 : 0;
+    const margin_ps_pct = suggestedPrice > 0 ? ((suggestedPrice - unitPrice) / suggestedPrice) * 100 : 0;
     return { margin_pct, margin_ps_pct };
   };
 
@@ -125,7 +128,10 @@ export default function ModulePlaceholder({
 
   const openEditForm = (item: any) => {
     setForm({
+      codigo: item.codigo || '',
       nombre: item.nombre || '',
+      proveedor: item.proveedor || '',
+      piezas_por_caja: Number(item.piezas_por_caja || 0),
       precio_caja: Number(item.precio_caja || 0),
       precio_unidad: Number(item.precio_unitario || item.precio_unidad || 0),
       status: item.status || 'Activo',
@@ -277,8 +283,13 @@ export default function ModulePlaceholder({
 
     const tableRows = itemsList.map(p => `
       <tr style="border-bottom: 1px solid #e2e8f0;">
-        <td style="padding: 10px 8px; font-weight: 500; font-size: 13px; color: #1e293b;">${p.nombre}</td>
-        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">Caja: $${safeVal(p.precio_caja).toFixed(2)}<br><span style="font-size: 11px; color: #94a3b8;">Unid: $${safeVal(p.precio_unidad).toFixed(2)}</span></td>
+        <td style="padding: 10px 8px; font-weight: 500; font-size: 13px; color: #1e293b;">
+          ${p.codigo ? `<span style="font-size: 9px; font-family: monospace; color: #043077; background-color: #eff6ff; padding: 2px 5px; border-radius: 4px; font-weight: bold; margin-bottom: 3px; display: inline-block;">${p.codigo}</span><br>` : ''}
+          <span style="font-weight: bold;">${p.nombre}</span>
+          ${p.proveedor ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 600;">Prov: ${p.proveedor}</span>` : ''}
+          ${p.piezas_por_caja ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 600;">Piezas/Caja: ${p.piezas_por_caja} pzas</span>` : ''}
+        </td>
+        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">Caja: $${safeVal(p.precio_caja).toFixed(2)}<br><span style="font-size: 11px; color: #94a3b8;">Unitario: $${safeVal(p.precio_unidad).toFixed(2)}</span></td>
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">$${safeVal(p.precio_venta).toFixed(2)}</td>
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #16a34a;">${safeVal(p.margen_pct).toFixed(1)}%</td>
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">$${safeVal(p.precio_sugerido).toFixed(2)}</td>
@@ -387,9 +398,9 @@ export default function ModulePlaceholder({
 
   const handleExcelExport = (itemsList: any[]) => {
     const headers = [
-      'Nombre del Producto', 'Precio Caja', 'Precio Unidad', 'Precio Venta', 
-      'Margen %', 'Precio Sugerido', 'Margen Ps %', 'Forma de Pago', 
-      'Status', 'Fecha Cambio Precio', 'Notas', 'Resorte que usa', 'Filtro Especial', 'Existencias',
+      'Código', 'Nombre del Producto', 'Proveedor', 'Piezas por Caja', 'Precio Caja', 'Precio Unitario', 'Precio Venta', 
+      'Margen de ganancia ($)', 'Margen %', 'Precio Sugerido', 'Margen Ps %', 'Forma de Pago', 
+      'Status', 'Fecha Cambio Precio', 'Notas', 'Existencias',
       'Fecha Registro'
     ];
     
@@ -397,11 +408,16 @@ export default function ModulePlaceholder({
     const today = new Date().toLocaleDateString('es-ES');
 
     const csvRows = itemsList.map(p => {
+      const profitMargin = safeVal(p.precio_venta) - safeVal(p.precio_unidad);
       return [
+        `"${(p.codigo || '').replace(/"/g, '""')}"`,
         `"${p.nombre.replace(/"/g, '""')}"`,
+        `"${(p.proveedor || '').replace(/"/g, '""')}"`,
+        p.piezas_por_caja || 0,
         p.precio_caja,
         p.precio_unidad,
         p.precio_venta,
+        profitMargin,
         p.margen_pct,
         p.precio_sugerido,
         p.margen_ps_pct,
@@ -409,8 +425,6 @@ export default function ModulePlaceholder({
         `"${p.status}"`,
         `"${p.cambio_precio_fecha}"`,
         `"${(p.notas || '').replace(/"/g, '""')}"`,
-        `"${(p.resorte_usa || '').replace(/"/g, '""')}"`,
-        `"${(p.filtro_especial || '').replace(/"/g, '""')}"`,
         p.existencias,
         p.created_at ? new Date(p.created_at).toLocaleDateString() : today
       ].join(',');
@@ -775,10 +789,20 @@ export default function ModulePlaceholder({
                               </button>
                             </td>
                             <td className="py-3 px-4">
-                              <div>
+                              <div className="flex flex-col gap-1">
+                                {p.codigo && (
+                                  <span className="inline-block max-w-fit text-[10px] font-mono font-bold bg-[#043077]/10 text-[#043077] px-1.5 py-0.5 rounded uppercase select-all" title="Código de barras / SKU">
+                                    {p.codigo}
+                                  </span>
+                                )}
                                 <span className="font-extrabold text-slate-800 text-sm block">{p.nombre}</span>
+                                {(p.proveedor || p.piezas_por_caja) && (
+                                  <span className="text-xs font-semibold text-slate-500 block">
+                                    {p.proveedor ? `Prov: ${p.proveedor}` : ''} {p.piezas_por_caja ? `(${p.piezas_por_caja} pzas/caja)` : ''}
+                                  </span>
+                                )}
                                 {p.notas && (
-                                  <span className="text-xs text-slate-400 font-medium line-clamp-1 italic max-w-[200px]">
+                                  <span className="text-xs text-slate-400 font-medium line-clamp-1 italic max-w-[200px] block">
                                     {p.notas}
                                   </span>
                                 )}
@@ -787,7 +811,7 @@ export default function ModulePlaceholder({
                             <td className="py-3 px-4">
                               <div className="text-xs text-slate-600 leading-tight">
                                 <div>Caja: <span className="font-bold font-mono">${safeVal(p.precio_caja).toFixed(1)}</span></div>
-                                <div>Unid: <span className="font-bold font-mono text-slate-800">${safeVal(p.precio_unidad).toFixed(1)}</span></div>
+                                <div>Unitario: <span className="font-bold font-mono text-slate-800">${safeVal(p.precio_unidad).toFixed(1)}</span></div>
                               </div>
                             </td>
                             <td className="py-3 px-4">
@@ -980,6 +1004,18 @@ export default function ModulePlaceholder({
 
                     <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
                       
+                      {/* Código de barras / sku / identificador */}
+                      <div>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Código</label>
+                        <input
+                          type="text"
+                          value={form.codigo}
+                          onChange={(e) => handleFormChange('codigo', e.target.value)}
+                          placeholder="Ej: REF-7210928"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
+                        />
+                      </div>
+
                       {/* Name row */}
                       <div>
                         <label className="text-xs font-black text-slate-600 block mb-1">Nombre del producto *</label>
@@ -993,80 +1029,57 @@ export default function ModulePlaceholder({
                         />
                       </div>
 
+                      {/* Proveedor */}
+                      <div>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Proveedor</label>
+                        <input
+                          type="text"
+                          value={form.proveedor}
+                          onChange={(e) => handleFormChange('proveedor', e.target.value)}
+                          placeholder="Ej: Distribuidora Central de Café"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
+                        />
+                      </div>
+
+                      {/* Piezas por caja */}
+                      <div>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Piezas por caja</label>
+                        <input
+                          type="number"
+                          value={form.piezas_por_caja || ''}
+                          onChange={(e) => handleFormChange('piezas_por_caja', Number(e.target.value))}
+                          placeholder="Ej: 24"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
+                        />
+                      </div>
+
                       {/* Split cost and status info */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs font-black text-slate-600 block mb-1">Precio caja (Costo)</label>
                           <input
                             type="number"
                             step="any"
-                            value={form.precio_caja}
+                            value={form.precio_caja || ''}
                             onChange={(e) => handleFormChange('precio_caja', Number(e.target.value))}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Precio unidad porción *</label>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio unitario *</label>
                           <input
                             type="number"
                             step="any"
                             required
-                            value={form.precio_unidad}
+                            value={form.precio_unidad || ''}
                             onChange={(e) => handleFormChange('precio_unidad', Number(e.target.value))}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
                           />
                         </div>
-                        <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Existencias iniciales *</label>
-                          <input
-                            type="number"
-                            required
-                            value={form.existencias}
-                            onChange={(e) => handleFormChange('existencias', Number(e.target.value))}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
-                          />
-                        </div>
                       </div>
 
-                      {/* Sell price and auto margins */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Venta Público *</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
-                            <input
-                              type="number"
-                              required
-                              step="any"
-                              value={form.precio_venta}
-                              onChange={(e) => handleFormChange('precio_venta', Number(e.target.value))}
-                              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-extrabold font-mono"
-                            />
-                          </div>
-                          <span className="text-[10px] text-emerald-600 font-black mt-1.5 block">
-                            MARGEN CALCULADO: % {form.margen_pct}
-                          </span>
-                        </div>
-                        <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Sugerido Venta</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
-                            <input
-                              type="number"
-                              step="any"
-                              value={form.precio_sugerido}
-                              onChange={(e) => handleFormChange('precio_sugerido', Number(e.target.value))}
-                              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-extrabold font-mono"
-                            />
-                          </div>
-                          <span className="text-[10px] text-[#043077] font-black mt-1.5 block">
-                            MARGEN PS ESTIMADO: % {form.margen_ps_pct}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Dropdowns status, pago y fecha */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Dropdowns status y pago (Movidos después de Precio unitario) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="text-xs font-black text-slate-600 block mb-1">Estado Catálogo</label>
                           <select
@@ -1089,49 +1102,82 @@ export default function ModulePlaceholder({
                             <option value="Tarjeta bancaria">💳 Tarjeta bancaria</option>
                           </select>
                         </div>
+                      </div>
+
+                      {/* Sell price and auto margins */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Cambio de Precio (Fecha)</label>
-                          <input
-                            type="date"
-                            value={form.cambio_precio_fecha}
-                            onChange={(e) => handleFormChange('cambio_precio_fecha', e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
-                          />
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Venta Público *</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
+                            <input
+                              type="number"
+                              required
+                              step="any"
+                              value={form.precio_venta}
+                              onChange={(e) => handleFormChange('precio_venta', Number(e.target.value))}
+                              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-extrabold font-mono"
+                            />
+                          </div>
+                          <span className="text-[10px] text-emerald-600 font-black mt-1.5 block">
+                            MARGEN %: {form.margen_pct}%
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Margen de ganancia</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
+                            <input
+                              type="text"
+                              readOnly
+                              disabled
+                              value={safeVal(form.precio_venta - form.precio_unidad).toFixed(2)}
+                              className="w-full bg-slate-100/80 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm text-emerald-800 font-extrabold font-mono"
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-medium mt-1.5 block">
+                            Ganancia neta (Pesos)
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Sugerido Venta</label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
+                            <input
+                              type="number"
+                              step="any"
+                              value={form.precio_sugerido}
+                              onChange={(e) => handleFormChange('precio_sugerido', Number(e.target.value))}
+                              className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-extrabold font-mono"
+                            />
+                          </div>
+                          <span className="text-[10px] text-[#043077] font-black mt-1.5 block">
+                            MARGEN PS: {form.margen_ps_pct}%
+                          </span>
                         </div>
                       </div>
 
-                      {/* Technical specifications */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Resorte de uso cafetera</label>
-                          <input
-                            type="text"
-                            value={form.resorte_usa}
-                            onChange={(e) => handleFormChange('resorte_usa', e.target.value)}
-                            placeholder="Ej: Resorte calibrado IMS 58mm"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Filtro especial o empaque</label>
-                          <input
-                            type="text"
-                            value={form.filtro_especial}
-                            onChange={(e) => handleFormChange('filtro_especial', e.target.value)}
-                            placeholder="Ej: Filtro de papel blanco V60"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
-                          />
-                        </div>
+                      {/* Fecha de cambio de precio */}
+                      <div>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Cambio de Precio (Fecha)</label>
+                        <input
+                          type="date"
+                          value={form.cambio_precio_fecha}
+                          onChange={(e) => handleFormChange('cambio_precio_fecha', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
+                        />
                       </div>
 
                       {/* Notes area */}
                       <div>
-                        <label className="text-xs font-black text-slate-600 block mb-1">Notas internas / Comentario</label>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Notas</label>
                         <textarea
-                          rows={2}
+                          rows={3}
                           value={form.notas}
                           onChange={(e) => handleFormChange('notas', e.target.value)}
-                          placeholder="Detalles sobre preparación, ingredientes, o alertas para baristas..."
+                          placeholder="Notas internas, detalles del producto o comentarios..."
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
                         ></textarea>
                       </div>
@@ -1183,8 +1229,20 @@ export default function ModulePlaceholder({
                     
                     <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
                       <div>
-                        <span className="text-[9px] font-black uppercase text-[#043077] tracking-widest block">Código Identificador: {viewingItem.id.slice(0, 8)}</span>
-                        <h4 className="text-lg font-black text-slate-900 mt-0.5">{viewingItem.nombre}</h4>
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[9px] font-black uppercase text-[#043077] tracking-widest block">ID: {viewingItem.id.slice(0, 8)}</span>
+                          {viewingItem.codigo && (
+                            <span className="text-[9px] font-mono font-bold bg-[#043077]/10 text-[#043077] px-1.5 py-0.5 rounded uppercase font-bold">
+                              Cód: {viewingItem.codigo}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-lg font-black text-slate-900 mt-1">{viewingItem.nombre}</h4>
+                        {viewingItem.proveedor && (
+                          <span className="text-xs font-semibold text-slate-500 block mt-0.5">
+                            Proveedor: <span className="font-bold text-slate-700">{viewingItem.proveedor}</span>
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -1200,11 +1258,16 @@ export default function ModulePlaceholder({
                       {/* Cost and inventory values card block */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                          <span className="text-xs text-slate-400 font-extrabold block uppercase">Costo Insumo (Unidad)</span>
+                          <span className="text-xs text-slate-400 font-extrabold block uppercase">Precio Unitario</span>
                           <span className="text-base font-extrabold text-slate-800 font-mono">${safeVal(viewingItem.precio_unidad).toFixed(2)}</span>
-                          <span className="text-[11px] text-slate-400 font-mono block mt-0.5">Por caja: ${safeVal(viewingItem.precio_caja).toFixed(2)}</span>
+                          <div className="text-[11px] text-slate-400 font-mono mt-0.5 space-y-0.5">
+                            <div>Por caja: ${safeVal(viewingItem.precio_caja).toFixed(2)}</div>
+                            {safeVal(viewingItem.piezas_por_caja) > 0 && (
+                              <div>Piezas por caja: {safeVal(viewingItem.piezas_por_caja)}</div>
+                            )}
+                          </div>
                         </div>
-                        <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                        <div className="p-3 bg-[#043077]/5 border border-slate-100 rounded-xl">
                           <span className="text-xs text-slate-400 font-extrabold block uppercase">Existencias en Almacén</span>
                           <span className={`text-base font-extrabold font-mono ${safeVal(viewingItem.existencias) < 10 ? 'text-red-600' : 'text-slate-800'}`}>
                             {safeVal(viewingItem.existencias)} piezas
@@ -1230,18 +1293,15 @@ export default function ModulePlaceholder({
                         </div>
                       </div>
 
-                      {/* Filter lists and physical parts */}
-                      <div className="grid grid-cols-2 gap-3 pt-2">
-                        <div>
-                          <span className="text-xs text-slate-400 font-extrabold block">Resorte de Uso:</span>
-                          <span className="font-extrabold text-slate-700 text-xs">
-                            {viewingItem.resorte_usa || 'Ninguno especificado'}
+                      {/* Margen de ganancia absoluto */}
+                      <div className="pt-2">
+                        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                          <span className="text-xs text-emerald-700 font-extrabold block uppercase">Margen de ganancia (Pesos)</span>
+                          <span className="text-lg font-black text-emerald-800 font-mono">
+                            ${(safeVal(viewingItem.precio_venta) - safeVal(viewingItem.precio_unidad)).toFixed(2)}
                           </span>
-                        </div>
-                        <div>
-                          <span className="text-xs text-slate-400 font-extrabold block">Filtro Especial:</span>
-                          <span className="font-extrabold text-slate-700 text-xs">
-                            {viewingItem.filtro_especial || 'Filtro regular / Estándar'}
+                          <span className="text-[10px] text-emerald-600 block mt-0.5">
+                            Ganancia neta directa por cada unidad vendida.
                           </span>
                         </div>
                       </div>
