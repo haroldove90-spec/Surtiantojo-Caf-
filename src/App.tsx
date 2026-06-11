@@ -55,7 +55,15 @@ export default function App() {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           // Permanently filter out the mock/sample items (IDs "1", "2", "3")
-          return parsed.filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3");
+          let list = parsed.filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3");
+          try {
+            const storedDel = localStorage.getItem('surtiantojo_deleted_ids');
+            const delArr = storedDel ? JSON.parse(storedDel) : [];
+            if (Array.isArray(delArr) && delArr.length > 0) {
+              list = list.filter((p: any) => p && !delArr.includes(p.id));
+            }
+          } catch (e) {}
+          return list;
         }
       }
     } catch (e) {
@@ -220,9 +228,16 @@ export default function App() {
         }
         
         if (data && data.length > 0) {
+          let delArr: string[] = [];
+          try {
+            const storedDel = localStorage.getItem('surtiantojo_deleted_ids');
+            delArr = storedDel ? JSON.parse(storedDel) : [];
+          } catch (e) {}
+
           const filtered = data
             .filter((p: any) => p && p.id !== "1" && p.id !== "2" && p.id !== "3")
-            .map(mapProductFromSupabase);
+            .map(mapProductFromSupabase)
+            .filter((p: any) => !delArr.includes(p.id));
           setProducts(filtered);
           
           // Proactively delete any sample items with IDs "1", "2", "3" from Supabase if we found them
@@ -288,6 +303,16 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (id: string) => {
+    // Record delete locally to prevent reappearances in case of network or DB RLS policy restrictions
+    try {
+      const storedDel = localStorage.getItem('surtiantojo_deleted_ids');
+      const delArr = storedDel ? JSON.parse(storedDel) : [];
+      if (!delArr.includes(id)) {
+        delArr.push(id);
+        localStorage.setItem('surtiantojo_deleted_ids', JSON.stringify(delArr));
+      }
+    } catch (e) {}
+
     setProducts(prev => prev.filter(p => p.id !== id));
 
     try {
