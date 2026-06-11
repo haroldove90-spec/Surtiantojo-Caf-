@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   TrendingUp, 
   Coffee, 
@@ -71,6 +71,205 @@ export default function ModulePlaceholder({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [viewingItem, setViewingItem] = useState<any | null>(null);
+
+  // Excel/CSV Import state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importSummary, setImportSummary] = useState<{
+    items: any[];
+    fileName: string;
+  } | null>(null);
+  const [isImportingProgress, setIsImportingProgress] = useState(false);
+
+  // Parse custom CSV format
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) return;
+
+        // Split by lines and remove empty rows
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length < 2) {
+          alert('El archivo no contiene suficientes registros o está vacío.');
+          return;
+        }
+
+        // Parse header row
+        const headersLine = lines[0];
+        // Clean BOM if present
+        const cleanHeaderRow = headersLine.startsWith('\uFEFF') ? headersLine.substring(1) : headersLine;
+        
+        // Custom parser line for CSV quotes and commas
+        const parseCSVLine = (line: string): string[] => {
+          const result: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+              } else {
+                inQuotes = !inQuotes;
+              }
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+
+        const rawHeaders = parseCSVLine(cleanHeaderRow);
+        
+        // Clean and normalize headers
+        const cleanHeader = (h: string) => {
+          return h.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // remove accents
+            .replace(/[^a-z0-9]/g, "") // remove symbols
+            .trim();
+        };
+
+        const headers = rawHeaders.map(cleanHeader);
+
+        // Find match in column mapping index
+        const colMap: Record<string, number> = {};
+        
+        const headerKeywords: Record<string, string[]> = {
+          codigo: ['codigo', 'code', 'idprod', 'codigobarras'],
+          nombre: ['nombre', 'nombredelproducto', 'producto', 'name', 'item'],
+          proveedor: ['proveedor', 'provider', 'marca', 'brand'],
+          piezas_por_caja: ['piezasporcaja', 'piezas', 'piezas_por_caja', 'unidadesporcaja', 'pzasporcaja'],
+          precio_caja: ['preciocaja', 'precio_caja', 'costocaja', 'costo_caja'],
+          precio_unidad: ['preciounitario', 'preciounidad', 'costounitario', 'precio_unidad', 'precio_unitario'],
+          precio_venta: ['precioventa', 'precio_venta', 'venta', 'precioalpublico'],
+          margen_pct: ['margenpct', 'margen', 'margengana', 'margendeganancia'],
+          precio_sugerido: ['preciosugerido', 'sugerido', 'precio_sugerido'],
+          margen_ps_pct: ['margenpspct', 'margenps', 'margenpass', 'margen_ps_pct'],
+          forma_pago: ['formadepago', 'formapago', 'metododepago', 'pago'],
+          status: ['status', 'estado', 'disponible'],
+          notas: ['notas', 'descripcion', 'detalles', 'comentarios'],
+          existencias: ['existencias', 'existencia', 'inventario', 'stock', 'cantidad'],
+          resorte_usa: ['resorte', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa']
+        };
+
+        headers.forEach((h, idx) => {
+          for (const [key, list] of Object.entries(headerKeywords)) {
+            if (list.includes(h) || h.indexOf(key) !== -1 || list.some(k => h.indexOf(k) !== -1)) {
+              if (colMap[key] === undefined) {
+                colMap[key] = idx;
+              }
+            }
+          }
+        });
+
+        const parsedItems: any[] = [];
+
+        // Parse each actual row
+        for (let i = 1; i < lines.length; i++) {
+          const rowData = parseCSVLine(lines[i]);
+          
+          const getVal = (key: string, defaultVal: any = '') => {
+            const idx = colMap[key];
+            if (idx !== undefined && rowData[idx] !== undefined) {
+              const rawVal = rowData[idx].replace(/^"(.*)"$/, '$1').trim(); // strip outer quotes
+              return rawVal;
+            }
+            return defaultVal;
+          };
+
+          const nombre = getVal('nombre');
+          if (!nombre) continue; // skip row if product has no name
+
+          const piezas_por_caja = Number(getVal('piezas_por_caja') || 0);
+          const precio_caja = Number(getVal('precio_caja') || 0);
+          
+          let precio_unidad = Number(getVal('precio_unidad') || 0);
+          if (precio_unidad === 0 && precio_caja > 0 && piezas_por_caja > 0) {
+            precio_unidad = Number((precio_caja / piezas_por_caja).toFixed(2));
+          }
+
+          const precio_venta = Number(getVal('precio_venta') || 0);
+          
+          let margen_pct = Number(getVal('margen_pct') || 0);
+          if (margen_pct === 0 && precio_venta > 0) {
+            margen_pct = Number((((precio_venta - precio_unidad) / precio_venta) * 100).toFixed(2));
+          }
+
+          const precio_sugerido = Number(getVal('precio_sugerido') || precio_venta || 0);
+          
+          let margen_ps_pct = Number(getVal('margen_ps_pct') || 0);
+          if (margen_ps_pct === 0 && precio_sugerido > 0) {
+            margen_ps_pct = Number((((precio_sugerido - precio_unidad) / precio_sugerido) * 100).toFixed(2));
+          }
+
+          const itemForm = {
+            codigo: getVal('codigo', `REF-${Math.floor(Math.random() * 90000) + 10000}`),
+            nombre: nombre,
+            proveedor: getVal('proveedor', 'Genérico'),
+            piezas_por_caja: piezas_por_caja,
+            precio_caja: precio_caja,
+            precio_unidad: precio_unidad,
+            status: getVal('status', 'Activo'),
+            forma_pago: getVal('forma_pago', 'Efectivo'),
+            precio_venta: precio_venta,
+            margen_pct: margen_pct,
+            precio_sugerido: precio_sugerido,
+            margen_ps_pct: margen_ps_pct,
+            cambio_precio_fecha: getVal('cambio_precio_fecha', new Date().toISOString().split('T')[0]),
+            notas: getVal('notas', ''),
+            resorte_usa: getVal('resorte_usa', ''),
+            filtro_especial: '',
+            existencias: Number(getVal('existencias', '10'))
+          };
+
+          parsedItems.push(itemForm);
+        }
+
+        if (parsedItems.length === 0) {
+          alert('No se pudieron leer registros válidos del archivo. Asegúrate de que las columnas tengan nombres compatibles.');
+          return;
+        }
+
+        setImportSummary({
+          items: parsedItems,
+          fileName: file.name
+        });
+
+      } catch (err) {
+        console.error("CSV parse error", err);
+        alert('Error al analizar el archivo CSV.');
+      }
+    };
+
+    reader.readAsText(file, "UTF-8"); // Support UTF-8 directly
+    e.target.value = '';
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importSummary || !onAddProduct) return;
+    setIsImportingProgress(true);
+    try {
+      for (const item of importSummary.items) {
+        await onAddProduct(item);
+      }
+      setImportSummary(null);
+    } catch (err) {
+      console.error(err);
+      alert('Hubo un error al guardar los productos importados.');
+    } finally {
+      setIsImportingProgress(false);
+    }
+  };
 
   // Form state
   const defaultFormState = {
@@ -692,6 +891,21 @@ export default function ModulePlaceholder({
 
               {/* PDF - Excel outputs and Add Product Button */}
               <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv"
+                  onChange={handleImportCSV}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-blue-200 hover:bg-blue-50 text-blue-800 text-xs font-extrabold cursor-pointer transition-all uppercase tracking-wider animated-subtle-pulse"
+                  title="Importar productos desde un archivo Excel (CSV)"
+                >
+                  <Download className="w-4 h-4 rotate-180 text-blue-600" /> Importar Excel/CSV
+                </button>
                 <button
                   type="button"
                   onClick={() => handleExcelExport(filteredProducts)}
@@ -1213,6 +1427,128 @@ export default function ModulePlaceholder({
                       </button>
                     </div>
 
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* EXCEL IMPORT PREVIEW MODAL */}
+            <AnimatePresence>
+              {importSummary && (
+                <div id="import-preview-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.6 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => { if (!isImportingProgress) setImportSummary(null); }}
+                    className="absolute inset-0 bg-stone-900"
+                  />
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative max-w-4xl w-full max-h-[90vh] flex flex-col z-10"
+                  >
+                    {/* Header line themed in corporate navy blue */}
+                    <div className="h-1.5 w-full bg-[#043077]" />
+
+                    <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                      <div>
+                        <h4 className="text-lg font-black text-slate-950 flex items-center gap-2">
+                          <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> Previsualizar Importación de Excel
+                        </h4>
+                        <p className="text-xs text-slate-500 font-bold mt-1">
+                          Archivo: <span className="font-mono text-[#043077]">{importSummary.fileName}</span> — {importSummary.items.length} productos detectados
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { if (!isImportingProgress) setImportSummary(null); }}
+                        className="p-1 px-2 hover:bg-slate-200 rounded-lg text-slate-500 font-bold transition focus:outline-none cursor-pointer"
+                        disabled={isImportingProgress}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Explanatory banner */}
+                    <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-2.5 text-xs text-blue-800 font-extrabold">
+                      <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
+                      <span>Detección inteligente de columnas activada. Los márgenes y precios unitarios ausentes se calcularon de forma automática.</span>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 max-h-[50vh]">
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
+                        <table className="min-w-full divide-y divide-slate-200 text-left">
+                          <thead className="bg-slate-100">
+                            <tr>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider">Código</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider">Nombre del Producto</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider">Proveedor</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider">Pzas/Caja</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-right">Precio Caja</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-right">Precio Unitario</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-right text-indigo-905 bg-indigo-50/50">Venta Pública</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-center text-emerald-905 bg-emerald-50/50">Margen Calculado</th>
+                              <th className="px-4 py-3 text-xs font-black text-slate-600 uppercase tracking-wider text-center">Existencias</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-slate-200 min-h-0">
+                            {importSummary.items.slice(0, 50).map((p, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/70 text-slate-700">
+                                <td className="px-4 py-2.5 text-xs font-mono font-bold text-[#043077]">{p.codigo || 'AUTO'}</td>
+                                <td className="px-4 py-2.5 text-xs font-black text-slate-900 truncate max-w-[180px]">{p.nombre}</td>
+                                <td className="px-4 py-2.5 text-xs text-slate-500 font-bold">{p.proveedor}</td>
+                                <td className="px-4 py-2.5 text-xs text-slate-500 font-medium font-mono text-center">{p.piezas_por_caja || '-'}</td>
+                                <td className="px-4 py-2.5 text-xs font-mono text-right">{p.precio_caja > 0 ? `$${p.precio_caja.toFixed(2)}` : '-'}</td>
+                                <td className="px-4 py-2.5 text-xs font-mono text-right font-semibold">${p.precio_unidad.toFixed(2)}</td>
+                                <td className="px-4 py-2.5 text-xs font-mono text-right font-black text-indigo-700 bg-indigo-50/20">${p.precio_venta.toFixed(2)}</td>
+                                <td className="px-4 py-2.5 text-xs font-mono text-center font-black text-emerald-700 bg-emerald-50/20">{p.margen_pct.toFixed(1)}%</td>
+                                <td className="px-4 py-2.5 text-xs font-mono text-center font-bold">{p.existencias} pzas</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {importSummary.items.length > 50 && (
+                        <div className="text-center text-xs text-slate-500 font-bold mt-3 italic">
+                          * Mostrando los primeros 50 de {importSummary.items.length} productos detectados
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-6 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+                      <span className="text-xs text-slate-500 font-bold shrink-0">
+                        Total a procesar: <span className="text-slate-800 font-black text-sm">{importSummary.items.length} productos</span>
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => { if (!isImportingProgress) setImportSummary(null); }}
+                          className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 text-sm font-extrabold cursor-pointer transition focus:outline-none"
+                          disabled={isImportingProgress}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmImport}
+                          disabled={isImportingProgress}
+                          className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-sm font-extrabold cursor-pointer flex items-center gap-2 transition focus:outline-none"
+                        >
+                          {isImportingProgress ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                              Registrando en base de datos...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-4 h-4" /> Importar {importSummary.items.length} Productos
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </motion.div>
                 </div>
               )}
