@@ -248,66 +248,91 @@ export default function ModulePlaceholder({
         const text = event.target?.result as string;
         if (!text) return;
 
-        // Split by lines and remove empty rows
-        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-        if (lines.length < 2) {
-          alert('El archivo no contiene suficientes registros o está vacío.');
-          return;
-        }
-
-        // 1. Detect delimiter (comma, semicolon or tab)
+        // 1. Detect delimiter (comma, semicolon or tab) neglecting inside quotes
         const detectDelimiter = (textStr: string): string => {
-          const sampleLines = textStr.split(/\r?\n/).slice(0, 15).filter(l => l.trim().length > 0);
-          let commaCount = 0;
-          let semiCount = 0;
-          let tabCount = 0;
-          for (const line of sampleLines) {
-            commaCount += (line.match(/,/g) || []).length;
-            semiCount += (line.match(/;/g) || []).length;
-            tabCount += (line.match(/\t/g) || []).length;
+          let countComma = 0;
+          let countSemi = 0;
+          let countTab = 0;
+          let inQuotes = false;
+          const sample = textStr.slice(0, 2000);
+          for (let i = 0; i < sample.length; i++) {
+            const char = sample[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (!inQuotes) {
+              if (char === ',') countComma++;
+              else if (char === ';') countSemi++;
+              else if (char === '\t') countTab++;
+            }
           }
-          if (semiCount > commaCount && semiCount > tabCount) return ';';
-          if (tabCount > commaCount && tabCount > semiCount) return '\t';
+          if (countSemi > countComma && countSemi > countTab) return ';';
+          if (countTab > countComma && countTab > countSemi) return '\t';
           return ',';
         };
         
         const delimiter = detectDelimiter(text);
 
-        // 2. CSV Line parser with dynamic delimiter & quote awareness
-        const parseCSVLine = (line: string): string[] => {
-          const result: string[] = [];
-          let current = '';
+        // 2. CSV parser with dynamic delimiter & quote awareness (supporting newlines inside quotes!)
+        const parseCSVToRowsAndCols = (textStr: string, delim: string): string[][] => {
+          const result: string[][] = [];
+          let currentRow: string[] = [];
+          let currentVal = '';
           let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
+          
+          for (let i = 0; i < textStr.length; i++) {
+            const char = textStr[i];
+            const nextChar = textStr[i + 1];
+            
             if (char === '"') {
-              if (inQuotes && line[i + 1] === '"') {
-                current += '"';
-                i++;
+              if (inQuotes && nextChar === '"') {
+                currentVal += '"';
+                i++; // skip next escaped quote
               } else {
                 inQuotes = !inQuotes;
               }
-            } else if (char === delimiter && !inQuotes) {
-              result.push(current.trim());
-              current = '';
+            } else if (char === delim && !inQuotes) {
+              currentRow.push(currentVal.trim());
+              currentVal = '';
+            } else if ((char === '\r' || char === '\n') && !inQuotes) {
+              // Handle CRLF or LF
+              if (char === '\r' && nextChar === '\n') {
+                i++;
+              }
+              currentRow.push(currentVal.trim());
+              // Skip entirely empty parsed lines
+              if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+                result.push(currentRow);
+              }
+              currentRow = [];
+              currentVal = '';
             } else {
-              current += char;
+              currentVal += char;
             }
           }
-          result.push(current.trim());
+          if (currentVal !== '' || currentRow.length > 0) {
+            currentRow.push(currentVal.trim());
+            if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+              result.push(currentRow);
+            }
+          }
           return result;
         };
+
+        const scoredLines = parseCSVToRowsAndCols(text, delimiter);
+        if (scoredLines.length < 2) {
+          alert('El archivo no contiene suficientes registros o está vacío.');
+          return;
+        }
 
         const cleanHeader = (h: string) => {
           return h.toLowerCase()
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "") // remove accents
-            .replace(/[^a-z0-9]/g, "") // remove symbols
+            .replace(/[^a-z0-9]/g, "") // remove symbols, spaces, newlines
             .trim();
         };
 
         // 3. Score first 15 lines to find where the actual header is (since Excel sheets can have notes/instructions at the top)
-        const scoredLines = lines.map(line => parseCSVLine(line));
         let headerIdx = -1;
         let maxScore = -1;
         
@@ -343,8 +368,8 @@ export default function ModulePlaceholder({
           codigo: ['codigo', 'code', 'idprod', 'codigobarras'],
           nombre: ['nombre', 'nombredelproducto', 'producto', 'name', 'item'],
           proveedor: ['proveedor', 'provider', 'marca', 'brand'],
-          piezas_por_caja: ['piezasporcaja', 'piezas', 'piezas_por_caja', 'unidadesporcaja', 'pzasporcaja'],
-          precio_caja: ['preciocaja', 'precio_caja', 'costocaja', 'costo_caja'],
+          piezas_por_caja: ['piezasporcaja', 'pzascaja', 'piezas', 'piezas_por_caja', 'unidadesporcaja', 'pzasporcaja', 'pzas'],
+          precio_caja: ['preciocaja', 'precio_caja', 'costocaja', 'costo_caja', 'preciodebox'],
           precio_unidad: ['preciounitario', 'preciounidad', 'costounitario', 'precio_unidad', 'precio_unitario'],
           precio_venta: ['precioventa', 'precio_venta', 'venta', 'precioalpublico'],
           margen_pct: ['margenpct', 'margen', 'margengana', 'margendeganancia'],
@@ -353,7 +378,8 @@ export default function ModulePlaceholder({
           forma_pago: ['formadepago', 'formapago', 'metododepago', 'pago', 'formapago'],
           status: ['status', 'estado', 'disponible'],
           notas: ['notas', 'descripcion', 'detalles', 'comentarios'],
-          resorte_usa: ['resorte', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa']
+          resorte_usa: ['resorte', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa', 'resortequeusa'],
+          cambio_precio_fecha: ['cambiodeprecio', 'cambiodepreciofecha', 'fechadecambio', 'cambioprecio']
         };
 
         headers.forEach((h, idx) => {
