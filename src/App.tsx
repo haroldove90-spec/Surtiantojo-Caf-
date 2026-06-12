@@ -139,7 +139,7 @@ export default function App() {
           setDbStatus('error');
         }
       } catch (err) {
-        console.error('Supabase query validation error:', err);
+        console.warn('Supabase query validation warning (offline/local fallback):', err);
         setDbStatus('error');
       }
     }
@@ -321,7 +321,7 @@ export default function App() {
           }
         }
       } catch (err) {
-        console.error("Error reading from Supabase table 'products':", err);
+        console.warn("Error reading from Supabase table 'products' (falling back to local storage):", err);
       }
     }
     if (dbStatus === 'connected') {
@@ -361,7 +361,7 @@ export default function App() {
         if (error) console.warn("Supabase database insert warning:", error);
       }
     } catch (err) {
-      console.error("Supabase insert error:", err);
+      console.warn("Supabase insert error:", err);
     }
   };
 
@@ -392,7 +392,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.error("Supabase bulk insert error:", err);
+      console.warn("Supabase bulk insert error:", err);
       alert('Error de conexión al guardar los productos en la base de datos.');
     }
   };
@@ -414,7 +414,7 @@ export default function App() {
         if (error) console.warn("Supabase database update warning:", error);
       }
     } catch (err) {
-      console.error("Supabase update error:", err);
+      console.warn("Supabase update error:", err);
     }
   };
 
@@ -437,7 +437,7 @@ export default function App() {
         if (error) console.warn("Supabase database delete warning:", error);
       }
     } catch (err) {
-      console.error("Supabase delete error:", err);
+      console.warn("Supabase delete error:", err);
     }
   };
 
@@ -458,7 +458,7 @@ export default function App() {
         if (error) console.warn("Supabase database bulk status update warning:", error);
       }
     } catch (err) {
-      console.error("Supabase bulk status update error:", err);
+      console.warn("Supabase bulk status update error:", err);
     }
   };
 

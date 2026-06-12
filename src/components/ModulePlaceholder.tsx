@@ -54,7 +54,7 @@ const PRODUCT_FIELDS = [
   { key: 'margen_ps_pct', label: 'Margen Sugerido %' },
   { key: 'forma_pago', label: 'Forma de Pago' },
   { key: 'notas', label: 'Notas / Detalles' },
-  { key: 'resorte_usa', label: 'Resorte' }
+  { key: 'resorte_usa', label: 'Tamaño de resorte' }
 ];
 
 interface ModulePlaceholderProps {
@@ -81,6 +81,16 @@ export default function ModulePlaceholder({
     if (val === null || val === undefined) return 0;
     const parsed = Number(val);
     return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const formatMXN = (val: any): string => {
+    const num = safeVal(val);
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(num);
   };
 
   // Product module state declarations
@@ -795,10 +805,10 @@ export default function ModulePlaceholder({
           ${p.proveedor ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 600;">Prov: ${p.proveedor}</span>` : ''}
           ${p.piezas_por_caja ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 600;">Piezas/Caja: ${p.piezas_por_caja} pzas</span>` : ''}
         </td>
-        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">Caja: $${safeVal(p.precio_caja).toFixed(2)}<br><span style="font-size: 11px; color: #94a3b8;">Unitario: $${safeVal(p.precio_unidad).toFixed(2)}</span></td>
-        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">$${safeVal(p.precio_venta).toFixed(2)}</td>
+        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">Caja: ${formatMXN(p.precio_caja)}<br><span style="font-size: 11px; color: #94a3b8;">Unitario: ${formatMXN(p.precio_unidad)}</span></td>
+        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">${formatMXN(p.precio_venta)}</td>
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #16a34a;">${safeVal(p.margen_pct).toFixed(1)}%</td>
-        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">$${safeVal(p.precio_sugerido).toFixed(2)}</td>
+        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">${formatMXN(p.precio_sugerido)}</td>
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #043077;">${safeVal(p.margen_ps_pct).toFixed(1)}%</td>
         <td style="padding: 10px 8px; font-size: 13px; color: #475569;">${p.forma_pago}</td>
         <td style="padding: 10px 8px; font-size: 12px; font-weight: bold;"><span style="background-color: ${p.status === 'Activo' ? '#dcfce7' : '#fee2e2'}; color: ${p.status === 'Activo' ? '#166534' : '#991b1b'}; padding: 2px 8px; border-radius: 9999px;">${p.status}</span></td>
@@ -882,7 +892,7 @@ export default function ModulePlaceholder({
           </div>
           <div class="metric-card">
             <span class="metric-title">Precio Promedio Venta</span>
-            <span class="metric-value">$${(itemsList.reduce((acc, p) => acc + safeVal(p.precio_venta), 0) / (itemsList.length || 1)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span class="metric-value">${formatMXN(itemsList.reduce((acc, p) => acc + safeVal(p.precio_venta), 0) / (itemsList.length || 1))}</span>
           </div>
           <div class="metric-card">
             <span class="metric-title">Margen % Promedio</span>
@@ -1143,9 +1153,9 @@ export default function ModulePlaceholder({
               <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
                 <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Precio Promedio</span>
                 <span className="text-2xl font-black text-[#043077] mt-1 block">
-                  ${products.length > 0 
-                    ? (products.reduce((acc, p) => acc + safeVal(p.precio_venta), 0) / products.length).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                    : '0.0'
+                  {products.length > 0 
+                    ? formatMXN(products.reduce((acc, p) => acc + safeVal(p.precio_venta), 0) / products.length)
+                    : '$0.00'
                   }
                 </span>
                 <span className="text-xs text-slate-400 mt-1 block">Venta unitaria promedio</span>
@@ -1401,13 +1411,13 @@ export default function ModulePlaceholder({
                             </td>
                             <td className="py-3 px-4">
                               <div className="text-xs text-slate-600 leading-tight">
-                                <div>Caja: <span className="font-bold font-mono">${safeVal(p.precio_caja).toFixed(1)}</span></div>
-                                <div>Unitario: <span className="font-bold font-mono text-slate-800">${safeVal(p.precio_unidad).toFixed(1)}</span></div>
+                                <div>Caja: <span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_caja)}</span></div>
+                                <div>Unitario: <span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_unidad)}</span></div>
                               </div>
                             </td>
                             <td className="py-3 px-4">
                               <span className="text-sm font-extrabold text-slate-900 font-mono">
-                                ${safeVal(p.precio_venta).toFixed(1)}
+                                {formatMXN(p.precio_venta)}
                               </span>
                             </td>
                             <td className="py-3 px-4">
@@ -1417,7 +1427,7 @@ export default function ModulePlaceholder({
                             </td>
                             <td className="py-3 px-4">
                               <span className="text-sm font-extrabold text-slate-900 font-mono">
-                                ${safeVal(p.precio_sugerido).toFixed(1)}
+                                {formatMXN(p.precio_sugerido)}
                               </span>
                             </td>
                             <td className="py-3 px-4">
@@ -1765,12 +1775,12 @@ export default function ModulePlaceholder({
 
                       {/* Resorte que usa (Movido después de Notas) */}
                       <div>
-                        <label className="text-xs font-black text-slate-600 block mb-1">Resorte de uso cafetera</label>
+                        <label className="text-xs font-black text-slate-600 block mb-1">Tamaño de resorte</label>
                         <input
                           type="text"
                           value={form.resorte_usa}
                           onChange={(e) => handleFormChange('resorte_usa', e.target.value)}
-                          placeholder="Ej: Resorte calibrado IMS 58mm"
+                          placeholder="Ej: 58mm"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
                         />
                       </div>
@@ -2011,11 +2021,11 @@ export default function ModulePlaceholder({
                         <div className="flex flex-wrap justify-between items-center mt-1">
                           <div>
                             <span className="text-xs text-slate-500 font-bold block">Precio Unitario:</span>
-                            <span className="text-base font-extrabold text-slate-800 font-mono">${safeVal(viewingItem.precio_unidad).toFixed(2)}</span>
+                            <span className="text-base font-extrabold text-slate-800 font-mono">{formatMXN(viewingItem.precio_unidad)}</span>
                           </div>
                           <div>
                             <span className="text-xs text-slate-500 font-bold block">Precio Caja Costo:</span>
-                            <span className="text-base font-extrabold text-slate-800 font-mono">${safeVal(viewingItem.precio_caja).toFixed(2)}</span>
+                            <span className="text-base font-extrabold text-slate-800 font-mono">{formatMXN(viewingItem.precio_caja)}</span>
                           </div>
                           {safeVal(viewingItem.piezas_por_caja) > 0 && (
                             <div>
@@ -2030,14 +2040,14 @@ export default function ModulePlaceholder({
                       <div className="grid grid-cols-2 gap-3 bg-blue-50/25 p-4 rounded-2xl border border-blue-100/30">
                         <div>
                           <span className="text-xs text-slate-500 font-extrabold block uppercase">Precio de Venta</span>
-                          <span className="text-xl font-black text-slate-900 font-mono">${safeVal(viewingItem.precio_venta).toFixed(2)}</span>
+                          <span className="text-xl font-black text-slate-900 font-mono">{formatMXN(viewingItem.precio_venta)}</span>
                           <span className="inline-flex items-center gap-0.5 mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 text-center">
                             Margen: {safeVal(viewingItem.margen_pct).toFixed(1)}%
                           </span>
                         </div>
                         <div>
                           <span className="text-xs text-slate-500 font-extrabold block uppercase">Precio Sugerido Alterno</span>
-                          <span className="text-xl font-black text-[#043077] font-mono">${safeVal(viewingItem.precio_sugerido).toFixed(2)}</span>
+                          <span className="text-xl font-black text-[#043077] font-mono">{formatMXN(viewingItem.precio_sugerido)}</span>
                           <span className="inline-flex items-center gap-0.5 mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-[#043077]/10 text-[#043077] text-center">
                             Margen: {safeVal(viewingItem.margen_ps_pct).toFixed(1)}%
                           </span>
@@ -2052,7 +2062,7 @@ export default function ModulePlaceholder({
                             {safeVal(viewingItem.margen_pct).toFixed(1)}%
                           </span>
                           <span className="text-[10px] text-emerald-600 block mt-0.5">
-                            Ganancia neta directa de ${(safeVal(viewingItem.precio_venta) - safeVal(viewingItem.precio_unidad)).toFixed(2)} pesos por unidad.
+                            Ganancia neta directa de {formatMXN(safeVal(viewingItem.precio_venta) - safeVal(viewingItem.precio_unidad))} por unidad.
                           </span>
                         </div>
                       </div>
@@ -2086,7 +2096,7 @@ export default function ModulePlaceholder({
 
                       {viewingItem.resorte_usa && (
                         <div className="border-t border-slate-100 pt-3">
-                          <span className="text-xs text-slate-400 font-extrabold block">Resorte de uso cafetera</span>
+                          <span className="text-xs text-slate-400 font-extrabold block">Tamaño de resorte</span>
                           <span className="font-extrabold text-slate-700 text-xs block mt-1">
                             {viewingItem.resorte_usa}
                           </span>
