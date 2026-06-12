@@ -34,7 +34,10 @@ import {
   FileSpreadsheet,
   FileText,
   Filter,
-  Settings
+  Settings,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -61,6 +64,7 @@ interface ModulePlaceholderProps {
   onAddProducts?: (productsList: any[]) => Promise<void>;
   onUpdateProduct?: (id: string, product: any) => Promise<void>;
   onDeleteProduct?: (id: string) => Promise<void>;
+  onUpdateProductStatusBulk?: (ids: string[], status: 'Activo' | 'Inactivo') => Promise<void>;
 }
 
 export default function ModulePlaceholder({ 
@@ -69,7 +73,8 @@ export default function ModulePlaceholder({
   onAddProduct,
   onAddProducts,
   onUpdateProduct,
-  onDeleteProduct
+  onDeleteProduct,
+  onUpdateProductStatusBulk
 }: ModulePlaceholderProps) {
   // Safe parsing helper helper for any numeric content loaded via DB/Sync to eliminate any NaN issues
   const safeVal = (val: any): number => {
@@ -82,6 +87,10 @@ export default function ModulePlaceholder({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagoFilter, setPagoFilter] = useState('all');
+
+  // Sorting state (Excel-like)
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Multi-selection state
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
@@ -582,9 +591,19 @@ export default function ModulePlaceholder({
     }));
   };
 
-  // Filtered computed list
+  // Sort handler
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Filtered computed list + Excel-like Sorting
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    const filtered = products.filter(p => {
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q ||
                             (p.nombre || '').toLowerCase().includes(q) || 
@@ -597,7 +616,47 @@ export default function ModulePlaceholder({
 
       return matchesSearch && matchesStatus && matchesPago;
     });
-  }, [products, searchQuery, statusFilter, pagoFilter]);
+
+    if (!sortField) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      // Handle null / undefined
+      if (aVal === undefined || aVal === null) aVal = '';
+      if (bVal === undefined || bVal === null) bVal = '';
+
+      // Numeric comparison
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      // Try casting to numbers for fields that should be numbers
+      const numericFields = [
+        'precio_venta', 'precio_caja', 'precio_unidad', 'precio_sugerido', 
+        'margen_pct', 'margen_ps_pct', 'piezas_por_caja'
+      ];
+      if (numericFields.includes(sortField)) {
+        const numA = Number(aVal) || 0;
+        const numB = Number(bVal) || 0;
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+
+      if (sortField === 'created_at') {
+        const timeA = aVal ? new Date(aVal).getTime() : 0;
+        const timeB = bVal ? new Date(bVal).getTime() : 0;
+        return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+      }
+
+      // String comparison
+      const strA = String(aVal).toLowerCase().trim();
+      const strB = String(bVal).toLowerCase().trim();
+      if (strA < strB) return sortDirection === 'asc' ? -1 : 1;
+      if (strA > strB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [products, searchQuery, statusFilter, pagoFilter, sortField, sortDirection]);
 
   const isAllSelected = useMemo(() => {
     if (filteredProducts.length === 0) return false;
@@ -654,11 +713,62 @@ export default function ModulePlaceholder({
   const handleBulkToggleStatus = async (targetStatus: 'Activo' | 'Inactivo') => {
     const list = selectedProductsList;
     if (list.length === 0) return;
-    if (onUpdateProduct) {
+    const ids = list.map(item => item.id);
+    if (onUpdateProductStatusBulk) {
+      await onUpdateProductStatusBulk(ids, targetStatus);
+    } else if (onUpdateProduct) {
       for (const item of list) {
         await onUpdateProduct(item.id, { status: targetStatus });
       }
     }
+    setSelectedItems({});
+  };
+
+  // Global status change for all registered products
+  const handleGlobalStatusChange = async (targetStatus: 'Activo' | 'Inactivo') => {
+    if (products.length === 0) return;
+    const confirmMsg = `¿Estás seguro de que deseas marcar los ${products.length} productos registrados como ${targetStatus.toUpperCase()} de forma GLOBAL?`;
+    if (confirm(confirmMsg)) {
+      const ids = products.map(p => p.id);
+      if (onUpdateProductStatusBulk) {
+        await onUpdateProductStatusBulk(ids, targetStatus);
+      } else if (onUpdateProduct) {
+        for (const id of ids) {
+          await onUpdateProduct(id, { status: targetStatus });
+        }
+      }
+      setSelectedItems({});
+      alert(`Se han marcado todos los productos como ${targetStatus}.`);
+    }
+  };
+
+  const renderSortableHeader = (label: string, field: string, textClass = "text-slate-500 font-extrabold") => {
+    const isSorted = sortField === field;
+    return (
+      <th className="py-4 px-4 select-none">
+        <button
+          type="button"
+          onClick={() => handleSort(field)}
+          className={`flex items-center gap-1 hover:text-[#043077] transition-colors focus:outline-none cursor-pointer uppercase text-[10px] sm:text-[11px] ${textClass} ${
+            isSorted ? 'text-[#043077] font-black' : ''
+          }`}
+          title={`Click para ordenar por ${label}`}
+        >
+          <span className="tracking-wider">{label}</span>
+          <span className="inline-flex items-center justify-center">
+            {isSorted ? (
+              sortDirection === 'asc' ? (
+                <ChevronUp className="w-3.5 h-3.5 text-[#043077]" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-[#043077]" />
+              )
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-slate-300 hover:text-slate-400" />
+            )}
+          </span>
+        </button>
+      </th>
+    );
   };
 
   // Handlers for premium outputs
@@ -1096,6 +1206,58 @@ export default function ModulePlaceholder({
 
               </div>
 
+              {/* Acciones Rápidas Globales Banner */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
+                  <p className="text-xs font-black text-slate-700 tracking-wide uppercase">Controles Globales del Inventario:</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleGlobalStatusChange('Activo')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-lg cursor-pointer transition-all active:scale-95"
+                    title="Marcar absolutamente todos los productos registrados como Estado: Activo"
+                  >
+                    🟢 Activar Todos los Productos ({products.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGlobalStatusChange('Inactivo')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold rounded-lg cursor-pointer transition-all active:scale-95"
+                    title="Marcar absolutamente todos los productos registrados como Estado: Inactivo"
+                  >
+                    🔴 Desactivar Todos los Productos ({products.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedItems(prev => {
+                        const copy = { ...prev };
+                        products.forEach(p => {
+                          copy[p.id] = true;
+                        });
+                        return copy;
+                      });
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-bold rounded-lg cursor-pointer transition-all active:scale-95"
+                    title="Seleccionar la totalidad de los productos para realizar acciones masivas"
+                  >
+                    ☑️ Seleccionar Todo ({products.length})
+                  </button>
+                  {selectedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItems({})}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-lg cursor-pointer transition-all"
+                      title="Quitar la selección de todos los ítems marcados"
+                    >
+                      🧹 Desmarcar Todo ({selectedCount})
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Row 2: Metadata counters and exports/actions */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
                 
@@ -1170,16 +1332,16 @@ export default function ModulePlaceholder({
                           />
                         </button>
                       </th>
-                      <th className="py-4 px-4 text-slate-500">Producto</th>
-                      <th className="py-4 px-4 text-slate-500">Precios Costo</th>
-                      <th className="py-4 px-4 text-slate-500">Precio Venta</th>
-                      <th className="py-4 px-4 text-slate-500">Margen %</th>
-                      <th className="py-4 px-4 text-slate-500 font-bold text-[#043077]">Pre. Sugerido</th>
-                      <th className="py-4 px-4 text-slate-500 font-bold text-[#043077]">Margen Ps%</th>
-                      <th className="py-4 px-4 text-slate-500">Métodos de Pago</th>
-                      <th className="py-4 px-4 text-slate-500">Estado</th>
-                      <th className="py-4 px-4 text-slate-500">Fecha Registro</th>
-                      <th className="py-4 px-4 text-center text-slate-500">Acción</th>
+                      {renderSortableHeader("Producto", "nombre")}
+                      {renderSortableHeader("Precios Costo", "precio_unidad")}
+                      {renderSortableHeader("Precio Venta", "precio_venta")}
+                      {renderSortableHeader("Margen %", "margen_pct")}
+                      {renderSortableHeader("Pre. Sugerido", "precio_sugerido", "text-[#043077]/80 font-bold")}
+                      {renderSortableHeader("Margen Ps%", "margen_ps_pct", "text-[#043077]/80 font-bold")}
+                      {renderSortableHeader("Métodos de Pago", "forma_pago")}
+                      {renderSortableHeader("Estado", "status")}
+                      {renderSortableHeader("Fecha Registro", "created_at")}
+                      <th className="py-4 px-4 text-center text-slate-500 font-extrabold uppercase text-[10px]">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">

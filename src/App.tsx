@@ -441,6 +441,27 @@ export default function App() {
     }
   };
 
+  const handleUpdateProductStatusBulk = async (ids: string[], targetStatus: 'Activo' | 'Inactivo') => {
+    setProducts(prev => prev.map(p => {
+      if (ids.includes(p.id)) {
+        return { ...p, status: targetStatus };
+      }
+      return p;
+    }));
+
+    try {
+      if (dbStatus === 'connected' && ids.length > 0) {
+        const { error } = await supabase
+          .from('products')
+          .update({ status: targetStatus })
+          .in('id', ids);
+        if (error) console.warn("Supabase database bulk status update warning:", error);
+      }
+    } catch (err) {
+      console.error("Supabase bulk status update error:", err);
+    }
+  };
+
 
   // Trigger app installation prompt
   const handleInstallClick = async () => {
@@ -730,6 +751,7 @@ export default function App() {
               onAddProducts={handleAddMultipleProducts}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
+              onUpdateProductStatusBulk={handleUpdateProductStatusBulk}
             />
           </div>
 
