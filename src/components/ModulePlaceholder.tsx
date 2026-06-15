@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   TrendingUp, 
   Coffee, 
@@ -93,10 +93,23 @@ export default function ModulePlaceholder({
     }).format(num);
   };
 
+  const isActivoStatus = (status: any): boolean => {
+    const s = String(status || '').trim().toLowerCase();
+    return s === 'activo' || s === 'active' || s === 'habilitado' || s === 'true';
+  };
+
   // Product module state declarations
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagoFilter, setPagoFilter] = useState('all');
+
+  // Pagination state (only 5 products per page)
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Scroll synchronizer refs
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState<number>(0);
 
   // Sorting state (Excel-like)
   const [sortField, setSortField] = useState<string | null>(null);
@@ -517,6 +530,22 @@ export default function ModulePlaceholder({
     setForm(prev => {
       const updated = { ...prev, [field]: value };
       
+      // Auto-validate calculation if pieces or box price is changed
+      if (['precio_caja', 'piezas_por_caja'].includes(field)) {
+        const pCaja = Number(field === 'precio_caja' ? value : prev.precio_caja);
+        const pPiezas = Number(field === 'piezas_por_caja' ? value : prev.piezas_por_caja);
+        if (pCaja > 0 && pPiezas > 0) {
+          const uPrice = Number((pCaja / pPiezas).toFixed(2));
+          updated.precio_unidad = uPrice;
+          
+          const sPrice = Number(prev.precio_venta);
+          const sugPrice = Number(prev.precio_sugerido);
+          const { margin_pct, margin_ps_pct } = calculateMargins(uPrice, sPrice, sugPrice);
+          updated.margen_pct = Number(margin_pct.toFixed(2));
+          updated.margen_ps_pct = Number(margin_ps_pct.toFixed(2));
+        }
+      }
+      
       // Auto-validate calculation if numeric prices are adjusted
       if (['precio_unidad', 'precio_venta', 'precio_sugerido'].includes(field)) {
         const uPrice = Number(field === 'precio_unidad' ? value : prev.precio_unidad);
@@ -615,13 +644,11 @@ export default function ModulePlaceholder({
   const filteredProducts = useMemo(() => {
     const filtered = products.filter(p => {
       const q = searchQuery.toLowerCase().trim();
-      const matchesSearch = !q ||
-                            (p.nombre || '').toLowerCase().includes(q) || 
-                            (p.codigo || '').toLowerCase().includes(q) || 
-                            (p.proveedor || '').toLowerCase().includes(q) || 
-                            (p.notas || '').toLowerCase().includes(q);
+      const matchesSearch = !q || (p.nombre || '').toLowerCase().includes(q);
       
-      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || 
+                            (statusFilter === 'Activo' && isActivoStatus(p.status)) ||
+                            (statusFilter === 'Inactivo' && !isActivoStatus(p.status));
       const matchesPago = pagoFilter === 'all' || p.forma_pago === pagoFilter;
 
       return matchesSearch && matchesStatus && matchesPago;
@@ -667,6 +694,61 @@ export default function ModulePlaceholder({
       return 0;
     });
   }, [products, searchQuery, statusFilter, pagoFilter, sortField, sortDirection]);
+
+  // Paginated items
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * 5;
+    return filteredProducts.slice(startIndex, startIndex + 5);
+  }, [filteredProducts, currentPage]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(Math.ceil(filteredProducts.length / 5), 1);
+  }, [filteredProducts]);
+
+  // Reset page to 1 on filter/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, pagoFilter, sortField, sortDirection]);
+
+  // Measure and synchronize widths on content/pagination shift
+  useEffect(() => {
+    const updateWidth = () => {
+      if (tableContainerRef.current) {
+        setTableScrollWidth(tableContainerRef.current.scrollWidth);
+      }
+    };
+    // Wait slightly for browser render cycle
+    const timer = setTimeout(updateWidth, 50);
+    // Observe size changes
+    if (typeof ResizeObserver !== 'undefined' && tableContainerRef.current) {
+      const observer = new ResizeObserver(() => {
+        updateWidth();
+      });
+      observer.observe(tableContainerRef.current);
+      return () => {
+        clearTimeout(timer);
+        observer.disconnect();
+      };
+    }
+    return () => clearTimeout(timer);
+  }, [paginatedProducts, filteredProducts]);
+
+  // Synchronize scroll positions safely
+  const handleTopScroll = () => {
+    if (topScrollRef.current && tableContainerRef.current) {
+      if (Math.abs(tableContainerRef.current.scrollLeft - topScrollRef.current.scrollLeft) > 1) {
+        tableContainerRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+      }
+    }
+  };
+
+  const handleTableScroll = () => {
+    if (topScrollRef.current && tableContainerRef.current) {
+      if (Math.abs(topScrollRef.current.scrollLeft - tableContainerRef.current.scrollLeft) > 1) {
+        topScrollRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
+      }
+    }
+  };
 
   const isAllSelected = useMemo(() => {
     if (filteredProducts.length === 0) return false;
@@ -811,7 +893,7 @@ export default function ModulePlaceholder({
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">${formatMXN(p.precio_sugerido)}</td>
         <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #043077;">${safeVal(p.margen_ps_pct).toFixed(1)}%</td>
         <td style="padding: 10px 8px; font-size: 13px; color: #475569;">${p.forma_pago}</td>
-        <td style="padding: 10px 8px; font-size: 12px; font-weight: bold;"><span style="background-color: ${p.status === 'Activo' ? '#dcfce7' : '#fee2e2'}; color: ${p.status === 'Activo' ? '#166534' : '#991b1b'}; padding: 2px 8px; border-radius: 9999px;">${p.status}</span></td>
+        <td style="padding: 10px 8px; font-size: 12px; font-weight: bold;"><span style="background-color: ${ (String(p.status || '').trim().toLowerCase() === 'activo' || String(p.status || '').trim().toLowerCase() === 'active') ? '#dcfce7' : '#fee2e2'}; color: ${ (String(p.status || '').trim().toLowerCase() === 'activo' || String(p.status || '').trim().toLowerCase() === 'active') ? '#166534' : '#991b1b'}; padding: 2px 8px; border-radius: 9999px;">${p.status}</span></td>
         <td style="padding: 10px 8px; font-size: 11px; font-family: monospace; color: #64748b;">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : today}</td>
       </tr>
     `).join('');
@@ -888,7 +970,10 @@ export default function ModulePlaceholder({
           </div>
           <div class="metric-card">
             <span class="metric-title">Productos Activos</span>
-            <span class="metric-value" style="color: #166534;">${itemsList.filter(p => p.status === 'Activo').length} ítems</span>
+            <span class="metric-value" style="color: #166534;">${itemsList.filter(p => {
+              const s = String(p.status || '').trim().toLowerCase();
+              return s === 'activo' || s === 'active';
+            }).length} ítems</span>
           </div>
           <div class="metric-card">
             <span class="metric-title">Precio Promedio Venta</span>
@@ -1136,7 +1221,7 @@ export default function ModulePlaceholder({
               <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
                 <span className="text-xs font-black text-[#043077] uppercase tracking-wider block">Productos Activos</span>
                 <span className="text-2xl font-black text-slate-800 mt-1 block">
-                  {products.filter(p => p.status === 'Activo').length} Items
+                  {products.filter(p => isActivoStatus(p.status)).length} Items
                 </span>
                 <span className="text-xs text-slate-400 mt-1 block">Disponibles al público</span>
               </div>
@@ -1175,7 +1260,7 @@ export default function ModulePlaceholder({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar producto por nombre, código, proveedor o marca..."
+                    placeholder="Buscar por producto..."
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#043077] focus:ring-1 focus:ring-[#043077] transition-all text-slate-800 font-medium shadow-2xs"
                   />
                   {searchQuery && (
@@ -1324,7 +1409,22 @@ export default function ModulePlaceholder({
 
             {/* List and table main responsive wrapper */}
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+              
+              {/* Barra de scroll superior sincronizada */}
+              <div 
+                ref={topScrollRef}
+                onScroll={handleTopScroll}
+                className="w-full overflow-x-auto select-none bg-slate-50 border-b border-slate-100"
+                style={{ height: '12px', scrollbarWidth: 'thin' }}
+              >
+                <div style={{ width: `${tableScrollWidth}px`, height: '1px' }}></div>
+              </div>
+
+              <div 
+                ref={tableContainerRef}
+                onScroll={handleTableScroll}
+                className="overflow-x-auto"
+              >
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
                     <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
@@ -1362,7 +1462,7 @@ export default function ModulePlaceholder({
                         </td>
                       </tr>
                     ) : (
-                      filteredProducts.map((p) => {
+                      paginatedProducts.map((p) => {
                         const isChecked = !!selectedItems[p.id];
                         const formattedRegisterDate = p.created_at 
                           ? new Date(p.created_at).toLocaleDateString() 
@@ -1391,21 +1491,13 @@ export default function ModulePlaceholder({
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex flex-col gap-1">
-                                {p.codigo && (
-                                  <span className="inline-block max-w-fit text-[10px] font-mono font-bold bg-[#043077]/10 text-[#043077] px-1.5 py-0.5 rounded uppercase select-all" title="Código de barras / SKU">
-                                    {p.codigo}
-                                  </span>
-                                )}
                                 <span className="font-extrabold text-slate-800 text-sm block">{p.nombre}</span>
-                                {(p.proveedor || p.piezas_por_caja) && (
-                                  <span className="text-xs font-semibold text-slate-500 block">
-                                    {p.proveedor ? `Prov: ${p.proveedor}` : ''} {p.piezas_por_caja ? `(${p.piezas_por_caja} pzas/caja)` : ''}
+                                {p.codigo ? (
+                                  <span className="inline-block max-w-fit text-[10px] font-mono font-bold bg-[#043077]/10 text-[#043077] px-1.5 py-0.5 rounded uppercase select-all" title="Código de barras / SKU">
+                                    Cód: {p.codigo}
                                   </span>
-                                )}
-                                {p.notas && (
-                                  <span className="text-xs text-slate-400 font-medium line-clamp-1 italic max-w-[200px] block">
-                                    {p.notas}
-                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-bold italic block">Sin código</span>
                                 )}
                               </div>
                             </td>
@@ -1443,16 +1535,16 @@ export default function ModulePlaceholder({
                             <td className="py-3 px-4">
                               <button
                                 type="button"
-                                onClick={() => onUpdateProduct && onUpdateProduct(p.id, { status: p.status === 'Activo' ? 'Inactivo' : 'Activo' })}
+                                onClick={() => onUpdateProduct && onUpdateProduct(p.id, { status: isActivoStatus(p.status) ? 'Inactivo' : 'Activo' })}
                                 className="focus:outline-none cursor-pointer"
                                 title="Haga clic para cambiar de estado rápidamente"
                               >
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                  p.status === 'Activo' 
+                                  isActivoStatus(p.status) 
                                     ? 'bg-emerald-100 text-emerald-800' 
                                     : 'bg-rose-100 text-rose-800'
                                 }`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${p.status === 'Activo' ? 'bg-emerald-600' : 'bg-rose-600'}`}></span>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${isActivoStatus(p.status) ? 'bg-emerald-600' : 'bg-rose-600'}`}></span>
                                   {p.status}
                                 </span>
                               </button>
@@ -1498,6 +1590,59 @@ export default function ModulePlaceholder({
                 </table>
               </div>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-3 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+                <div className="text-xs font-black text-slate-500 uppercase tracking-wide">
+                  Mostrando <span className="text-[#043077] font-mono">{(currentPage - 1) * 5 + 1}</span> a <span className="text-[#043077] font-mono">{Math.min(currentPage * 5, filteredProducts.length)}</span> de <span className="text-slate-700 font-mono">{filteredProducts.length}</span> productos
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white text-slate-700 text-xs font-black border border-slate-200 rounded-xl cursor-pointer transition-all focus:outline-none flex items-center gap-1"
+                  >
+                    ◀️ Anterior
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                    const isSelected = page === currentPage;
+                    const shouldShow = totalPages <= 6 || Math.abs(page - currentPage) <= 1 || page === 1 || page === totalPages;
+                    
+                    if (!shouldShow) {
+                      if (page === 2 || page === totalPages - 1) {
+                        return <span key={`dots-${page}`} className="text-slate-400 text-xs px-1 select-none">...</span>;
+                      }
+                      return null;
+                    }
+
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 flex items-center justify-center text-xs font-black rounded-xl cursor-pointer transition-all focus:outline-none ${
+                          isSelected
+                            ? 'bg-[#043077] text-white border border-[#043077]'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white text-slate-700 text-xs font-black border border-slate-200 rounded-xl cursor-pointer transition-all focus:outline-none flex items-center gap-1"
+                  >
+                    Siguiente ▶️
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Sticky multi-selection floating bar */}
             <AnimatePresence>
