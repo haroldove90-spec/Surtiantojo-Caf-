@@ -1250,31 +1250,11 @@ export default function ModulePlaceholder({
             {/* Filter and controls bar */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col gap-4">
               
-              {/* Row 1: Search and Dropdowns (Full Width & Dynamic Search Optioning) */}
-              <div className="flex flex-col lg:flex-row gap-3 w-full">
+              {/* Row 1: Dropdowns (Full Width) */}
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
                 
-                {/* Search input field */}
-                <div className="relative flex-1 min-w-[280px]">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar por producto..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#043077] focus:ring-1 focus:ring-[#043077] transition-all text-slate-800 font-medium shadow-2xs"
-                  />
-                  {searchQuery && (
-                    <button 
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none text-xs bg-slate-200/50 hover:bg-slate-200 px-1.5 py-0.5 rounded-md"
-                    >
-                      Limpiar
-                    </button>
-                  )}
-                </div>
-
                 {/* Status Dropdown filter */}
-                <div className="relative min-w-[160px]">
+                <div className="relative flex-1 min-w-[160px]">
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -1287,7 +1267,7 @@ export default function ModulePlaceholder({
                 </div>
 
                 {/* Forma de pago filter */}
-                <div className="relative min-w-[165px]">
+                <div className="relative flex-1 min-w-[165px]">
                   <select
                     value={pagoFilter}
                     onChange={(e) => setPagoFilter(e.target.value)}
@@ -1405,6 +1385,29 @@ export default function ModulePlaceholder({
 
               </div>
 
+              {/* Row 3: Product Search Bar (Moved below Registrar Producto) */}
+              <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
+                <label className="text-xs font-black text-[#043077] uppercase tracking-wider block">🔍 Buscar por producto:</label>
+                <div className="relative w-full">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Escriba el nombre del producto para buscarlo..."
+                    className="w-full pl-10 pr-24 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#043077] focus:ring-1 focus:ring-[#043077] transition-all text-slate-800 font-semibold shadow-2xs"
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-xs bg-slate-200 hover:bg-slate-300 px-3 py-1.5 rounded-lg font-black text-slate-700 transition-all cursor-pointer"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+              </div>
+
             </div>
 
             {/* List and table main responsive wrapper */}
@@ -1442,6 +1445,7 @@ export default function ModulePlaceholder({
                           />
                         </button>
                       </th>
+                      {renderSortableHeader("Código", "codigo")}
                       {renderSortableHeader("Producto", "nombre")}
                       {renderSortableHeader("Precios Costo", "precio_unidad")}
                       {renderSortableHeader("Precio Venta", "precio_venta")}
@@ -1457,7 +1461,7 @@ export default function ModulePlaceholder({
                   <tbody className="divide-y divide-slate-100">
                     {filteredProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="py-12 text-center text-slate-500 font-medium">
+                        <td colSpan={12} className="py-12 text-center text-slate-500 font-medium">
                           No se encontraron productos registrados con los filtros aplicados.
                         </td>
                       </tr>
@@ -1490,16 +1494,16 @@ export default function ModulePlaceholder({
                               </button>
                             </td>
                             <td className="py-3 px-4">
-                              <div className="flex flex-col gap-1">
-                                <span className="font-extrabold text-slate-800 text-sm block">{p.nombre}</span>
-                                {p.codigo ? (
-                                  <span className="inline-block max-w-fit text-[10px] font-mono font-bold bg-[#043077]/10 text-[#043077] px-1.5 py-0.5 rounded uppercase select-all" title="Código de barras / SKU">
-                                    Cód: {p.codigo}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 font-bold italic block">Sin código</span>
-                                )}
-                              </div>
+                              {p.codigo ? (
+                                <span className="inline-block max-w-fit text-[11px] font-mono font-bold bg-[#043077]/10 text-[#043077] px-2 py-0.5 rounded uppercase select-all" title="Código de barras / SKU">
+                                  {p.codigo}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-400 font-bold italic block">Sin código</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-extrabold text-slate-800 text-sm block">{p.nombre}</span>
                             </td>
                             <td className="py-3 px-4">
                               <div className="text-xs text-slate-600 leading-tight">
