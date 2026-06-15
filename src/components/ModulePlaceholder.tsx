@@ -399,7 +399,7 @@ export default function ModulePlaceholder({
         const headerKeywords: Record<string, string[]> = {
           codigo: ['codigo', 'codigo', 'cod', 'barcode', 'barras', 'ref', 'sku', 'id', 'code', 'idprod', 'codigobarras', 'codigos'],
           nombre: ['nombre', 'nombredelproducto', 'producto', 'name', 'item', 'descripcionproducto'],
-          proveedor: ['proveedor', 'provider', 'marca', 'brand', 'fabricante', 'distribuidor'],
+          proveedor: ['proveedor', 'proveedores', 'provider', 'marca', 'brand', 'fabricante', 'distribuidor'],
           piezas_por_caja: ['piezasporcaja', 'pzascaja', 'piezas', 'piezas_por_caja', 'unidadesporcaja', 'pzasporcaja', 'pzas', 'caja_piezas'],
           precio_caja: ['preciocaja', 'precio_caja', 'costocaja', 'costo_caja', 'preciodebox', 'costo_por_caja'],
           precio_unidad: ['preciounitario', 'preciounidad', 'costounitario', 'precio_unidad', 'precio_unitario', 'costo_unitario'],
@@ -1447,6 +1447,7 @@ export default function ModulePlaceholder({
                       </th>
                       {renderSortableHeader("Código", "codigo")}
                       {renderSortableHeader("Producto", "nombre")}
+                      {renderSortableHeader("Proveedor", "proveedor")}
                       {renderSortableHeader("Precios Costo", "precio_unidad")}
                       {renderSortableHeader("Precio Venta", "precio_venta")}
                       {renderSortableHeader("Margen %", "margen_pct")}
@@ -1461,7 +1462,7 @@ export default function ModulePlaceholder({
                   <tbody className="divide-y divide-slate-100">
                     {filteredProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={12} className="py-12 text-center text-slate-500 font-medium">
+                        <td colSpan={13} className="py-12 text-center text-slate-500 font-medium">
                           No se encontraron productos registrados con los filtros aplicados.
                         </td>
                       </tr>
@@ -1504,6 +1505,11 @@ export default function ModulePlaceholder({
                             </td>
                             <td className="py-3 px-4">
                               <span className="font-extrabold text-slate-800 text-sm block">{p.nombre}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-xs font-bold text-slate-600 block bg-slate-100/60 border border-slate-200/50 rounded-lg px-2.5 py-1.5 max-w-[155px] truncate" title={p.proveedor || "Genérico"}>
+                                {p.proveedor || "Genérico"}
+                              </span>
                             </td>
                             <td className="py-3 px-4">
                               <div className="text-xs text-slate-600 leading-tight">
