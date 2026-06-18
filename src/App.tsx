@@ -34,8 +34,6 @@ const APP_MODULES = [
   { id: 'sales_by_product', name: 'Venta por producto', icon: BarChart3, desc: 'Rendimiento individual de consumibles' },
   { id: 'expenses', name: 'Gastos', icon: Wallet, desc: 'Egreso por servicios, renta e insumos' },
   { id: 'client_accounts', name: 'Cuentas clientes', icon: Users, desc: 'Premios de fidelidad y saldo VIP' },
-  { id: 'routes', name: 'Rutas', icon: Route, desc: 'Surtido o entregas de repostería' },
-  { id: 'maintenance', name: 'Mantenimiento', icon: Wrench, desc: 'Cuidado preventivo de espresso y molinos' },
   { id: 'profile', name: 'Perfil del usuario', icon: User, desc: 'Permisos de administradores y baristas' }
 ];
 
@@ -728,7 +726,7 @@ export default function App() {
                 </div>
 
                 <div className="border-t border-white/10 pt-5 text-center space-y-1">
-                  <span className="text-[10px] text-slate-400 font-mono block">Módulos habilitados: 9</span>
+                  <span className="text-[10px] text-slate-400 font-mono block">Módulos habilitados: 7</span>
                   <span className="text-[11px] font-bold text-blue-200 bg-blue-500/20 px-3 py-1 rounded-full inline-block font-mono">
                     Sistema Activo
                   </span>
@@ -754,57 +752,6 @@ export default function App() {
               onUpdateProductStatusBulk={handleUpdateProductStatusBulk}
             />
           </div>
-
-          {/* TWO DECORATIVE HIGH-DENSITY HIGHLIGHT RAIL PANELS - STYLED IN BRAND BLUE #043077 WITH GRADIENTS and ZERO COFFEE COLORS */}
-          <div className="flex flex-col md:flex-row gap-4 mt-2">
-            <div 
-              onClick={() => selectModule('routes')}
-              className="flex-1 h-24 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100/80 hover:to-indigo-100/80 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
-            >
-              <div className="p-3.5 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-2xl flex items-center justify-center shadow-sm">🚚</div>
-              <div className="text-left">
-                <p className="text-sm font-black text-[#043077] uppercase tracking-wide">Gestión de Rutas</p>
-                <p className="text-xs text-slate-500 font-medium italic mt-0.5">Monitorear entrega e itinerarios activos...</p>
-              </div>
-            </div>
-            <div 
-              onClick={() => selectModule('maintenance')}
-              className="flex-1 h-24 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100/80 hover:to-indigo-100/80 rounded-2xl border border-blue-100 flex items-center px-6 gap-4 cursor-pointer transition-all shadow-xs"
-            >
-              <div className="p-3.5 bg-gradient-to-tr from-[#043077] to-blue-600 rounded-xl text-white text-2xl flex items-center justify-center shadow-sm">🛠️</div>
-              <div className="text-left">
-                <p className="text-sm font-black text-[#043077] uppercase tracking-wide">Mantenimiento Preventivo</p>
-                <p className="text-xs text-slate-500 font-medium italic mt-0.5">Calibrar molinos y presiones de grupo...</p>
-              </div>
-            </div>
-          </div>
-
-          {/* INTERACTIVE NAVIGATION MAP (GUIDE TO SYSTEM) */}
-          <section className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <HelpCircle className="w-6 h-6 text-[#043077]" />
-              <h3 className="font-extrabold text-lg text-slate-900 font-display">Mapa de Módulos Activos</h3>
-            </div>
-            <p className="text-sm text-slate-500 leading-relaxed max-w-3xl text-left">
-              Este dashboard está diseñado con una estructura modular limpia. Para navegar entre los distintos espacios del negocio (Métricas, Productos, Surtido, etc.), usa la barra lateral en tu computador o despliega el menú móvil haciendo clic en el icono de hamburguesa en la esquina superior izquierda. 
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
-              {APP_MODULES.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => selectModule(m.id)}
-                  className={`p-3.5 rounded-xl border text-center transition-all ${
-                    m.id === activeModule 
-                      ? 'border-[#043077] bg-blue-50/50 text-[#043077] shadow-xs font-extrabold' 
-                      : 'border-slate-150 hover:border-slate-300 bg-slate-50/40 text-slate-700'
-                  }`}
-                >
-                  <p className="text-sm truncate font-display font-medium leading-tight">{m.name}</p>
-                  <span className="text-[10px] text-[#043077]/80 font-mono mt-0.5 block font-bold capitalize">Módulo Activo</span>
-                </button>
-              ))}
-            </div>
-          </section>
 
         </main>
 

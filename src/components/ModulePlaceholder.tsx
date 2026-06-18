@@ -19,6 +19,7 @@ import {
   TrendingDown,
   Percent,
   Plus,
+  Minus,
   Sliders,
   Shield,
   Activity,
@@ -37,7 +38,14 @@ import {
   Settings,
   ArrowUpDown,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Box,
+  Package,
+  Boxes,
+  GlassWater,
+  Archive,
+  CupSoda,
+  Milk
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -102,6 +110,39 @@ export default function ModulePlaceholder({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagoFilter, setPagoFilter] = useState('all');
+
+  // Surtido / Abastecimiento custom state
+  const [surtidoCards, setSurtidoCards] = useState([
+    { id: 'cg1', name: 'CG1', alias: 'Empaque de Cartón Tipo 1', icon: 'Layers', stock: 150, maxStock: 500, category: 'Empaques', unit: 'pzas' },
+    { id: 'cg2', name: 'CG2', alias: 'Empaque de Cartón Tipo 2', icon: 'Package', stock: 85, maxStock: 400, category: 'Empaques', unit: 'pzas' },
+    { id: 'cg3', name: 'CG3', alias: 'Empaque de Cartón Tipo 3', icon: 'Boxes', stock: 18, maxStock: 300, category: 'Empaques', unit: 'pzas' },
+    { id: 'art2alt', name: 'ART2ALT', alias: 'Artículo Alternativo Doble', icon: 'Sparkles', stock: 110, maxStock: 250, category: 'Insumos', unit: 'pzas' },
+    { id: 'vitrobb', name: 'VitroBB', alias: 'Frasco Vidrio Bebidas', icon: 'GlassWater', stock: 320, maxStock: 600, category: 'Vidrio', unit: 'pzas' },
+    { id: 'artpk', name: 'ARTPK', alias: 'Artículo Empaque Pack', icon: 'Archive', stock: 140, maxStock: 350, category: 'Empaques', unit: 'pzas' },
+    { id: 'cer1', name: 'CER1', alias: 'Cerámica Especializada 1', icon: 'Coffee', stock: 68, maxStock: 150, category: 'Vajilla', unit: 'pzas' },
+    { id: 'cer2', name: 'CER2', alias: 'Cerámica Especializada 2', icon: 'CupSoda', stock: 14, maxStock: 120, category: 'Vajilla', unit: 'pzas' },
+    { id: 'cerbb', name: 'CERBB', alias: 'Cerámica Bebé Bebidas', icon: 'Milk', stock: 45, maxStock: 100, category: 'Vajilla', unit: 'pzas' },
+    { id: 'cafe', name: 'CAFÉ', alias: 'Grano de Café Seleccionado', icon: 'Coffee', stock: 35, maxStock: 80, category: 'Materia Prima', unit: 'kgs' },
+  ]);
+
+  // Surtido interactive log history (simplified)
+
+  const getSurtidoIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Layers': return <Layers className="w-5 h-5 text-[#043077]" />;
+      case 'Package': return <Package className="w-5 h-5 text-emerald-600" />;
+      case 'Boxes': return <Boxes className="w-5 h-5 text-indigo-600" />;
+      case 'Sparkles': return <Sparkles className="w-5 h-5 text-amber-600" />;
+      case 'GlassWater': return <GlassWater className="w-5 h-5 text-teal-600" />;
+      case 'Archive': return <Archive className="w-5 h-5 text-blue-600" />;
+      case 'Coffee': return <Coffee className="w-5 h-5 text-[#043077]" />;
+      case 'CupSoda': return <CupSoda className="w-5 h-5 text-cyan-600" />;
+      case 'Milk': return <Milk className="w-5 h-5 text-purple-600" />;
+      default: return <Box className="w-5 h-5 text-slate-600" />;
+    }
+  };
+
+  const [surtidoSearch, setSurtidoSearch] = useState('');
 
   // Pagination state (only 5 products per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -2278,65 +2319,168 @@ export default function ModulePlaceholder({
           </div>
         );
 
-      case 'supply':
+      case 'supply': {
+        const filteredCards = surtidoCards.filter(card => {
+          return card.name.toLowerCase().includes(surtidoSearch.toLowerCase()) || 
+                 card.alias.toLowerCase().includes(surtidoSearch.toLowerCase());
+        });
+
+        const handleStockChange = (id: string, delta: number) => {
+          setSurtidoCards(prev => prev.map(c => {
+            if (c.id === id) {
+              const newStock = Math.max(0, Math.min(c.maxStock, c.stock + delta));
+              return { ...c, stock: newStock };
+            }
+            return c;
+          }));
+        };
+
+        const handleSetStockDirect = (id: string, val: number) => {
+          setSurtidoCards(prev => prev.map(c => {
+            if (c.id === id) {
+              const cleanVal = Math.max(0, Math.min(c.maxStock, isNaN(val) ? 0 : val));
+              return { ...c, stock: cleanVal };
+            }
+            return c;
+          }));
+        };
+
+        const handleRestockToMax = (id: string) => {
+          setSurtidoCards(prev => prev.map(c => {
+            if (c.id === id) {
+              return { ...c, stock: c.maxStock };
+            }
+            return c;
+          }));
+        };
+
+        const handleRestockAll = () => {
+          setSurtidoCards(prev => prev.map(c => {
+            return { ...c, stock: c.maxStock };
+          }));
+        };
+
         return (
           <div className="space-y-6">
-            {/* Top Indicator bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl shadow-xs">
-                <span className="text-xs text-slate-400 font-extrabold block">GRANO CAFÉ MATRIZ RESGUARDO</span>
-                <span className="text-3xl font-black text-slate-900 mt-1 block">18.5 kgs</span>
-                <span className="text-xs text-emerald-600 font-semibold font-mono">Suficiente para 12 días</span>
-              </div>
-              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl shadow-xs">
-                <span className="text-xs text-slate-400 font-extrabold block">VASOS CRÍTICOS 12oz</span>
-                <span className="text-3xl font-black text-red-600 mt-1 block">150 pzas</span>
-                <span className="text-xs text-red-500 font-bold font-mono">Reordenar urgente</span>
-              </div>
-              <div className="p-4.5 bg-white border border-slate-150 rounded-2xl shadow-xs">
-                <span className="text-xs text-slate-400 font-extrabold block">LECHES & COMPLEMENTOS</span>
-                <span className="text-3xl font-black text-slate-900 mt-1 block">74% de Capacidad</span>
-                <span className="text-xs text-emerald-600 font-semibold font-mono">Último surtido: Ayer</span>
-              </div>
+            
+            {/* Layout Main full-width cards grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filteredCards.length === 0 ? (
+                <div className="col-span-full bg-white border border-slate-150 rounded-2xl p-12 text-center text-slate-500 font-medium">
+                  No se encontraron tarjetas que correspondan con los filtros de búsqueda.
+                </div>
+              ) : (
+                filteredCards.map((card) => {
+                  const pct = Math.round((card.stock / card.maxStock) * 100);
+                  
+                  // calculate levels and colors
+                  let pctColor = "bg-emerald-600";
+                  let textColor = "text-emerald-700 bg-emerald-50 border-emerald-100";
+                  let statusText = "STOCK LLENO";
+                  if (pct < 25) {
+                    pctColor = "bg-rose-500";
+                    textColor = "text-rose-700 bg-rose-50 border-rose-100";
+                    statusText = "S.O.S BAJO";
+                  } else if (pct < 60) {
+                    pctColor = "bg-amber-500";
+                    textColor = "text-amber-700 bg-amber-50 border-amber-100";
+                    statusText = "REVISIÓN";
+                  }
+
+                  return (
+                    <div 
+                      key={card.id} 
+                      className="bg-white border border-slate-200 hover:border-[#043077]/50 rounded-2xl p-4.5 shadow-2xs hover:shadow-sm transition-all text-left flex flex-col justify-between h-[235px]"
+                    >
+                      {/* Card Header & Icon */}
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                            {card.category}
+                          </span>
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${textColor}`}>
+                            {statusText}
+                          </span>
+                        </div>
+
+                        {/* Code Name & Custom Icon */}
+                        <div className="flex items-center gap-3 mt-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#043077]/5 flex items-center justify-center border border-[#043077]/10 shrink-0">
+                            {getSurtidoIcon(card.icon)}
+                          </div>
+                          <div>
+                            <h5 className="text-lg font-black text-slate-800 leading-none">{card.name}</h5>
+                            <span className="text-[10px] text-slate-500 font-semibold block mt-1 line-clamp-1">{card.alias}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress bar info */}
+                      <div className="mt-4 space-y-1.5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Nivel actual:</span>
+                          <span className="font-mono font-black text-slate-700 text-xs">
+                            {card.stock} / {card.maxStock} {card.unit} ({pct}%)
+                          </span>
+                        </div>
+
+                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-500 ${pctColor}`}
+                            style={{ width: `${pct}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Controls Footer */}
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                        
+                        {/* Steppers */}
+                        <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                          <button
+                            onClick={() => handleStockChange(card.id, -5)}
+                            className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center border border-slate-200 shadow-3xs cursor-pointer active:scale-95 transition-all text-xs font-bold"
+                            title="Descontar 5"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          <input
+                            type="number"
+                            value={card.stock}
+                            onChange={(e) => handleSetStockDirect(card.id, parseInt(e.target.value))}
+                            className="w-10 text-center font-mono font-black bg-transparent text-xs text-slate-800 focus:outline-none"
+                          />
+
+                          <button
+                            onClick={() => handleStockChange(card.id, 5)}
+                            className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center border border-slate-200 shadow-3xs cursor-pointer active:scale-95 transition-all text-xs font-bold"
+                            title="Surtir 5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Fill to max fast-pass */}
+                        <button
+                          onClick={() => handleRestockToMax(card.id)}
+                          className="px-2.5 py-2 bg-[#043077]/10 hover:bg-[#043077] hover:text-white text-[#043077] font-black text-[9px] uppercase tracking-wide rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                          title="Reabastecer al máximo"
+                        >
+                          Llenar
+                        </button>
+
+                      </div>
+
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            {/* Insumo tables with customized SVG graphic bar indicators */}
-            <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-md md:text-lg font-extrabold text-slate-900 text-left">Niveles de Resguardo e Insumos</h4>
-              <div className="space-y-4 text-left">
-                {[
-                  { item: 'Grano de Café Blend Surtiantojo', type: 'Materia prima', level: 78, qty: '18.5 kg', status: 'Sano', color: '#043077' },
-                  { item: 'Vasos Desechables Bio 16oz', type: 'Insumos', level: 32, qty: '420 pzas', status: 'Revisión', color: '#F59E0B' },
-                  { item: 'Vasos Desechables Bio 12oz', type: 'Insumos', level: 12, qty: '150 pzas', status: 'Agotando', color: '#EF4444' },
-                  { item: 'Leche Entera Premium (Cajas)', type: 'Lácteos', level: 90, qty: '48 pzas', status: 'Sano', color: '#10B981' },
-                  { item: 'Azúcar Refinada Mascabado', type: 'Endulzantes', level: 65, qty: '12.0 kg', status: 'Sano', color: '#043077' },
-                ].map((sup, idx) => (
-                  <div key={idx} className="space-y-1.5">
-                    <div className="flex justify-between items-center text-sm">
-                      <div>
-                        <span className="font-extrabold text-slate-800">{sup.item}</span>
-                        <span className="text-xs text-slate-400 ml-2">({sup.type})</span>
-                      </div>
-                      <div className="font-mono text-slate-700">
-                        <strong className="text-slate-900">{sup.qty}</strong> / {sup.level}%
-                      </div>
-                    </div>
-                    {/* Visual progress bar */}
-                    <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full transition-all duration-500" 
-                        style={{ 
-                          width: `${sup.level}%`,
-                          backgroundColor: sup.color
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         );
+      }
 
       case 'sales_by_product':
         return (
