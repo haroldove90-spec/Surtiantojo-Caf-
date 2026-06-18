@@ -111,18 +111,18 @@ export default function ModulePlaceholder({
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagoFilter, setPagoFilter] = useState('all');
 
-  // Surtido / Abastecimiento custom state
+  // Surtido / Abastecimiento custom state with refill metrics
   const [surtidoCards, setSurtidoCards] = useState([
-    { id: 'cg1', name: 'CG1', alias: 'Empaque de Cartón Tipo 1', icon: 'Layers', stock: 150, maxStock: 500, category: 'Empaques', unit: 'pzas' },
-    { id: 'cg2', name: 'CG2', alias: 'Empaque de Cartón Tipo 2', icon: 'Package', stock: 85, maxStock: 400, category: 'Empaques', unit: 'pzas' },
-    { id: 'cg3', name: 'CG3', alias: 'Empaque de Cartón Tipo 3', icon: 'Boxes', stock: 18, maxStock: 300, category: 'Empaques', unit: 'pzas' },
-    { id: 'art2alt', name: 'ART2ALT', alias: 'Artículo Alternativo Doble', icon: 'Sparkles', stock: 110, maxStock: 250, category: 'Insumos', unit: 'pzas' },
-    { id: 'vitrobb', name: 'VitroBB', alias: 'Frasco Vidrio Bebidas', icon: 'GlassWater', stock: 320, maxStock: 600, category: 'Vidrio', unit: 'pzas' },
-    { id: 'artpk', name: 'ARTPK', alias: 'Artículo Empaque Pack', icon: 'Archive', stock: 140, maxStock: 350, category: 'Empaques', unit: 'pzas' },
-    { id: 'cer1', name: 'CER1', alias: 'Cerámica Especializada 1', icon: 'Coffee', stock: 68, maxStock: 150, category: 'Vajilla', unit: 'pzas' },
-    { id: 'cer2', name: 'CER2', alias: 'Cerámica Especializada 2', icon: 'CupSoda', stock: 14, maxStock: 120, category: 'Vajilla', unit: 'pzas' },
-    { id: 'cerbb', name: 'CERBB', alias: 'Cerámica Bebé Bebidas', icon: 'Milk', stock: 45, maxStock: 100, category: 'Vajilla', unit: 'pzas' },
-    { id: 'cafe', name: 'CAFÉ', alias: 'Grano de Café Seleccionado', icon: 'Coffee', stock: 35, maxStock: 80, category: 'Materia Prima', unit: 'kgs' },
+    { id: 'cg1', name: 'CG1', alias: 'Empaque de Cartón Tipo 1', icon: 'Layers', stock: 150, maxStock: 500, category: 'Empaques', unit: 'pzas', fillCount: 3, totalFilledAmount: 450, lastFilledDate: 'Ayer 18:22', loadedProduct: 'Café Molido Premium' },
+    { id: 'cg2', name: 'CG2', alias: 'Empaque de Cartón Tipo 2', icon: 'Package', stock: 85, maxStock: 400, category: 'Empaques', unit: 'pzas', fillCount: 1, totalFilledAmount: 120, lastFilledDate: 'Hace 2 horas', loadedProduct: 'Vasos Térmicos 12oz' },
+    { id: 'cg3', name: 'CG3', alias: 'Empaque de Cartón Tipo 3', icon: 'Boxes', stock: 18, maxStock: 300, category: 'Empaques', unit: 'pzas', fillCount: 2, totalFilledAmount: 200, lastFilledDate: 'Hace 5 horas', loadedProduct: 'Vasos Plásticos 16oz' },
+    { id: 'art2alt', name: 'ART2ALT', alias: 'Artículo Alternativo Doble', icon: 'Sparkles', stock: 110, maxStock: 250, category: 'Insumos', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'vitrobb', name: 'VitroBB', alias: 'Frasco Vidrio Bebidas', icon: 'GlassWater', stock: 320, maxStock: 600, category: 'Vidrio', unit: 'pzas', fillCount: 4, totalFilledAmount: 850, lastFilledDate: 'Ayer 15:30', loadedProduct: 'Botella de Vidrio 500ml' },
+    { id: 'artpk', name: 'ARTPK', alias: 'Artículo Empaque Pack', icon: 'Archive', stock: 140, maxStock: 350, category: 'Empaques', unit: 'pzas', fillCount: 1, totalFilledAmount: 140, lastFilledDate: '15 Jun 2026', loadedProduct: 'Bolsas Kraft Medianas' },
+    { id: 'cer1', name: 'CER1', alias: 'Cerámica Especializada 1', icon: 'Coffee', stock: 68, maxStock: 150, category: 'Vajilla', unit: 'pzas', fillCount: 2, totalFilledAmount: 180, lastFilledDate: '14 Jun 2026', loadedProduct: 'Taza Cerámica 8oz' },
+    { id: 'cer2', name: 'CER2', alias: 'Cerámica Especializada 2', icon: 'CupSoda', stock: 14, maxStock: 120, category: 'Vajilla', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cerbb', name: 'CERBB', alias: 'Cerámica Bebé Bebidas', icon: 'Milk', stock: 45, maxStock: 100, category: 'Vajilla', unit: 'pzas', fillCount: 1, totalFilledAmount: 45, lastFilledDate: '10 Jun 2026', loadedProduct: 'Taza Espresso Mini' },
+    { id: 'cafe', name: 'CAFÉ', alias: 'Grano de Café Seleccionado', icon: 'Coffee', stock: 35, maxStock: 80, category: 'Materia Prima', unit: 'kgs', fillCount: 5, totalFilledAmount: 120, lastFilledDate: 'Hace 30 min', loadedProduct: 'Grano Espresso Veracruz' },
   ]);
 
   // Surtido interactive log history (simplified)
@@ -143,6 +143,14 @@ export default function ModulePlaceholder({
   };
 
   const [surtidoSearch, setSurtidoSearch] = useState('');
+
+  // Refill Machine specific states
+  const [activeRefillMachineId, setActiveRefillMachineId] = useState<string | null>(null);
+  const [sessionRefills, setSessionRefills] = useState<{ id: string; name: string; codigo: string; price: number; amount: number }[]>([]);
+  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
+  const [refillSearch, setRefillSearch] = useState('');
+  const [selectedRefillProduct, setSelectedRefillProduct] = useState<any | null>(null);
+  const [refillAmount, setRefillAmount] = useState<number>(1);
 
   // Pagination state (only 5 products per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -2320,10 +2328,22 @@ export default function ModulePlaceholder({
         );
 
       case 'supply': {
-        const filteredCards = surtidoCards.filter(card => {
-          return card.name.toLowerCase().includes(surtidoSearch.toLowerCase()) || 
-                 card.alias.toLowerCase().includes(surtidoSearch.toLowerCase());
-        });
+        const filteredCards = surtidoCards;
+
+        const defaultInventoryProducts = [
+          { id: 'p_cg1', codigo: 'CG1-P', nombre: 'Cartones de Empaque CG1', proveedor: 'Proveedora General S.A.', precio_venta: 12.50 },
+          { id: 'p_cg2', codigo: 'CG2-P', nombre: 'Cartones de Empaque CG2', proveedor: 'Proveedora General S.A.', precio_venta: 18.00 },
+          { id: 'p_cg3', codigo: 'CG3-P', nombre: 'Cartones de Empaque CG3', proveedor: 'Proveedora General S.A.', precio_venta: 24.50 },
+          { id: 'p_alt', codigo: 'ALT-INS', nombre: 'Insumo Alternativo Plus', proveedor: 'Distribuidora del Centro', precio_venta: 8.50 },
+          { id: 'p_vit', codigo: 'VIT-BB', nombre: 'Botellas de Vidrio Bebidas 350ml', proveedor: 'Vitromex', precio_venta: 14.00 },
+          { id: 'p_pk', codigo: 'PK-EMP', nombre: 'Artículos Empaque Combo-Pack', proveedor: 'Industrial Cajas', precio_venta: 32.00 },
+          { id: 'p_cer1', codigo: 'CER-1', nombre: 'Taza Cerámica Artisan White 8oz', proveedor: 'Vajillas Oaxaca', precio_venta: 110.00 },
+          { id: 'p_cer2', codigo: 'CER-2', nombre: 'Taza Cerámica Artisan Black 12oz', proveedor: 'Vajillas Oaxaca', precio_venta: 130.00 },
+          { id: 'p_cerbb', codigo: 'CER-BB', nombre: 'Jarros Infantiles Petit', proveedor: 'Vajillas Oaxaca', precio_venta: 85.00 },
+          { id: 'p_cafe', codigo: 'CAF-EXP', nombre: 'Grano de Café Veracruz (Espresso)', proveedor: 'Cafetalera Coatepec', precio_venta: 290.00 },
+        ];
+
+        const availableProducts = products.length > 0 ? products : defaultInventoryProducts;
 
         const handleStockChange = (id: string, delta: number) => {
           setSurtidoCards(prev => prev.map(c => {
@@ -2354,15 +2374,406 @@ export default function ModulePlaceholder({
           }));
         };
 
-        const handleRestockAll = () => {
-          setSurtidoCards(prev => prev.map(c => {
-            return { ...c, stock: c.maxStock };
-          }));
+        const handleAddSessionRefill = (product: any, amount: number) => {
+          if (!product) return;
+          setSessionRefills(prev => {
+            const existingIndex = prev.findIndex(item => item.id === product.id || item.codigo === product.codigo);
+            if (existingIndex > -1) {
+              const updated = [...prev];
+              updated[existingIndex] = {
+                ...updated[existingIndex],
+                amount: updated[existingIndex].amount + amount
+              };
+              return updated;
+            } else {
+              return [...prev, {
+                id: product.id || product.codigo || String(Math.random()),
+                name: product.nombre || product.name,
+                codigo: product.codigo || 'N/D',
+                price: product.precio_venta || 0,
+                amount: amount
+              }];
+            }
+          });
+          setRefillAmount(1);
         };
 
+        const handleDeleteSessionRefill = (id: string) => {
+          setSessionRefills(prev => prev.filter(item => item.id !== id));
+        };
+
+        const handleSaveAllSessionRefills = (machineId: string) => {
+          if (sessionRefills.length === 0) return;
+          setSurtidoCards(prev => prev.map(c => {
+            if (c.id === machineId) {
+              const totalAmount = sessionRefills.reduce((sum, item) => sum + item.amount, 0);
+              const newStock = Math.min(c.maxStock, c.stock + totalAmount);
+              const now = new Date();
+              const hours = String(now.getHours()).padStart(2, '0');
+              const minutes = String(now.getMinutes()).padStart(2, '0');
+              const timestamp = `Hoy ${hours}:${minutes}`;
+              
+              const productNames = sessionRefills.map(item => item.name).join(', ');
+              
+              return {
+                ...c,
+                stock: newStock,
+                fillCount: (c.fillCount || 0) + 1,
+                totalFilledAmount: (c.totalFilledAmount || 0) + totalAmount,
+                lastFilledDate: timestamp,
+                loadedProduct: productNames.length > 35 ? `${sessionRefills.length} productos` : productNames
+              };
+            }
+            return c;
+          }));
+          setActiveRefillMachineId(null);
+          setSelectedRefillProduct(null);
+          setSessionRefills([]);
+          setProductCounts({});
+        };
+
+        const activeMachine = surtidoCards.find(c => c.id === activeRefillMachineId);
+
+        // Filter products list inside the modal/form
+        const filteredProductsToSelect = availableProducts.filter(p => {
+          const term = refillSearch.toLowerCase();
+          return (p.nombre || p.name || '').toLowerCase().includes(term) ||
+                 (p.codigo || p.id || '').toLowerCase().includes(term);
+        });
+
+        // 1. RENDER DEDICATED FULL SECTION/PAGE FORM IF MACHINE IS SELECTED FOR REFILL
+        if (activeRefillMachineId && activeMachine) {
+          return (
+            <div className="space-y-6 text-left select-none">
+              
+              {/* Back Header */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => {
+                      setActiveRefillMachineId(null);
+                      setSelectedRefillProduct(null);
+                      setSessionRefills([]);
+                      setProductCounts({});
+                    }}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+                  >
+                    ← Regresar al Surtido
+                  </button>
+                  <div>
+                    <h4 className="text-xl font-black text-slate-800 flex items-center gap-2 mt-1 sm:mt-0">
+                      {getSurtidoIcon(activeMachine.icon)}
+                      Llenado & Control: {activeMachine.name}
+                    </h4>
+                    <p className="text-xs text-slate-400 font-semibold">{activeMachine.alias}</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-1 bg-[#043077]/10 text-[#043077] rounded-all text-[10px] font-black uppercase tracking-widest self-stretch sm:self-auto text-center">
+                  Módulo de Surtido Directo
+                </div>
+              </div>
+
+              {/* Grid interactive display split */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+                
+                {/* Left side: Selector table of raw products */}
+                <div className="lg:col-span-7 bg-white border border-slate-200 rounded-3xl p-3 sm:p-6 shadow-xs flex flex-col gap-4">
+                  <div>
+                    <h5 className="text-xs font-black text-[#043077] uppercase tracking-wider">
+                      1. Selecciona un Producto del Inventario General
+                    </h5>
+                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
+                      Asocia el producto o insumo comercial correspondiente que se cargará físicamente en esta terminal.
+                    </p>
+                  </div>
+
+                  {/* Search filter for fast locating */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                    <input
+                      type="text"
+                      value={refillSearch}
+                      onChange={(e) => setRefillSearch(e.target.value)}
+                      placeholder="Buscar producto por nombre o código..."
+                      className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-[#043077] focus:ring-1 focus:ring-[#043077]"
+                    />
+                    {refillSearch && (
+                      <button
+                        onClick={() => setRefillSearch('')}
+                        className="absolute right-3 top-2.5 text-[10px] bg-slate-200 hover:bg-slate-350 px-2 py-1 rounded font-black text-slate-700 transition-all cursor-pointer"
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+
+                  {/* List of scrollable elements with beautiful individual controls */}
+                  <div className="border border-slate-150 rounded-2xl overflow-y-auto overflow-x-hidden divide-y divide-slate-100 max-h-[420px] bg-white w-full">
+                    {filteredProductsToSelect.map((prod) => {
+                      const prodKey = prod.id || prod.codigo || '';
+                      const isSelected = selectedRefillProduct?.id === prod.id || selectedRefillProduct?.codigo === prod.codigo;
+                      const count = productCounts[prodKey] || 1;
+
+                      const handleIncrement = (e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        setProductCounts(prev => ({
+                          ...prev,
+                          [prodKey]: count + 1
+                        }));
+                        setSelectedRefillProduct(prod);
+                      };
+
+                      const handleDecrement = (e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        setProductCounts(prev => ({
+                          ...prev,
+                          [prodKey]: Math.max(1, count - 1)
+                        }));
+                        setSelectedRefillProduct(prod);
+                      };
+
+                      const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                        const val = parseInt(e.target.value);
+                        setProductCounts(prev => ({
+                          ...prev,
+                          [prodKey]: Math.max(1, isNaN(val) ? 1 : val)
+                        }));
+                        setSelectedRefillProduct(prod);
+                      };
+
+                      const handleAddClick = (e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        handleAddSessionRefill(prod, count);
+                        // Reset count to 1 after adding
+                        setProductCounts(prev => ({
+                          ...prev,
+                          [prodKey]: 1
+                        }));
+                      };
+
+                      return (
+                        <div
+                          key={prodKey}
+                          onClick={() => setSelectedRefillProduct(prod)}
+                          className={`p-3.5 sm:p-4 flex flex-col gap-3 transition-colors text-left ${
+                            isSelected ? 'bg-[#043077]/5 border-l-4 border-[#043077]' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          {/* Name and product details */}
+                          <div className="space-y-1 block">
+                            <span className="font-extrabold text-slate-800 text-xs sm:text-sm block break-words leading-tight">
+                              {prod.nombre || prod.name}
+                            </span>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-bold font-mono text-slate-400">
+                              <span className="text-[#043077] font-black">{formatMXN(prod.precio_venta)}</span>
+                              <span>•</span>
+                              <span>Código: {prod.codigo || 'N/D'}</span>
+                              <span>•</span>
+                              <span>Prov: {prod.proveedor || 'S/P'}</span>
+                            </div>
+                          </div>
+
+                          {/* Quick counter and Add button - Name first, then counter below, then add button below */}
+                          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-slate-100/60" onClick={e => e.stopPropagation()}>
+                            {/* Counter Selector */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase sm:hidden">Pzas:</span>
+                              <div className="flex items-center bg-slate-100 rounded-xl border border-slate-205 p-0.5 w-[90px]">
+                                <button
+                                  type="button"
+                                  onClick={handleDecrement}
+                                  className="w-5 h-5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg flex items-center justify-center border border-slate-200 cursor-pointer text-xs font-black active:scale-95 transition-all shadow-3xs"
+                                >
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  value={count}
+                                  onChange={handleInputChange}
+                                  className="w-full text-center font-mono font-black text-slate-800 bg-transparent text-xs focus:outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleIncrement}
+                                  className="w-5 h-5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg flex items-center justify-center border border-slate-200 cursor-pointer text-xs font-black active:scale-95 transition-all shadow-3xs"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Discrete Add Button */}
+                            <button
+                              type="button"
+                              onClick={handleAddClick}
+                              className="px-2.5 py-1.5 bg-[#043077] hover:bg-opacity-95 active:scale-95 transition-all text-white font-black text-[10px] uppercase tracking-wider rounded-lg cursor-pointer flex items-center justify-center gap-1 shadow-3xs w-full sm:w-auto self-stretch"
+                            >
+                              <Plus className="w-3 h-3 stroke-[3]" /> Agregar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Right side: Amount picker / refill configurations */}
+                <div className="lg:col-span-5 flex flex-col gap-6">
+                  
+                  {/* Visual Status Metrics */}
+                  <div className="bg-white border border-slate-200 rounded-3xl p-3.5 sm:p-6 shadow-xs space-y-4">
+                    <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                      Métricas acumuladas del icono seleccionado
+                    </h5>
+
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        <span className="text-[9px] text-[#043077] font-black uppercase tracking-wider block">Nivel Actual</span>
+                        <span className="text-sm font-black text-slate-800 font-mono mt-1 block">
+                          {activeMachine.stock} / {activeMachine.maxStock} {activeMachine.unit}
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        <span className="text-[9px] text-emerald-600 font-black uppercase tracking-wider block">Histórico Surtido</span>
+                        <span className="text-sm font-black text-slate-800 font-mono mt-1 block">
+                          {(activeMachine as any).totalFilledAmount || 0} {activeMachine.unit}
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Llenados Totales</span>
+                        <span className="text-sm font-black text-slate-800 font-mono mt-1 block">
+                          {(activeMachine as any).fillCount || 0} veces
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block font-sans">Último Llenado</span>
+                        <span className="text-[11px] font-black text-slate-700 mt-1 block truncate">
+                          {(activeMachine as any).lastFilledDate || 'Ninguno'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-[#043077]/5 rounded-xl border border-[#043077]/10 text-xs">
+                      <span className="text-[9px] font-black text-[#043077] uppercase block">Producto actual en máquina:</span>
+                      <span className="text-[11px] font-black text-slate-800 mt-0.5 block">
+                        {(activeMachine as any).loadedProduct || 'Ninguno'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Lote de Llenado Temporal - NUEVA SECCIÓN MULTI-SURTIDO */}
+                  <div className="bg-white border border-slate-200 rounded-3xl p-3.5 sm:p-6 shadow-xs space-y-4 flex flex-col flex-1">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                          Lote de Llenado Reciente
+                        </h5>
+                        <p className="text-[10px] text-slate-400 font-semibold">Insumos listos para registrar</p>
+                      </div>
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg">
+                        {sessionRefills.length} Items
+                      </span>
+                    </div>
+
+                    {sessionRefills.length === 0 ? (
+                      <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center text-slate-400 text-xs font-medium bg-slate-50/50 flex-1 flex flex-col items-center justify-center gap-2 min-h-[120px]">
+                        <Boxes className="w-8 h-8 text-slate-300 stroke-[1.5]" />
+                        <span>El lote está vacío. Selecciona un producto a la izquierda y agrégalo.</span>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col gap-3 min-h-[160px] max-h-[300px] overflow-y-auto pr-1">
+                        <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/40">
+                          {sessionRefills.map((item) => (
+                            <div key={item.id} className="p-3 flex justify-between items-center text-xs hover:bg-slate-50 transition-colors">
+                              <div className="space-y-0.5 flex-1 pr-2">
+                                <span className="font-extrabold text-slate-800 block leading-tight">{item.name}</span>
+                                <span className="text-[10px] text-slate-400 font-bold block">Código: {item.codigo}</span>
+                              </div>
+                              <div className="flex items-center gap-4 shrink-0">
+                                <div className="text-right">
+                                  <span className="font-mono font-black text-[#043077] block text-[11px]">
+                                    +{item.amount} pzas
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 font-semibold block">
+                                    Precio: {formatMXN(item.price)}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteSessionRefill(item.id)}
+                                  className="p-1 px-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all cursor-pointer text-xs font-bold"
+                                  title="Eliminar de lote"
+                                >
+                                  ❌
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Summary of the batch */}
+                        <div className="p-3 bg-indigo-50/40 rounded-2xl border border-indigo-100/60 flex justify-between items-center text-xs">
+                          <span className="font-bold text-indigo-900">Total de piezas a surtir:</span>
+                          <span className="font-mono font-black text-indigo-950 text-sm">
+                            {sessionRefills.reduce((acc, item) => acc + item.amount, 0)} unidades
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Master Actions */}
+                    <div className="pt-4 border-t border-slate-150 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveRefillMachineId(null);
+                          setSelectedRefillProduct(null);
+                          setSessionRefills([]);
+                          setProductCounts({});
+                        }}
+                        className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-black uppercase tracking-wider cursor-pointer transition-all text-center"
+                      >
+                        Cancelar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveAllSessionRefills(activeMachine.id)}
+                        disabled={sessionRefills.length === 0}
+                        className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-sm text-white ${
+                          sessionRefills.length > 0
+                            ? 'bg-[#043077] hover:bg-blue-800 cursor-pointer active:scale-95' 
+                            : 'bg-slate-200 cursor-not-allowed text-slate-400'
+                        }`}
+                      >
+                        <Check className="w-4 h-4" /> Guardar y Surtido
+                      </button>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          );
+        }
+
+        // 2. DEFAULT RENDER: MAIN OVERVIEW DECK OF CARDS
         return (
           <div className="space-y-6">
             
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-2xl text-left select-none">
+              <h4 className="text-sm font-black text-[#043077] uppercase tracking-wider flex items-center gap-2">
+                📥 Control Central de Surtido y Abastecimiento
+              </h4>
+              <p className="text-xs text-slate-600 font-semibold mt-1.5 leading-relaxed">
+                Selecciona cualquier máquina o icono a continuación para visualizar su producto cargado, configurar su abastecimiento express desde el catálogo o consultar sus métricas de llenado acumuladas en tiempo real.
+              </p>
+            </div>
+
             {/* Layout Main full-width cards grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filteredCards.length === 0 ? (
@@ -2390,7 +2801,7 @@ export default function ModulePlaceholder({
                   return (
                     <div 
                       key={card.id} 
-                      className="bg-white border border-slate-200 hover:border-[#043077]/50 rounded-2xl p-4.5 shadow-2xs hover:shadow-sm transition-all text-left flex flex-col justify-between h-[235px]"
+                      className="bg-white border border-slate-200 hover:border-[#043077]/50 rounded-2xl p-4.5 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between h-auto min-h-[350px] gap-4"
                     >
                       {/* Card Header & Icon */}
                       <div>
@@ -2409,67 +2820,70 @@ export default function ModulePlaceholder({
                             {getSurtidoIcon(card.icon)}
                           </div>
                           <div>
-                            <h5 className="text-lg font-black text-slate-800 leading-none">{card.name}</h5>
-                            <span className="text-[10px] text-slate-500 font-semibold block mt-1 line-clamp-1">{card.alias}</span>
+                            <h5 className="text-base font-black text-slate-800 leading-none">{card.name}</h5>
+                            <span className="text-[10px] text-slate-400 font-semibold block mt-1 leading-tight line-clamp-1">{card.alias}</span>
                           </div>
                         </div>
                       </div>
 
+                      {/* Filling Metrics directly visible on the card */}
+                      <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 space-y-1.5 text-[11px] leading-snug">
+                        <div className="flex justify-between text-slate-500">
+                          <span>🔄 Llenados:</span>
+                          <span className="font-extrabold text-slate-800">{(card as any).fillCount || 0} veces</span>
+                        </div>
+                        <div className="flex justify-between text-slate-500">
+                          <span>📦 Acumulado Surtido:</span>
+                          <span className="font-extrabold text-slate-800">{(card as any).totalFilledAmount || 0} {card.unit}</span>
+                        </div>
+                        <div className="text-slate-500 truncate" title={(card as any).loadedProduct || 'Sin producto'}>
+                          <span>🏷️ Producto: </span>
+                          <span className="font-black text-[#043077]">{(card as any).loadedProduct || 'Sin asignar'}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400 text-[10px] italic">
+                          <span>🕒 Recarga:</span>
+                          <span>{(card as any).lastFilledDate || 'Ninguna'}</span>
+                        </div>
+                      </div>
+
                       {/* Progress bar info */}
-                      <div className="mt-4 space-y-1.5">
+                      <div className="space-y-1">
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Nivel actual:</span>
-                          <span className="font-mono font-black text-slate-700 text-xs">
+                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Capacidad:</span>
+                          <span className="font-mono font-black text-slate-700 text-[11px]">
                             {card.stock} / {card.maxStock} {card.unit} ({pct}%)
                           </span>
                         </div>
 
-                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
                           <div 
-                            className={`h-full rounded-full transition-all duration-500 ${pctColor}`}
+                            className={`h-full rounded-full transition-all duration-300 ${pctColor}`}
                             style={{ width: `${pct}%` }}
                           ></div>
                         </div>
                       </div>
 
                       {/* Controls Footer */}
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                        
-                        {/* Steppers */}
-                        <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
-                          <button
-                            onClick={() => handleStockChange(card.id, -5)}
-                            className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center border border-slate-200 shadow-3xs cursor-pointer active:scale-95 transition-all text-xs font-bold"
-                            title="Descontar 5"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          
-                          <input
-                            type="number"
-                            value={card.stock}
-                            onChange={(e) => handleSetStockDirect(card.id, parseInt(e.target.value))}
-                            className="w-10 text-center font-mono font-black bg-transparent text-xs text-slate-800 focus:outline-none"
-                          />
-
-                          <button
-                            onClick={() => handleStockChange(card.id, 5)}
-                            className="w-7 h-7 bg-white hover:bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center border border-slate-200 shadow-3xs cursor-pointer active:scale-95 transition-all text-xs font-bold"
-                            title="Surtir 5"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {/* Fill to max fast-pass */}
+                      <div className="pt-2 border-t border-slate-100">
+                        {/* Interactive refill direct clicker */}
                         <button
-                          onClick={() => handleRestockToMax(card.id)}
-                          className="px-2.5 py-2 bg-[#043077]/10 hover:bg-[#043077] hover:text-white text-[#043077] font-black text-[9px] uppercase tracking-wide rounded-xl transition-all flex items-center gap-1 cursor-pointer"
-                          title="Reabastecer al máximo"
+                          onClick={() => {
+                            setActiveRefillMachineId(card.id);
+                            // Auto select a recommendation
+                            const matchedDefault = availableProducts.find(p => 
+                              (p.nombre || p.name || '').toLowerCase().includes(card.name.toLowerCase()) ||
+                              (p.codigo || p.id || '').toLowerCase().includes(card.id.toLowerCase())
+                            );
+                            setSelectedRefillProduct(matchedDefault || availableProducts[0]);
+                            setRefillSearch('');
+                            setRefillAmount(1);
+                            setSessionRefills([]);
+                            setProductCounts({});
+                          }}
+                          className="w-full py-2 bg-[#043077] hover:bg-blue-800 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer shadow-3xs"
                         >
-                          Llenar
+                          <Plus className="w-3.5 h-3.5 animate-pulse" /> Ver Producto / Llenar
                         </button>
-
                       </div>
 
                     </div>
@@ -2936,7 +3350,7 @@ export default function ModulePlaceholder({
       {/* Decorative top colored border line with brand new blue brand color #043077 */}
       <div className="h-1.5 w-full bg-[#043077]" />
 
-      <div className="p-6 md:p-8 space-y-6">
+      <div className="p-3.5 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
         {/* Module Header Inside */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
           <div className="space-y-1 text-left">
@@ -2951,7 +3365,7 @@ export default function ModulePlaceholder({
         </div>
 
         {/* The dynamic visual layout showing gorgeous high fidelity active state metrics & charts */}
-        <div className="relative rounded-xl bg-slate-50/80 p-6 md:p-8 min-h-[220px] flex flex-col justify-between overflow-hidden border border-slate-200/50">
+        <div className="relative rounded-xl bg-slate-50/80 p-2.5 sm:p-6 md:p-8 min-h-[220px] flex flex-col justify-between overflow-hidden border border-slate-200/50">
           {renderInteractiveMetrics()}
         </div>
 
