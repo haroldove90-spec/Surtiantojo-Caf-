@@ -172,6 +172,52 @@ export default function ModulePlaceholder({
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [viewingItem, setViewingItem] = useState<any | null>(null);
 
+  // --- SUBMENU GENERAL SURTIDO & EXCEL EXPORT SYSTEM STATES ---
+  const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>('cer_bb');
+  const [supplySubmenuList, setSupplySubmenuList] = useState([
+    { id: 'vending_surtido', name: 'Surtido de Terminales', title: 'Surtido General de Máquinas', desc: 'Control físico de stock en terminales con indicadores de carga acumulada y reabastecimiento directo.' },
+    { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
+    { id: 'cafe_exp', name: 'Café EXP', title: 'Reporte Café EXP Especializado', desc: 'Inventario y surtido de granos selectos y moliendas de café para terminales premium.' },
+    { id: 'vidrio_bb', name: 'Vidrio BB', title: 'Reporte Vidrio BB Cristalino', desc: 'Registro de surtido de botellas, frascos de conserva y cristalería fina.' }
+  ]);
+
+  const [cerBBData, setCerBBData] = useState([
+    { id: 1, codigo: 'CER-BB-01', nombre_producto: 'Jarros Infantiles Petit Azul', unidad_surtida: 120, costo_surtido: 45.00, precio_venta: 85.00, proveedor: 'Vajillas Oaxaca', fecha_registro: '2026-06-20' },
+    { id: 2, codigo: 'CER-BB-02', nombre_producto: 'Taza Pastel Cer BB Ambar', unidad_surtida: 80, costo_surtido: 50.00, precio_venta: 95.00, proveedor: 'Vajillas Oaxaca', fecha_registro: '2026-06-21' },
+    { id: 3, codigo: 'CER-BB-03', nombre_producto: 'Tazón Sopero Cer BB Rústico', unidad_surtida: 150, costo_surtido: 60.00, precio_venta: 110.00, proveedor: 'Artesanías BB Co.', fecha_registro: '2026-06-22' },
+    { id: 4, codigo: 'CER-BB-04', nombre_producto: 'Set Café Express BB (4 pzas)', unidad_surtida: 45, costo_surtido: 120.00, precio_venta: 220.00, proveedor: 'Vajillas Oaxaca', fecha_registro: '2026-06-23' },
+    { id: 5, codigo: 'CER-BB-05', nombre_producto: 'Vaso Cerámica Térmico BB', unidad_surtida: 90, costo_surtido: 75.00, precio_venta: 140.00, proveedor: 'Distribuidora del Centro', fecha_registro: '2026-06-23' },
+  ]);
+
+  const [cafeEXPData, setCafeEXPData] = useState([
+    { id: 1, codigo: 'CAF-EX-01', nombre_producto: 'Café Grano Veracruz Espresso 1kg', unidad_surtida: 60, costo_surtido: 180.00, precio_venta: 290.00, proveedor: 'Cafetalera Coatepec', fecha_registro: '2026-06-18' },
+    { id: 2, codigo: 'CAF-EX-02', nombre_producto: 'Café Chiapas Orgánico Molido 500g', unidad_surtida: 100, costo_surtido: 95.00, precio_venta: 165.00, proveedor: 'Finca El Triunfo', fecha_registro: '2026-06-19' },
+    { id: 3, codigo: 'CAF-EX-03', nombre_producto: 'Café Blended Signature Espresso 1kg', unidad_surtida: 40, costo_surtido: 210.00, precio_venta: 340.00, proveedor: 'Importadora BB Alianzas', fecha_registro: '2026-06-22' },
+  ]);
+
+  const [vidrioBBData, setVidrioBBData] = useState([
+    { id: 1, codigo: 'VID-BB-01', nombre_producto: 'Frasco de Vidrio Bebidas 350ml', unidad_surtida: 300, costo_surtido: 8.50, precio_venta: 14.00, proveedor: 'Vitromex Co.', fecha_registro: '2026-06-15' },
+    { id: 2, codigo: 'VID-BB-02', nombre_producto: 'Botella de Vidrio Conservas 500ml', unidad_surtida: 180, costo_surtido: 11.20, precio_venta: 22.00, proveedor: 'Vitromex Co.', fecha_registro: '2026-06-20' },
+  ]);
+
+  // Dynamic content list map for custom added ones!
+  const [genericSubmenuData, setGenericSubmenuData] = useState<Record<string, Array<any>>>({});
+
+  // Form states for adding items
+  const [addSupplyRowOpen, setAddSupplyRowOpen] = useState(false);
+  const [rowCodigo, setRowCodigo] = useState('');
+  const [rowNombre, setRowNombre] = useState('');
+  const [rowUnidades, setRowUnidades] = useState(1);
+  const [rowCosto, setRowCosto] = useState(0);
+  const [rowPrecio, setRowPrecio] = useState(0);
+  const [rowProveedor, setRowProveedor] = useState('');
+
+  // Form states for creating custom submenus
+  const [addSubmenuOpen, setAddSubmenuOpen] = useState(false);
+  const [newSubmenuName, setNewSubmenuName] = useState('');
+  const [newSubmenuTitle, setNewSubmenuTitle] = useState('');
+  const [newSubmenuDesc, setNewSubmenuDesc] = useState('');
+
   // Excel/CSV Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importSummary, setImportSummary] = useState<{
@@ -2441,6 +2487,236 @@ export default function ModulePlaceholder({
                  (p.codigo || p.id || '').toLowerCase().includes(term);
         });
 
+        // Submenu state helpers
+        const getActiveSubmenuData = (): any[] => {
+          switch (activeSupplySubmenu) {
+            case 'cer_bb': return cerBBData;
+            case 'cafe_exp': return cafeEXPData;
+            case 'vidrio_bb': return vidrioBBData;
+            default: return genericSubmenuData[activeSupplySubmenu] || [];
+          }
+        };
+
+        const handleUpdateSubmenuData = (updater: any) => {
+          switch (activeSupplySubmenu) {
+            case 'cer_bb':
+              setCerBBData(updater);
+              break;
+            case 'cafe_exp':
+              setCafeEXPData(updater);
+              break;
+            case 'vidrio_bb':
+              setVidrioBBData(updater);
+              break;
+            default:
+              setGenericSubmenuData(prev => ({
+                ...prev,
+                [activeSupplySubmenu]: typeof updater === 'function' ? updater(prev[activeSupplySubmenu] || []) : updater
+              }));
+              break;
+          }
+        };
+
+        const [submenuSearchQuery, setSubmenuSearchQuery] = useState('');
+        const [showSQLSchema, setShowSQLSchema] = useState(false);
+
+        const currentSubmenuData = getActiveSubmenuData();
+        const activeMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu) || supplySubmenuList[0];
+
+        // Filter table rows based on active search inside submenu
+        const filteredSubmenuRows = currentSubmenuData.filter(item => {
+          const query = submenuSearchQuery.toLowerCase();
+          return (
+            (item.codigo || '').toLowerCase().includes(query) ||
+            (item.nombre_producto || '').toLowerCase().includes(query) ||
+            (item.proveedor || '').toLowerCase().includes(query)
+          );
+        });
+
+        // Dynamic Calculations for KPIs
+        const totalUnits = filteredSubmenuRows.reduce((acc, row) => acc + safeVal(row.unidad_surtida), 0);
+        const totalCostIncurred = filteredSubmenuRows.reduce((acc, row) => acc + (safeVal(row.unidad_surtida) * safeVal(row.costo_surtido)), 0);
+        const projectedSalesValue = filteredSubmenuRows.reduce((acc, row) => acc + (safeVal(row.unidad_surtida) * safeVal(row.precio_venta)), 0);
+        const grossProfit = projectedSalesValue - totalCostIncurred;
+        const avgMarginPct = filteredSubmenuRows.length > 0 
+          ? (filteredSubmenuRows.reduce((acc, row) => {
+              const precio = safeVal(row.precio_venta);
+              const costo = safeVal(row.costo_surtido);
+              if (precio === 0) return acc;
+              return acc + (((precio - costo) / precio) * 100);
+            }, 0) / filteredSubmenuRows.length)
+          : 0;
+
+        // SQL generation based on current submenu
+        const getDynamicSQL = () => {
+          const tableName = `surtido_${activeSupplySubmenu}`;
+          const currentRows = getActiveSubmenuData();
+
+          let sqlText = `-- PostgreSQL DDL - Creación de Estructura de Tabla y Consultas de Surtido (${activeMeta.name})\n`;
+          sqlText += `CREATE TABLE IF NOT EXISTS ${tableName} (\n`;
+          sqlText += `    id SERIAL PRIMARY KEY,\n`;
+          sqlText += `    codigo VARCHAR(50) UNIQUE NOT NULL,\n`;
+          sqlText += `    nombre_producto VARCHAR(150) NOT NULL,\n`;
+          sqlText += `    unidad_surtida INT DEFAULT 0,\n`;
+          sqlText += `    costo_surtido DECIMAL(10,2) DEFAULT 0.00,\n`;
+          sqlText += `    precio_venta DECIMAL(10,2) DEFAULT 0.00,\n`;
+          sqlText += `    importe_total DECIMAL(10,2) GENERATED ALWAYS AS (unidad_surtida * precio_venta) STORED,\n`;
+          sqlText += `    fecha_registro DATE DEFAULT CURRENT_DATE,\n`;
+          sqlText += `    proveedor VARCHAR(100) DEFAULT 'Proveedor General'\n`;
+          sqlText += `);\n\n`;
+
+          if (currentRows.length > 0) {
+            sqlText += `-- Seeding Inicial de Registros de Surtido\n`;
+            sqlText += `INSERT INTO ${tableName} (codigo, nombre_producto, unidad_surtida, costo_surtido, precio_venta, proveedor, fecha_registro)\nVALUES\n`;
+            
+            const insertValues = currentRows.map(row => {
+              const codeEscaped = `'${(row.codigo || '').replace(/'/g, "''")}'`;
+              const nameEscaped = `'${(row.nombre_producto || '').replace(/'/g, "''")}'`;
+              const provEscaped = `'${(row.proveedor || '').replace(/'/g, "''")}'`;
+              return `(${codeEscaped}, ${nameEscaped}, ${row.unidad_surtida}, ${row.costo_surtido}, ${row.precio_venta}, ${provEscaped}, '${row.fecha_registro}')`;
+            }).join(',\n');
+            
+            sqlText += insertValues + `\nON CONFLICT (codigo) DO UPDATE SET\n`;
+            sqlText += `    unidad_surtida = EXCLUDED.unidad_surtida,\n`;
+            sqlText += `    costo_surtido = EXCLUDED.costo_surtido,\n`;
+            sqlText += `    precio_venta = EXCLUDED.precio_venta;\n\n`;
+          }
+
+          sqlText += `-- Consulta Analítica de Dashboard: Calcular Ganancia Bruta y Margen Real\n`;
+          sqlText += `SELECT \n`;
+          sqlText += `    SUM(unidad_surtida) AS total_piezas_surtidas,\n`;
+          sqlText += `    SUM(unidad_surtida * costo_surtido) AS inversion_total,\n`;
+          sqlText += `    SUM(unidad_surtida * precio_venta) AS venta_proyectada,\n`;
+          sqlText += `    SUM(unidad_surtida * (precio_venta - costo_surtido)) AS ganancia_bruta_proyectada,\n`;
+          sqlText += `    ROUND(AVG(NULLIF(precio_venta - costo_surtido, 0) / NULLIF(precio_venta, 0) * 100), 2) AS margen_promedio_general\n`;
+          sqlText += `FROM ${tableName};`;
+
+          return sqlText;
+        };
+
+        // Standard custom Excel style export call
+        const handleExportToExcel = (tabId: string) => {
+          const tabMeta = supplySubmenuList.find(t => t.id === tabId);
+          const tabTitle = tabMeta ? tabMeta.title : 'Reporte_Surtido';
+          let dataToExport: any[] = [];
+          
+          if (tabId === 'cer_bb') dataToExport = cerBBData;
+          else if (tabId === 'cafe_exp') dataToExport = cafeEXPData;
+          else if (tabId === 'vidrio_bb') dataToExport = vidrioBBData;
+          else dataToExport = genericSubmenuData[tabId] || [];
+
+          if (dataToExport.length === 0) {
+            alert("No hay registros cargados en este acceso para ser exportados a Excel.");
+            return;
+          }
+
+          const colKeys = ['id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'proveedor', 'fecha_registro'];
+          const colLabels = ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'Proveedor', 'Fecha Registro'];
+
+          // Generate semicolon separated row content with Excel specific Byte Order Mark (BOM)
+          const headers = colLabels.join(';');
+          const rows = dataToExport.map(item => {
+            const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
+            const rowCopy = {
+              ...item,
+              importe_total: totalImport
+            };
+            return colKeys.map(key => {
+              const val = rowCopy[key];
+              if (val === undefined || val === null) return '';
+              // Format numbers nicely or escape string values
+              if (typeof val === 'number') {
+                return val.toFixed(2).replace('.', ',');
+              }
+              let valStr = String(val).replace(/"/g, '""');
+              if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
+                valStr = `"${valStr}"`;
+              }
+              return valStr;
+            }).join(';');
+          });
+
+          const csvContent = "\uFEFF" + "sep=;\n" + [headers, ...rows].join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          const safeName = tabTitle.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          link.setAttribute("href", url);
+          link.setAttribute("download", `${safeName}_excel.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
+        const handleAddRow = () => {
+          if (!rowCodigo.trim() || !rowNombre.trim()) {
+            alert("Por favor completa el código y nombre del producto.");
+            return;
+          }
+          const newRow = {
+            id: Date.now(),
+            codigo: rowCodigo.trim().toUpperCase(),
+            nombre_producto: rowNombre.trim(),
+            unidad_surtida: safeVal(rowUnidades),
+            costo_surtido: safeVal(rowCosto),
+            precio_venta: safeVal(rowPrecio),
+            proveedor: rowProveedor.trim() || 'Proveedor General',
+            fecha_registro: new Date().toISOString().split('T')[0]
+          };
+
+          handleUpdateSubmenuData((prev: any[]) => [...prev, newRow]);
+          
+          // reset form
+          setRowCodigo('');
+          setRowNombre('');
+          setRowUnidades(1);
+          setRowCosto(0);
+          setRowPrecio(0);
+          setRowProveedor('');
+          setAddSupplyRowOpen(false);
+        };
+
+        const handleDeleteRow = (rowId: number) => {
+          if (confirm("¿Estás seguro de eliminar este registro de surtido?")) {
+            handleUpdateSubmenuData((prev: any[]) => prev.filter(r => r.id !== rowId));
+          }
+        };
+
+        const handleRegisterNewSubmenu = () => {
+          if (!newSubmenuName.trim()) {
+            alert("Por favor escribe el nombre de acceso para el submenú.");
+            return;
+          }
+          const generatedId = 'custom_' + newSubmenuName.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+          if (supplySubmenuList.some(s => s.id === generatedId)) {
+            alert("Ya existe un acceso registrado bajo este mismo nombre de menú.");
+            return;
+          }
+          
+          const newTabItem = {
+            id: generatedId,
+            name: newSubmenuName.trim(),
+            title: newSubmenuTitle.trim() || `Reporte Surtido ${newSubmenuName}`,
+            desc: newSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${newSubmenuName}.`
+          };
+
+          setSupplySubmenuList(prev => [...prev, newTabItem]);
+          
+          // Bootstrap with one elegant initial default row
+          setGenericSubmenuData(prev => ({
+            ...prev,
+            [generatedId]: [
+              { id: 1, codigo: `${newSubmenuName.substring(0,3).toUpperCase()}-1`, nombre_producto: `Insumo Inicial ${newSubmenuName}`, unidad_surtida: 40, costo_surtido: 35.00, precio_venta: 70.00, proveedor: 'Proveedor Asociado', fecha_registro: new Date().toISOString().split('T')[0] }
+            ]
+          }));
+
+          setActiveSupplySubmenu(generatedId);
+          setNewSubmenuName('');
+          setNewSubmenuTitle('');
+          setNewSubmenuDesc('');
+          setAddSubmenuOpen(false);
+        };
+
         // 1. RENDER DEDICATED FULL SECTION/PAGE FORM IF MACHINE IS SELECTED FOR REFILL
         if (activeRefillMachineId && activeMachine) {
           return (
@@ -2763,134 +3039,572 @@ export default function ModulePlaceholder({
 
         // 2. DEFAULT RENDER: MAIN OVERVIEW DECK OF CARDS
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 text-left">
             
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-2xl text-left select-none">
-              <h4 className="text-sm font-black text-[#043077] uppercase tracking-wider flex items-center gap-2">
-                📥 Control Central de Surtido y Abastecimiento
-              </h4>
-              <p className="text-xs text-slate-600 font-semibold mt-1.5 leading-relaxed">
-                Selecciona cualquier máquina o icono a continuación para visualizar su producto cargado, configurar su abastecimiento express desde el catálogo o consultar sus métricas de llenado acumuladas en tiempo real.
-              </p>
+            {/* Elegant Submenu Control Accesses bar */}
+            <div className="flex flex-col gap-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#043077]">Visualizar Accesos Surtido en Submenú</span>
+              <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-150 pb-2">
+                {supplySubmenuList.map((submenu) => {
+                  const isActive = activeSupplySubmenu === submenu.id;
+                  return (
+                    <button
+                      key={submenu.id}
+                      onClick={() => {
+                        setActiveSupplySubmenu(submenu.id);
+                        setShowSQLSchema(false);
+                        setSubmenuSearchQuery('');
+                      }}
+                      className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-[#043077] text-white shadow-xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200/50'
+                      }`}
+                    >
+                      {submenu.id === 'vending_surtido' ? (
+                        <Sliders className="w-3.5 h-3.5" />
+                      ) : (
+                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                      )}
+                      {submenu.name}
+                    </button>
+                  );
+                })}
+                
+                {/* Plus access button */}
+                <button
+                  type="button"
+                  onClick={() => setAddSubmenuOpen(true)}
+                  className="px-3 py-2 bg-indigo-50 border border-indigo-200 text-[#043077] text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-indigo-100/80 transition-all flex items-center gap-1 cursor-pointer"
+                  title="Dar de alta nuevo acceso al submenú"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Registrar Acceso
+                </button>
+              </div>
             </div>
 
-            {/* Layout Main full-width cards grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {filteredCards.length === 0 ? (
-                <div className="col-span-full bg-white border border-slate-150 rounded-2xl p-12 text-center text-slate-500 font-medium">
-                  No se encontraron tarjetas que correspondan con los filtros de búsqueda.
+            {/* Render dynamically depending on chosen submenu */}
+            {activeSupplySubmenu === 'vending_surtido' ? (
+              // Option A: Render standard general vending terminals cards
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-2xl text-left select-none">
+                  <h4 className="text-sm font-black text-[#043077] uppercase tracking-wider flex items-center gap-2">
+                    📥 Control Central de Surtido y Abastecimiento
+                  </h4>
+                  <p className="text-xs text-slate-600 font-semibold mt-1.5 leading-relaxed">
+                    Selecciona cualquier máquina o icono a continuación para visualizar su producto cargado, configurar su abastecimiento express desde el catálogo o consultar sus métricas de llenado acumuladas en tiempo real.
+                  </p>
                 </div>
-              ) : (
-                filteredCards.map((card) => {
-                  const pct = Math.round((card.stock / card.maxStock) * 100);
-                  
-                  // calculate levels and colors
-                  let pctColor = "bg-emerald-600";
-                  let textColor = "text-emerald-700 bg-emerald-50 border-emerald-100";
-                  let statusText = "STOCK LLENO";
-                  if (pct < 25) {
-                    pctColor = "bg-rose-500";
-                    textColor = "text-rose-700 bg-rose-50 border-rose-100";
-                    statusText = "S.O.S BAJO";
-                  } else if (pct < 60) {
-                    pctColor = "bg-amber-500";
-                    textColor = "text-amber-700 bg-amber-50 border-amber-100";
-                    statusText = "REVISIÓN";
-                  }
 
-                  return (
-                    <div 
-                      key={card.id} 
-                      className="bg-white border border-slate-200 hover:border-[#043077]/50 rounded-2xl p-4.5 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between h-auto min-h-[350px] gap-4"
-                    >
-                      {/* Card Header & Icon */}
-                      <div>
-                        <div className="flex justify-between items-start">
-                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                            {card.category}
-                          </span>
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${textColor}`}>
-                            {statusText}
-                          </span>
-                        </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {filteredCards.length === 0 ? (
+                    <div className="col-span-full bg-white border border-slate-150 rounded-2xl p-12 text-center text-slate-500 font-medium">
+                      No se encontraron tarjetas de terminales habilitadas en el sistema.
+                    </div>
+                  ) : (
+                    filteredCards.map((card) => {
+                      const pct = Math.round((card.stock / card.maxStock) * 100);
+                      
+                      let pctColor = "bg-emerald-600";
+                      let textColor = "text-emerald-700 bg-emerald-50 border-emerald-100";
+                      let statusText = "STOCK LLENO";
+                      if (pct < 25) {
+                        pctColor = "bg-rose-500";
+                        textColor = "text-rose-700 bg-rose-50 border-rose-100";
+                        statusText = "S.O.S BAJO";
+                      } else if (pct < 60) {
+                        pctColor = "bg-amber-500";
+                        textColor = "text-amber-700 bg-amber-50 border-amber-100";
+                        statusText = "REVISIÓN";
+                      }
 
-                        {/* Code Name & Custom Icon */}
-                        <div className="flex items-center gap-3 mt-3">
-                          <div className="w-10 h-10 rounded-xl bg-[#043077]/5 flex items-center justify-center border border-[#043077]/10 shrink-0">
-                            {getSurtidoIcon(card.icon)}
-                          </div>
-                          <div>
-                            <h5 className="text-base font-black text-slate-800 leading-none">{card.name}</h5>
-                            <span className="text-[10px] text-slate-400 font-semibold block mt-1 leading-tight line-clamp-1">{card.alias}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Filling Metrics directly visible on the card */}
-                      <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 space-y-1.5 text-[11px] leading-snug">
-                        <div className="flex justify-between text-slate-500">
-                          <span>🔄 Llenados:</span>
-                          <span className="font-extrabold text-slate-800">{(card as any).fillCount || 0} veces</span>
-                        </div>
-                        <div className="flex justify-between text-slate-500">
-                          <span>📦 Acumulado Surtido:</span>
-                          <span className="font-extrabold text-slate-800">{(card as any).totalFilledAmount || 0} {card.unit}</span>
-                        </div>
-                        <div className="text-slate-500 truncate" title={(card as any).loadedProduct || 'Sin producto'}>
-                          <span>🏷️ Producto: </span>
-                          <span className="font-black text-[#043077]">{(card as any).loadedProduct || 'Sin asignar'}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-400 text-[10px] italic">
-                          <span>🕒 Recarga:</span>
-                          <span>{(card as any).lastFilledDate || 'Ninguna'}</span>
-                        </div>
-                      </div>
-
-                      {/* Progress bar info */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Capacidad:</span>
-                          <span className="font-mono font-black text-slate-700 text-[11px]">
-                            {card.stock} / {card.maxStock} {card.unit} ({pct}%)
-                          </span>
-                        </div>
-
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-300 ${pctColor}`}
-                            style={{ width: `${pct}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      {/* Controls Footer */}
-                      <div className="pt-2 border-t border-slate-100">
-                        {/* Interactive refill direct clicker */}
-                        <button
-                          onClick={() => {
-                            setActiveRefillMachineId(card.id);
-                            // Auto select a recommendation
-                            const matchedDefault = availableProducts.find(p => 
-                              (p.nombre || p.name || '').toLowerCase().includes(card.name.toLowerCase()) ||
-                              (p.codigo || p.id || '').toLowerCase().includes(card.id.toLowerCase())
-                            );
-                            setSelectedRefillProduct(matchedDefault || availableProducts[0]);
-                            setRefillSearch('');
-                            setRefillAmount(1);
-                            setSessionRefills([]);
-                            setProductCounts({});
-                          }}
-                          className="w-full py-2 bg-[#043077] hover:bg-blue-800 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer shadow-3xs"
+                      return (
+                        <div 
+                          key={card.id} 
+                          className="bg-white border border-slate-200 hover:border-[#043077]/50 rounded-2xl p-4.5 shadow-2xs hover:shadow-xs transition-all text-left flex flex-col justify-between h-auto min-h-[350px] gap-4"
                         >
-                          <Plus className="w-3.5 h-3.5 animate-pulse" /> Ver Producto / Llenar
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                {card.category}
+                              </span>
+                              <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${textColor}`}>
+                                {statusText}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 mt-3">
+                              <div className="w-10 h-10 rounded-xl bg-[#043077]/5 flex items-center justify-center border border-[#043077]/10 shrink-0">
+                                {getSurtidoIcon(card.icon)}
+                              </div>
+                              <div>
+                                <h5 className="text-base font-black text-slate-800 leading-none">{card.name}</h5>
+                                <span className="text-[10px] text-slate-400 font-semibold block mt-1 leading-tight line-clamp-1">{card.alias}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 space-y-1.5 text-[11px] leading-snug">
+                            <div className="flex justify-between text-slate-500">
+                              <span>🔄 Llenados:</span>
+                              <span className="font-extrabold text-slate-800">{(card as any).fillCount || 0} veces</span>
+                            </div>
+                            <div className="flex justify-between text-slate-500">
+                              <span>📦 Acumulado Surtido:</span>
+                              <span className="font-extrabold text-slate-800">{(card as any).totalFilledAmount || 0} {card.unit}</span>
+                            </div>
+                            <div className="text-slate-500 truncate" title={(card as any).loadedProduct || 'Sin producto'}>
+                              <span>🏷️ Producto: </span>
+                              <span className="font-black text-[#043077]">{(card as any).loadedProduct || 'Sin asignar'}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-400 text-[10px] italic">
+                              <span>🕒 Recarga:</span>
+                              <span>{(card as any).lastFilledDate || 'Ninguna'}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Capacidad:</span>
+                              <span className="font-mono font-black text-slate-700 text-[11px]">
+                                {card.stock} / {card.maxStock} {card.unit} ({pct}%)
+                              </span>
+                            </div>
+
+                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                              <div 
+                                className={`h-full rounded-full transition-all duration-300 ${pctColor}`}
+                                style={{ width: `${pct}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100">
+                            <button
+                              onClick={() => {
+                                setActiveRefillMachineId(card.id);
+                                const matchedDefault = availableProducts.find(p => 
+                                  (p.nombre || p.name || '').toLowerCase().includes(card.name.toLowerCase()) ||
+                                  (p.codigo || p.id || '').toLowerCase().includes(card.id.toLowerCase())
+                                );
+                                setSelectedRefillProduct(matchedDefault || availableProducts[0]);
+                                setRefillSearch('');
+                                setRefillAmount(1);
+                                setSessionRefills([]);
+                                setProductCounts({});
+                              }}
+                              className="w-full py-2 bg-[#043077] hover:bg-blue-800 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer shadow-3xs"
+                            >
+                              <Plus className="w-3.5 h-3.5 animate-pulse" /> Ver Producto / Llenar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : (
+              // Option B: Render dynamically defined spreadsheets with Excel CSV Export
+              <div className="space-y-6">
+                
+                {/* Section Header */}
+                <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-left">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                      <FileSpreadsheet className="w-5 h-5 text-[#043077]" />
+                      {activeMeta.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta.desc}</p>
+                  </div>
+                  
+                  {/* Master quick export Excel trigger */}
+                  <button
+                    onClick={() => handleExportToExcel(activeSupplySubmenu)}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap self-stretch md:self-auto text-center justify-center"
+                  >
+                    <Download className="w-4 h-4" /> Exportar a Excel (.csv)
+                  </button>
+                </div>
+
+                {/* KPI Metrics Dashboard based on live filters of the report */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Piezas Surtidas</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-xl font-mono font-black text-slate-800">{totalUnits}</span>
+                      <span className="text-[10px] text-slate-500 font-semibold uppercase">u.</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Costo de Inversión</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-xl font-mono font-black text-slate-800">{formatMXN(totalCostIncurred)}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Venta Proyectada</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-xl font-mono font-black text-[#043077]">{formatMXN(projectedSalesValue)}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Ganancia Bruta</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-xl font-mono font-black text-emerald-600">+{formatMXN(grossProfit)}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Margen Promedio</span>
+                    <div className="flex items-baseline gap-1 mt-2">
+                      <span className="text-xl font-mono font-black text-indigo-600">{avgMarginPct.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submenu filters & rows manipulation bar */}
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                  {/* Search query input */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por código, nombre o proveedor..."
+                      value={submenuSearchQuery}
+                      onChange={(e) => setSubmenuSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-slate-50 hover:bg-slate-100/50 border border-slate-205 rounded-xl text-xs font-bold outline-hidden transition-all focus:ring-2 focus:ring-[#043077]/10"
+                    />
+                    {submenuSearchQuery && (
+                      <button 
+                        onClick={() => setSubmenuSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-black"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Actions buttons */}
+                  <div className="flex gap-2 shrink-0">
+                    {/* Inline code SQL triggers */}
+                    <button
+                      type="button"
+                      onClick={() => setShowSQLSchema(!showSQLSchema)}
+                      className={`px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                        showSQLSchema
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/40'
+                      }`}
+                    >
+                      ⚡ SQL
+                    </button>
+
+                    {/* Add row button */}
+                    <button
+                      type="button"
+                      onClick={() => setAddSupplyRowOpen(!addSupplyRowOpen)}
+                      className="px-3.5 py-2 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-3xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Agregar Registro
+                    </button>
+                  </div>
+                </div>
+
+                {/* Interactive Dynamic Form for adding records to active spreadsheet */}
+                {addSupplyRowOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-5 bg-slate-50 border border-slate-200 rounded-2xl text-left space-y-4"
+                  >
+                    <div className="flex justify-between items-center border-b border-slate-150 pb-2">
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                        ➕ Añadir Registro a {activeMeta.name}
+                      </h4>
+                      <button 
+                        type="button" 
+                        onClick={() => setAddSupplyRowOpen(false)} 
+                        className="text-slate-400 hover:text-slate-600 font-extrabold text-sm"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-500 font-bold block">Código Producto</label>
+                        <input
+                          type="text"
+                          placeholder="p. ej: CER-BB-06"
+                          value={rowCodigo}
+                          onChange={(e) => setRowCodigo(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
+                        />
+                      </div>
+                      <div className="space-y-1 md:col-span-2">
+                        <label className="text-[10px] text-slate-500 font-bold block">Nombre Producto / Artículo</label>
+                        <input
+                          type="text"
+                          placeholder="Nombre comercial"
+                          value={rowNombre}
+                          onChange={(e) => setRowNombre(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-500 font-bold block">Unidades Surtidas</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={rowUnidades}
+                          onChange={(e) => setRowUnidades(parseInt(e.target.value) || 0)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-500 font-bold block">Costo Adquisición ($)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rowCosto}
+                          onChange={(e) => setRowCosto(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-500 font-bold block">Precio de Venta ($)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={rowPrecio}
+                          onChange={(e) => setRowPrecio(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-500 font-bold block">Proveedor / Marca comercial</label>
+                        <input
+                          type="text"
+                          placeholder="Nombre de la distribuidora"
+                          value={rowProveedor}
+                          onChange={(e) => setRowProveedor(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setAddSupplyRowOpen(false)}
+                          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleAddRow}
+                          className="px-4 py-2 bg-[#043077] hover:bg-blue-800 rounded-lg text-xs font-black text-white uppercase transition-all cursor-pointer shadow-3xs"
+                        >
+                          Guardar Registro
                         </button>
                       </div>
-
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  </motion.div>
+                )}
+
+                {/* Show Live Postgres SQL generation script for backing up this specific submenu data */}
+                {showSQLSchema && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-5 bg-slate-900 text-slate-100 rounded-2xl text-left font-mono space-y-3 shadow-inner"
+                  >
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                      <span className="text-xs font-bold text-amber-400 block">⚡ SCRIPT SQL DE CREACIÓN Y SEEDING ({activeMeta.name})</span>
+                      <button 
+                        onClick={() => setShowSQLSchema(false)} 
+                        className="text-slate-500 hover:text-slate-300 text-xs font-black"
+                      >
+                        Cerrar [X]
+                      </button>
+                    </div>
+                    <pre className="text-[11px] leading-relaxed max-h-[300px] overflow-y-auto pr-2 select-all bg-slate-950 p-3 rounded-lg border border-slate-800">
+                      <code>{getDynamicSQL()}</code>
+                    </pre>
+                    <div className="text-[10px] text-slate-400 italic">
+                      💡 Copia este bloque de consulta DDL para aplicarlo en tu base de datos relacional y migrar la información de {activeMeta.name} de forma exacta.
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Interactive Rows spreadsheet table layout representation matches file structure */}
+                <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-3xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200 select-none">
+                          <th className="py-3 px-4">Código / SKU</th>
+                          <th className="py-3 px-4">Producto o Artículo</th>
+                          <th className="py-3 px-4 text-center">Unidades</th>
+                          <th className="py-3 px-4 text-right">Costo Unit.</th>
+                          <th className="py-3 px-4 text-right">Precio Venta</th>
+                          <th className="py-3 px-4 text-right">Importe Total</th>
+                          <th className="py-3 px-4">Proveedor</th>
+                          <th className="py-3 px-4">Fecha Surtido</th>
+                          <th className="py-3 px-4 text-center">Controles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {filteredSubmenuRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
+                              No hay registros cargados para {activeMeta.name} que coincidan con la búsqueda.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredSubmenuRows.map((row) => {
+                            const totalVal = safeVal(row.unidad_surtida) * safeVal(row.precio_venta);
+                            return (
+                              <tr 
+                                key={row.id} 
+                                className="hover:bg-slate-50/50 transition-colors"
+                              >
+                                <td className="py-3 px-4 font-mono font-black text-[#043077]">
+                                  {row.codigo}
+                                </td>
+                                <td className="py-3 px-4 font-extrabold text-slate-800">
+                                  {row.nombre_producto}
+                                </td>
+                                <td className="py-3 px-4 text-center font-mono font-black text-slate-700">
+                                  {row.unidad_surtida}
+                                </td>
+                                <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                  {formatMXN(row.costo_surtido)}
+                                </td>
+                                <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                  {formatMXN(row.precio_venta)}
+                                </td>
+                                <td className="py-3 px-4 text-right font-mono font-black text-[#043077]">
+                                  {formatMXN(totalVal)}
+                                </td>
+                                <td className="py-3 px-4 text-slate-500 font-semibold">
+                                  {row.proveedor}
+                                </td>
+                                <td className="py-3 px-4 text-slate-400 font-medium">
+                                  {row.fecha_registro}
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  <button
+                                    onClick={() => handleDeleteRow(row.id)}
+                                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all cursor-pointer inline-flex items-center"
+                                    title="Eliminar fila"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Table footer info */}
+                  <div className="bg-slate-50 px-4 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-bold">
+                    <span>Mostrando {filteredSubmenuRows.length} registros en {activeMeta.name}</span>
+                    <span className="font-mono text-[#043077] uppercase tracking-wider">Cargar en Dashboard Excel Habilitado</span>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* Dynamic Popup Modal to Register a brand new custom access to the Submenu */}
+            {addSubmenuOpen && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xl w-full max-w-md space-y-4 text-left"
+                >
+                  <div className="flex justify-between items-center border-b border-slate-150 pb-3">
+                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-1.5">
+                      <Plus className="w-5 h-5 text-indigo-600" /> Registrar Nuevo Acceso en Submenú
+                    </h3>
+                    <button 
+                      type="button"
+                      onClick={() => setAddSubmenuOpen(false)}
+                      className="text-slate-400 hover:text-slate-600 font-black text-md"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Al dar de alta un acceso en el submenú, se creará de forma dinámica una nueva pestaña de control con su propia hoja de cálculo exportable a Excel, pre-poblada con columnas correspondientes.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Nombre Corto de Acceso (Menú)</label>
+                      <input
+                        type="text"
+                        placeholder="p. ej: Cervezas BB, Refrescos"
+                        value={newSubmenuName}
+                        onChange={(e) => setNewSubmenuName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título del Reporte / Hoja</label>
+                      <input
+                        type="text"
+                        placeholder="p. ej: Reporte Consolidado de Cervezas BB"
+                        value={newSubmenuTitle}
+                        onChange={(e) => setNewSubmenuTitle(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Descripción / Notas</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Propósito u observaciones de este lote de surtido comercial..."
+                        value={newSubmenuDesc}
+                        onChange={(e) => setNewSubmenuDesc(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-150 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAddSubmenuOpen(false)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRegisterNewSubmenu}
+                      className="flex-1 py-2.5 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
+                    >
+                      Dar de Alta Acceso
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
 
           </div>
         );
