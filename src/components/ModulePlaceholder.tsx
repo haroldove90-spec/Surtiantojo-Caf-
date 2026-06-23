@@ -199,6 +199,15 @@ export default function ModulePlaceholder({
   const [rowPrecio, setRowPrecio] = useState(0);
   const [rowProveedor, setRowProveedor] = useState('');
 
+  // Inline Row Editing states for spreadsheet table rows
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [editRowCodigo, setEditRowCodigo] = useState('');
+  const [editRowNombre, setEditRowNombre] = useState('');
+  const [editRowUnidades, setEditRowUnidades] = useState(0);
+  const [editRowCosto, setEditRowCosto] = useState(0);
+  const [editRowPrecio, setEditRowPrecio] = useState(0);
+  const [editRowProveedor, setEditRowProveedor] = useState('');
+
   // Form states for creating custom submenus
   const [addSubmenuOpen, setAddSubmenuOpen] = useState(false);
   const [newSubmenuName, setNewSubmenuName] = useState('');
@@ -661,7 +670,7 @@ export default function ModulePlaceholder({
         // Score first 15 lines to identify where headers reside
         let headerIdx = 0;
         let maxScore = -1;
-        const targetKeywords = ['codigo', 'producto', 'nombre', 'unidades', 'cantidad', 'costo', 'precio', 'proveedor', 'fecha'];
+        const targetKeywords = ['codigo', 'producto', 'nombre', 'unidades', 'cantidad', 'costo', 'precio', 'proveedor', 'fecha', 'surtir', 'vta'];
         
         for (let i = 0; i < Math.min(lines.length, 15); i++) {
           let score = 0;
@@ -672,6 +681,22 @@ export default function ModulePlaceholder({
           if (score > maxScore && score >= 2) {
             maxScore = score;
             headerIdx = i;
+          }
+        }
+
+        let detectedSupplier = 'Proveedor General';
+        // Try to scan rows above headers to find a descriptive supplier/section name (e.g. "Bebidas Cerealto")
+        for (let i = headerIdx - 1; i >= 0; i--) {
+          const lObj = lines[i];
+          if (lObj) {
+            const possibleNames = lObj.filter(cell => cell && cell.trim() && cell.trim().length > 3 && !cell.includes('/') && !cell.includes('-'));
+            if (possibleNames.length > 0) {
+              const matchedWord = possibleNames.find(word => !/^[0-9]/.test(word) && word.toLowerCase() !== 'ok');
+              if (matchedWord) {
+                detectedSupplier = matchedWord.trim();
+                break;
+              }
+            }
           }
         }
 
@@ -686,28 +711,83 @@ export default function ModulePlaceholder({
         let colProveedor = -1;
         let colFecha = -1;
 
+        // 1st Priority: Exact / Close matches
         headersCleaned.forEach((h, idx) => {
-          if (h.includes('codigo') || h === 'sku' || h === 'ref' || h === 'id' || h === 'code') colCodigo = idx;
-          else if (h.includes('producto') || h.includes('nombre') || h.includes('articulo') || h === 'item' || h.includes('descripcion')) colNombre = idx;
-          else if (h.includes('unidad') || h.includes('cantidad') || h.includes('piezas') || h === 'cant' || h === 'qty' || h.includes('surtid')) colUnidades = idx;
-          else if (h.includes('costo') || h.includes('compra') || h.includes('adquisicion')) colCosto = idx;
-          else if (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta') colPrecio = idx;
-          else if (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor')) colProveedor = idx;
-          else if (h.includes('fecha') || h.includes('registro')) colFecha = idx;
+          if (h === 'codigo' || h === 'sku') colCodigo = idx;
+          else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
+          else if (h === 'surtir' || h === 'cantidad' || h === 'unidades') colUnidades = idx;
+          else if (h === 'costo') colCosto = idx;
+          else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
+          else if (h === 'proveedor') colProveedor = idx;
+          else if (h === 'fecha' || h === 'fechasurtido') colFecha = idx;
         });
 
-        // Set standard index fallbacks if mapping couldn't auto-resolve
-        if (colCodigo === -1 && headersCleaned.length > 0) colCodigo = 0;
-        if (colNombre === -1 && headersCleaned.length > 1) colNombre = 1;
-        if (colUnidades === -1 && headersCleaned.length > 2) colUnidades = 2;
-        if (colCosto === -1 && headersCleaned.length > 3) colCosto = 3;
-        if (colPrecio === -1 && headersCleaned.length > 4) colPrecio = 4;
-        if (colProveedor === -1 && headersCleaned.length > 5) colProveedor = 5;
+        // 2nd Priority: Partial match fallback
+        headersCleaned.forEach((h, idx) => {
+          if (colCodigo === -1 && (h.includes('codigo') || h.includes('sku') || h === 'ref' || h === 'code') && h !== 'prodcodigo') {
+            colCodigo = idx;
+          }
+          if (colNombre === -1 && (h.includes('producto') || h.includes('nombre') || h.includes('articulo') || h === 'item' || h.includes('descripcion'))) {
+            colNombre = idx;
+          }
+          if (colUnidades === -1 && (h.includes('surtir') || h.includes('surtid') || h.includes('cantidad') || h.includes('unidad') || h.includes('piezas') || h === 'cant' || h === 'qty')) {
+            colUnidades = idx;
+          }
+          if (colCosto === -1 && (h.includes('costo') || h.includes('compra') || h.includes('adquisicion'))) {
+            colCosto = idx;
+          }
+          if (colPrecio === -1 && (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta' || h.includes('vta'))) {
+            colPrecio = idx;
+          }
+          if (colProveedor === -1 && (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor'))) {
+            colProveedor = idx;
+          }
+          if (colFecha === -1 && (h.includes('fecha') || h.includes('registro'))) {
+            colFecha = idx;
+          }
+        });
+
+        // Build list of mapped indices to prevent overlap in fallback
+        const occupied = new Set<number>();
+        if (colCodigo !== -1) occupied.add(colCodigo);
+        if (colNombre !== -1) occupied.add(colNombre);
+        if (colUnidades !== -1) occupied.add(colUnidades);
+        if (colCosto !== -1) occupied.add(colCosto);
+        if (colPrecio !== -1) occupied.add(colPrecio);
+        if (colProveedor !== -1) occupied.add(colProveedor);
+        if (colFecha !== -1) occupied.add(colFecha);
+
+        const findNextUnoccupied = (start: number): number => {
+          let curr = start;
+          while (curr < headersCleaned.length) {
+            if (!occupied.has(curr) && headersCleaned[curr] !== '') {
+              return curr;
+            }
+            curr++;
+          }
+          return -1;
+        };
+
+        // Highly safe position fallback for unmapped keys (ensuring NO overlap)
+        if (colCodigo === -1) {
+          const idx = findNextUnoccupied(0);
+          if (idx !== -1) { colCodigo = idx; occupied.add(idx); }
+        }
+        if (colNombre === -1) {
+          const idx = findNextUnoccupied(0);
+          if (idx !== -1) { colNombre = idx; occupied.add(idx); }
+        }
+        if (colUnidades === -1) {
+          const idx = findNextUnoccupied(0);
+          if (idx !== -1) { colUnidades = idx; occupied.add(idx); }
+        }
 
         const parsedRows: any[] = [];
         for (let r = headerIdx + 1; r < lines.length; r++) {
           const row = lines[r];
-          if (row.length === 0 || (row.length === 1 && row[0] === '')) continue;
+          if (!row || row.length === 0) continue;
+          // Skip completely empty rows
+          if (row.every(cell => !cell || cell.trim() === '')) continue;
 
           // Robust float parser
           const cleanNumVal = (str: string): number => {
@@ -725,10 +805,10 @@ export default function ModulePlaceholder({
 
           const codigoStr = colCodigo !== -1 && row[colCodigo] ? row[colCodigo].trim().toUpperCase() : `PROD-S-${r}`;
           const nombreStr = colNombre !== -1 && row[colNombre] ? row[colNombre].trim() : `Producto Importado ${r}`;
-          const unidadesVal = colUnidades !== -1 && row[colUnidades] ? Math.round(cleanNumVal(row[colUnidades])) : 0;
+          const unidadesVal = colUnidades !== -1 && row[colUnidades] ? cleanNumVal(row[colUnidades]) : 0;
           const costoVal = colCosto !== -1 && row[colCosto] ? cleanNumVal(row[colCosto]) : 0;
           const precioVal = colPrecio !== -1 && row[colPrecio] ? cleanNumVal(row[colPrecio]) : 0;
-          const provStr = colProveedor !== -1 && row[colProveedor] ? row[colProveedor].trim() : 'Proveedor General';
+          const provStr = colProveedor !== -1 && row[colProveedor] ? row[colProveedor].trim() : detectedSupplier;
           
           let dateStr = new Date().toISOString().split('T')[0];
           if (colFecha !== -1 && row[colFecha]) {
@@ -2880,6 +2960,38 @@ export default function ModulePlaceholder({
           }
         };
 
+        const handleStartEditRow = (row: any) => {
+          setEditingRowId(row.id);
+          setEditRowCodigo(row.codigo || '');
+          setEditRowNombre(row.nombre_producto || '');
+          setEditRowUnidades(safeVal(row.unidad_surtida));
+          setEditRowCosto(safeVal(row.costo_surtido));
+          setEditRowPrecio(safeVal(row.precio_venta));
+          setEditRowProveedor(row.proveedor || '');
+        };
+
+        const handleSaveRow = (rowId: number) => {
+          handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
+            if (r.id === rowId) {
+              return {
+                ...r,
+                codigo: editRowCodigo.trim().toUpperCase(),
+                nombre_producto: editRowNombre.trim(),
+                unidad_surtida: safeVal(editRowUnidades),
+                costo_surtido: safeVal(editRowCosto),
+                precio_venta: safeVal(editRowPrecio),
+                proveedor: editRowProveedor.trim() || 'Proveedor General'
+              };
+            }
+            return r;
+          }));
+          setEditingRowId(null);
+        };
+
+        const handleCancelEditRow = () => {
+          setEditingRowId(null);
+        };
+
         const handleRegisterNewSubmenu = () => {
           if (!newSubmenuName.trim()) {
             alert("Por favor escribe el nombre de acceso para el submenú.");
@@ -3672,45 +3784,140 @@ export default function ModulePlaceholder({
                           </tr>
                         ) : (
                           filteredSubmenuRows.map((row) => {
-                            const totalVal = safeVal(row.unidad_surtida) * safeVal(row.precio_venta);
+                            const isEditing = row.id === editingRowId;
+                            const totalVal = isEditing 
+                              ? safeVal(editRowUnidades) * safeVal(editRowPrecio)
+                              : safeVal(row.unidad_surtida) * safeVal(row.precio_venta);
+
                             return (
                               <tr 
                                 key={row.id} 
-                                className="hover:bg-slate-50/50 transition-colors"
+                                className={`${isEditing ? 'bg-indigo-50/60' : 'hover:bg-slate-50/50'} transition-colors`}
                               >
-                                <td className="py-3 px-4 font-mono font-black text-[#043077]">
-                                  {row.codigo}
-                                </td>
-                                <td className="py-3 px-4 font-extrabold text-slate-800">
-                                  {row.nombre_producto}
-                                </td>
-                                <td className="py-3 px-4 text-center font-mono font-black text-slate-700">
-                                  {row.unidad_surtida}
-                                </td>
-                                <td className="py-3 px-4 text-right font-mono text-slate-600">
-                                  {formatMXN(row.costo_surtido)}
-                                </td>
-                                <td className="py-3 px-4 text-right font-mono text-slate-600">
-                                  {formatMXN(row.precio_venta)}
-                                </td>
-                                <td className="py-3 px-4 text-right font-mono font-black text-[#043077]">
-                                  {formatMXN(totalVal)}
-                                </td>
-                                <td className="py-3 px-4 text-slate-500 font-semibold">
-                                  {row.proveedor}
-                                </td>
-                                <td className="py-3 px-4 text-slate-400 font-medium">
-                                  {row.fecha_registro}
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <button
-                                    onClick={() => handleDeleteRow(row.id)}
-                                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all cursor-pointer inline-flex items-center"
-                                    title="Eliminar fila"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </td>
+                                {isEditing ? (
+                                  <>
+                                    <td className="py-2 px-3">
+                                      <input
+                                        type="text"
+                                        value={editRowCodigo}
+                                        onChange={(e) => setEditRowCodigo(e.target.value)}
+                                        className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-[#043077]"
+                                      />
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      <input
+                                        type="text"
+                                        value={editRowNombre}
+                                        onChange={(e) => setEditRowNombre(e.target.value)}
+                                        className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800"
+                                      />
+                                    </td>
+                                    <td className="py-2 px-3 text-center">
+                                      <input
+                                        type="number"
+                                        step="any"
+                                        value={editRowUnidades}
+                                        onChange={(e) => setEditRowUnidades(parseFloat(e.target.value) || 0)}
+                                        className="w-16 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-center"
+                                      />
+                                    </td>
+                                    <td className="py-2 px-3 text-right">
+                                      <input
+                                        type="number"
+                                        step="any"
+                                        value={editRowCosto}
+                                        onChange={(e) => setEditRowCosto(parseFloat(e.target.value) || 0)}
+                                        className="w-20 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                                      />
+                                    </td>
+                                    <td className="py-2 px-3 text-right">
+                                      <input
+                                        type="number"
+                                        step="any"
+                                        value={editRowPrecio}
+                                        onChange={(e) => setEditRowPrecio(parseFloat(e.target.value) || 0)}
+                                        className="w-20 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                                      />
+                                    </td>
+                                    <td className="py-2 px-3 text-right font-mono font-black text-[#043077] select-none">
+                                      {formatMXN(totalVal)}
+                                    </td>
+                                    <td className="py-2 px-3">
+                                      <input
+                                        type="text"
+                                        value={editRowProveedor}
+                                        onChange={(e) => setEditRowProveedor(e.target.value)}
+                                        className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold"
+                                      />
+                                    </td>
+                                    <td className="py-2 px-3 text-slate-400 font-medium font-mono select-none">
+                                      {row.fecha_registro}
+                                    </td>
+                                    <td className="py-2 px-3 text-center">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <button
+                                          onClick={() => handleSaveRow(row.id)}
+                                          className="p-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded transition-all cursor-pointer inline-flex items-center"
+                                          title="Guardar"
+                                        >
+                                          <Check className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={handleCancelEditRow}
+                                          className="p-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded transition-all cursor-pointer inline-flex items-center"
+                                          title="Cancelar"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="py-3 px-4 font-mono font-black text-[#043077]">
+                                      {row.codigo}
+                                    </td>
+                                    <td className="py-3 px-4 font-extrabold text-slate-800">
+                                      {row.nombre_producto}
+                                    </td>
+                                    <td className="py-3 px-4 text-center font-mono font-black text-slate-700">
+                                      {row.unidad_surtida}
+                                    </td>
+                                    <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                      {formatMXN(row.costo_surtido)}
+                                    </td>
+                                    <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                      {formatMXN(row.precio_venta)}
+                                    </td>
+                                    <td className="py-3 px-4 text-right font-mono font-black text-[#043077]">
+                                      {formatMXN(totalVal)}
+                                    </td>
+                                    <td className="py-3 px-4 text-slate-500 font-semibold">
+                                      {row.proveedor}
+                                    </td>
+                                    <td className="py-3 px-4 text-slate-400 font-medium">
+                                      {row.fecha_registro}
+                                    </td>
+                                    <td className="py-3 px-4 text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <button
+                                          onClick={() => handleStartEditRow(row)}
+                                          className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all cursor-pointer inline-flex items-center"
+                                          title="Editar fila"
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteRow(row.id)}
+                                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all cursor-pointer inline-flex items-center"
+                                          title="Eliminar fila"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
                               </tr>
                             );
                           })
