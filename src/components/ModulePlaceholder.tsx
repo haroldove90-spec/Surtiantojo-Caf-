@@ -66,6 +66,14 @@ const PRODUCT_FIELDS = [
   { key: 'resorte_usa', label: 'Tamaño de resorte' }
 ];
 
+const cleanHeader = (h: string) => {
+  return h.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[^a-z0-9]/g, "") // alphanumeric only
+    .trim();
+};
+
 interface ModulePlaceholderProps {
   moduleId: string;
   products?: any[];
