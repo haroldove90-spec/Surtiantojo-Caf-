@@ -286,7 +286,7 @@ export default function ModulePlaceholder({
       }
 
       // Check if we can use 'codigo' as conflict target (highly recommended for standard tables)
-      const isStandardTable = ['cer_bb', 'art_alt', 'art_ct'].includes(tabId);
+      const isStandardTable = ['cer_bb', 'art_alt', 'art_ct'].includes(tabId) || tabId.startsWith('custom_');
       const hasCodigo = headers.some(h => {
         const cleanH = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
         return cleanH === 'codigo' || cleanH === 'sku' || cleanH === 'codig';
@@ -358,14 +358,90 @@ export default function ModulePlaceholder({
         return obj;
       });
 
-      const { error } = await supabase.from(tableName).upsert(mappedRows, { onConflict: conflictTarget });
+      if (mappedRows.length === 0) return;
+
+      const { data, error } = await supabase.from(tableName).upsert(mappedRows, { onConflict: conflictTarget }).select();
       if (error) {
         console.warn(`Supabase sync failed for ${tableName} (onConflict: ${conflictTarget}):`, error.message);
       } else {
-        console.log(`Supabase sync success for ${tableName} (onConflict: ${conflictTarget})`);
+        console.log(`Supabase sync success for ${tableName} (onConflict: ${conflictTarget})`, data);
+        if (data && data.length > 0) {
+          // Reconstruct rows with real DB ids so that subsequent edits/deletes are perfect
+          const updatedRows = data.map((item: any) => {
+            const rowValues: Record<string, string> = {};
+            headers.forEach(h => {
+              const sqlColName = h.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "_")
+                .replace(/^_+|_+$/g, "")
+                .trim();
+              rowValues[h] = String(item[sqlColName] !== null && item[sqlColName] !== undefined ? item[sqlColName] : '');
+            });
+
+            return {
+              id: item.id,
+              codigo: String(item.codigo || '').toUpperCase(),
+              nombre_producto: String(item.nombre_producto || ''),
+              unidad_surtida: parseFloat(item.unidad_surtida) || 0,
+              costo_surtido: parseFloat(item.costo_surtido) || 0,
+              precio_venta: parseFloat(item.precio_venta) || 0,
+              proveedor: String(item.proveedor || 'Proveedor General'),
+              fecha_registro: item.fecha_registro || new Date().toISOString().split('T')[0],
+              values: rowValues
+            };
+          });
+
+          // Safely set states without infinite looping
+          if (tabId === 'cer_bb') setCerBBData(updatedRows);
+          else if (tabId === 'art_alt') setArtAltData(updatedRows);
+          else if (tabId === 'art_ct') setArtCtData(updatedRows);
+          else {
+            setGenericSubmenuData(prev => ({
+              ...prev,
+              [tabId]: updatedRows
+            }));
+          }
+        }
       }
     } catch (err) {
       console.error("Error in saveToSupabase:", err);
+    }
+  };
+
+  // Helper to delete rows from Supabase table
+  const deleteFromSupabase = async (tabId: string, rowIdOrIds: number | number[]) => {
+    try {
+      const tableName = `surtido_${tabId}`;
+      const idsToDelete = Array.isArray(rowIdOrIds) ? rowIdOrIds : [rowIdOrIds];
+      
+      // Filter out invalid/temporary frontend IDs
+      const validDbIds = idsToDelete.filter(id => typeof id === 'number' && id < 1000000000);
+      if (validDbIds.length === 0) return;
+
+      const { error } = await supabase.from(tableName).delete().in('id', validDbIds);
+      if (error) {
+        console.warn(`Supabase delete failed for ${tableName}:`, error.message);
+      } else {
+        console.log(`Supabase delete success for ${tableName} on IDs:`, validDbIds);
+      }
+    } catch (err) {
+      console.error("Error in deleteFromSupabase:", err);
+    }
+  };
+
+  // Helper to clear a whole Supabase table
+  const clearTableInSupabase = async (tabId: string) => {
+    try {
+      const tableName = `surtido_${tabId}`;
+      const { error } = await supabase.from(tableName).delete().neq('id', 0);
+      if (error) {
+        console.warn(`Supabase clear failed for ${tableName}:`, error.message);
+      } else {
+        console.log(`Supabase clear success for ${tableName}`);
+      }
+    } catch (err) {
+      console.error("Error in clearTableInSupabase:", err);
     }
   };
 
@@ -373,7 +449,29 @@ export default function ModulePlaceholder({
   useEffect(() => {
     const loadFromSupabase = async () => {
       try {
-        const submenus = ['cer_bb', 'art_alt', 'art_ct'];
+        // Try to load custom submenus list from Supabase first
+        let currentMenuList = [...supplySubmenuList];
+        const { data: menuData, error: menuError } = await supabase.from('surtido_submenus').select('*');
+        if (!menuError && menuData && menuData.length > 0) {
+          const loadedMenus = menuData.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            title: m.title || `Reporte Surtido ${m.name}`,
+            desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`
+          }));
+          
+          // Merge loaded submenus, keeping default ones
+          const merged = [...supplySubmenuList];
+          loadedMenus.forEach((lm: any) => {
+            if (!merged.some(m => m.id === lm.id)) {
+              merged.push(lm);
+            }
+          });
+          setSupplySubmenuList(merged);
+          currentMenuList = merged;
+        }
+
+        const submenus = currentMenuList.map(s => s.id).filter(id => id !== 'vending_surtido');
         for (const tabId of submenus) {
           const tableName = `surtido_${tabId}`;
           const { data, error } = await supabase.from(tableName).select('*');
@@ -391,24 +489,42 @@ export default function ModulePlaceholder({
                 rowValues[headers[idx]] = String(item[col] !== null && item[col] !== undefined ? item[col] : '');
               });
 
-              // Extract standard values
-              let matchedCodigo = '';
-              let matchedNombre = '';
-              let matchedUnidades = 0;
-              let matchedCosto = 0;
-              let matchedPrecio = 0;
-              let matchedProveedor = 'Proveedor General';
+              // Direct column mappings if present
+              let matchedCodigo = item.codigo !== undefined ? String(item.codigo) : '';
+              let matchedNombre = item.nombre_producto !== undefined ? String(item.nombre_producto) : '';
+              let matchedUnidades = item.unidad_surtida !== undefined ? parseFloat(item.unidad_surtida) || 0 : 0;
+              let matchedCosto = item.costo_surtido !== undefined ? parseFloat(item.costo_surtido) || 0 : 0;
+              let matchedPrecio = item.precio_venta !== undefined ? parseFloat(item.precio_venta) || 0 : 0;
+              let matchedProveedor = item.proveedor !== undefined ? String(item.proveedor) : '';
 
+              // If any of them are missing, try to parse via headers
               headers.forEach(h => {
                 const cleanH = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
                 const val = rowValues[h] || '';
-                if (cleanH === 'codigo' || cleanH === 'sku' || cleanH === 'codig') matchedCodigo = val;
-                else if (cleanH === 'producto' || cleanH === 'nombre' || cleanH === 'articulo') matchedNombre = val;
-                else if (cleanH === 'surtir' || cleanH === 'cantidad' || cleanH === 'unidades') matchedUnidades = parseFloat(val) || 0;
-                else if (cleanH === 'costo') matchedCosto = parseFloat(val) || 0;
-                else if (cleanH === 'precio' || cleanH === 'preciovta' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'vta') matchedPrecio = parseFloat(val) || 0;
-                else if (cleanH === 'proveedor') matchedProveedor = val;
+                
+                if (!matchedCodigo && (cleanH.includes('codigo') || cleanH.includes('sku') || cleanH.includes('codig'))) {
+                  matchedCodigo = val;
+                }
+                if (!matchedNombre && (cleanH.includes('nombre') || cleanH.includes('producto') || cleanH.includes('articulo'))) {
+                  matchedNombre = val;
+                }
+                if (!matchedUnidades && (cleanH.includes('unidad') || cleanH.includes('surtir') || cleanH.includes('cantidad') || cleanH.includes('unidades'))) {
+                  matchedUnidades = parseFloat(val) || 0;
+                }
+                if (!matchedCosto && (cleanH.includes('costo') || cleanH.includes('cost'))) {
+                  matchedCosto = parseFloat(val) || 0;
+                }
+                if (!matchedPrecio && (cleanH.includes('precio') || cleanH.includes('venta') || cleanH.includes('vta') || cleanH.includes('price'))) {
+                  matchedPrecio = parseFloat(val) || 0;
+                }
+                if (!matchedProveedor && (cleanH.includes('proveedor') || cleanH.includes('prov') || cleanH.includes('brand'))) {
+                  matchedProveedor = val;
+                }
               });
+
+              if (!matchedProveedor) {
+                matchedProveedor = 'Proveedor General';
+              }
 
               return {
                 id: item.id || Date.now() + rIndex + Math.random(),
@@ -427,6 +543,12 @@ export default function ModulePlaceholder({
             if (tabId === 'cer_bb') setCerBBData(rows);
             else if (tabId === 'art_alt') setArtAltData(rows);
             else if (tabId === 'art_ct') setArtCtData(rows);
+            else {
+              setGenericSubmenuData(prev => ({
+                ...prev,
+                [tabId]: rows
+              }));
+            }
           }
         }
       } catch (e) {
@@ -1106,25 +1228,27 @@ export default function ModulePlaceholder({
         }));
 
         if (confirm(`Se detectaron ${parsedRows.length} registros en el archivo.\n\n¿Quieres REEMPLAZAR todos los registros actuales de esta sección con la nueva importación?\n(Aceptar = Reemplazar por completo, Cancelar = Agregar al final del listado)`)) {
-          if (tabId === 'cer_bb') {
-            setCerBBData(parsedRows);
-            setTimeout(() => saveToSupabase('cer_bb', parsedRows), 10);
-          }
-          else if (tabId === 'art_alt') {
-            setArtAltData(parsedRows);
-            setTimeout(() => saveToSupabase('art_alt', parsedRows), 10);
-          }
-          else if (tabId === 'art_ct') {
-            setArtCtData(parsedRows);
-            setTimeout(() => saveToSupabase('art_ct', parsedRows), 10);
-          }
-          else {
-            setGenericSubmenuData(prev => ({
-              ...prev,
-              [tabId]: parsedRows
-            }));
-            setTimeout(() => saveToSupabase(tabId, parsedRows), 10);
-          }
+          clearTableInSupabase(tabId).then(() => {
+            if (tabId === 'cer_bb') {
+              setCerBBData(parsedRows);
+              setTimeout(() => saveToSupabase('cer_bb', parsedRows), 10);
+            }
+            else if (tabId === 'art_alt') {
+              setArtAltData(parsedRows);
+              setTimeout(() => saveToSupabase('art_alt', parsedRows), 10);
+            }
+            else if (tabId === 'art_ct') {
+              setArtCtData(parsedRows);
+              setTimeout(() => saveToSupabase('art_ct', parsedRows), 10);
+            }
+            else {
+              setGenericSubmenuData(prev => ({
+                ...prev,
+                [tabId]: parsedRows
+              }));
+              setTimeout(() => saveToSupabase(tabId, parsedRows), 10);
+            }
+          });
         } else {
           if (tabId === 'cer_bb') {
             setCerBBData(prev => {
@@ -3141,11 +3265,24 @@ export default function ModulePlaceholder({
           const currentRows = getActiveSubmenuData();
           const headers = submenuHeaders[activeSupplySubmenu] || [];
 
-          let sqlText = `-- ⚡ SCRIPT DE CONFIGURACIÓN SUPABASE (${activeMeta.name.toUpperCase()})\n`;
+          let sqlText = `-- ⚡ SCRIPT DE CONFIGURACIÓN DE SUPABASE\n`;
           sqlText += `-- 💡 Pasos para sincronizar:\n`;
           sqlText += `--   1. Abre tu panel de Supabase y ve a la sección "SQL Editor".\n`;
           sqlText += `--   2. Crea una nueva consulta ("New Query"), pega TODO este código y haz clic en "Run".\n`;
           sqlText += `--   3. ¡Listo! Ya podrás agregar, importar, modificar o eliminar registros desde la web.\n\n`;
+          
+          sqlText += `-- 📦 1. TABLA DE CONFIGURACIÓN DE MENÚS (REQUERIDA PARA PERSISTENCIA DE ACCESOS NUEVOS)\n`;
+          sqlText += `CREATE TABLE IF NOT EXISTS surtido_submenus (\n`;
+          sqlText += `    id VARCHAR(50) PRIMARY KEY,\n`;
+          sqlText += `    name VARCHAR(100) NOT NULL,\n`;
+          sqlText += `    title VARCHAR(150),\n`;
+          sqlText += `    description TEXT\n`;
+          sqlText += `);\n`;
+          sqlText += `ALTER TABLE IF EXISTS surtido_submenus DISABLE ROW LEVEL SECURITY;\n`;
+          sqlText += `GRANT ALL ON TABLE surtido_submenus TO anon;\n`;
+          sqlText += `GRANT ALL ON TABLE surtido_submenus TO authenticated;\n\n`;
+
+          sqlText += `-- 📊 2. TABLA DE REGISTROS DE ESTE ACCESO (${activeMeta.name.toUpperCase()})\n`;
           
           if (headers.length > 0) {
             // Dynamic columns schema based on CSV headers
@@ -3362,6 +3499,7 @@ export default function ModulePlaceholder({
           if (confirm("¿Estás seguro de eliminar este registro de surtido?")) {
             handleUpdateSubmenuData((prev: any[]) => prev.filter(r => r.id !== rowId));
             setSelectedRowIds(prev => prev.filter(id => id !== rowId));
+            deleteFromSupabase(activeSupplySubmenu, rowId);
           }
         };
 
@@ -3369,6 +3507,7 @@ export default function ModulePlaceholder({
           if (selectedRowIds.length === 0) return;
           if (confirm(`¿Estás seguro de que deseas eliminar los ${selectedRowIds.length} registros seleccionados de forma masiva?`)) {
             handleUpdateSubmenuData((prev: any[]) => prev.filter(r => !selectedRowIds.includes(r.id)));
+            deleteFromSupabase(activeSupplySubmenu, selectedRowIds);
             setSelectedRowIds([]);
           }
         };
@@ -3381,6 +3520,7 @@ export default function ModulePlaceholder({
           }
           if (confirm(`⚠️ ALERTA DE BORRADO MASIVO \n\n¿Estás completamente seguro de eliminar TODOS los ${count} registros de esta sección (${activeMeta.name})?\n\nEsta acción borrará la tabla entera.`)) {
             handleUpdateSubmenuData([]);
+            clearTableInSupabase(activeSupplySubmenu);
             setSelectedRowIds([]);
           }
         };
@@ -3437,13 +3577,38 @@ export default function ModulePlaceholder({
 
           setSupplySubmenuList(prev => [...prev, newTabItem]);
           
-          // Bootstrap with one elegant initial default row
+          const initialRow = { 
+            id: 1, 
+            codigo: `${newSubmenuName.substring(0,3).toUpperCase()}-1`, 
+            nombre_producto: `Insumo Inicial ${newSubmenuName}`, 
+            unidad_surtida: 40, 
+            costo_surtido: 35.00, 
+            precio_venta: 70.00, 
+            proveedor: 'Proveedor Asociado', 
+            fecha_registro: new Date().toISOString().split('T')[0] 
+          };
+
+          // Bootstrap state
           setGenericSubmenuData(prev => ({
             ...prev,
-            [generatedId]: [
-              { id: 1, codigo: `${newSubmenuName.substring(0,3).toUpperCase()}-1`, nombre_producto: `Insumo Inicial ${newSubmenuName}`, unidad_surtida: 40, costo_surtido: 35.00, precio_venta: 70.00, proveedor: 'Proveedor Asociado', fecha_registro: new Date().toISOString().split('T')[0] }
-            ]
+            [generatedId]: [initialRow]
           }));
+
+          // Persist custom submenu definition in Supabase metadata table
+          supabase.from('surtido_submenus').upsert({
+            id: generatedId,
+            name: newSubmenuName.trim(),
+            title: newTabItem.title,
+            description: newTabItem.desc
+          }).then(({ error }) => {
+            if (error) {
+              console.warn("Could not save new submenu config to Supabase:", error.message);
+            } else {
+              console.log("Submenu registered successfully in Supabase!");
+              // Save default row inside the new table in Supabase!
+              setTimeout(() => saveToSupabase(generatedId, [initialRow]), 200);
+            }
+          });
 
           setActiveSupplySubmenu(generatedId);
           setNewSubmenuName('');
