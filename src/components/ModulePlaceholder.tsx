@@ -285,11 +285,20 @@ export default function ModulePlaceholder({
         headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
       }
 
+      // Check if we can use 'codigo' as conflict target (highly recommended for standard tables)
+      const isStandardTable = ['cer_bb', 'art_alt', 'art_ct'].includes(tabId);
+      const hasCodigo = headers.some(h => {
+        const cleanH = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+        return cleanH === 'codigo' || cleanH === 'sku' || cleanH === 'codig';
+      });
+
+      const conflictTarget = (isStandardTable || hasCodigo) ? 'codigo' : 'id';
+
       const mappedRows = rows.map(row => {
         const obj: any = {};
         
-        // Let's add ID if present to support correct upsert/updates
-        if (row.id) {
+        // Only include ID if it is a valid database ID (not a large JS timestamp from Date.now())
+        if (row.id && typeof row.id === 'number' && row.id < 1000000000) {
           obj.id = row.id;
         }
 
@@ -349,11 +358,11 @@ export default function ModulePlaceholder({
         return obj;
       });
 
-      const { error } = await supabase.from(tableName).upsert(mappedRows);
+      const { error } = await supabase.from(tableName).upsert(mappedRows, { onConflict: conflictTarget });
       if (error) {
-        console.warn(`Supabase sync failed for ${tableName}:`, error.message);
+        console.warn(`Supabase sync failed for ${tableName} (onConflict: ${conflictTarget}):`, error.message);
       } else {
-        console.log(`Supabase sync success for ${tableName}`);
+        console.log(`Supabase sync success for ${tableName} (onConflict: ${conflictTarget})`);
       }
     } catch (err) {
       console.error("Error in saveToSupabase:", err);
