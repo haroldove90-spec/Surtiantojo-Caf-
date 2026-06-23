@@ -278,11 +278,21 @@ export default function ModulePlaceholder({
   const saveToSupabase = async (tabId: string, rows: any[]) => {
     try {
       const tableName = `surtido_${tabId}`;
-      const headers = submenuHeaders[tabId] || [];
-      if (headers.length === 0) return;
+      let headers = submenuHeaders[tabId] || [];
+      
+      // If there are no custom headers yet, let's use the default ones
+      if (headers.length === 0) {
+        headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
+      }
 
       const mappedRows = rows.map(row => {
         const obj: any = {};
+        
+        // Let's add ID if present to support correct upsert/updates
+        if (row.id) {
+          obj.id = row.id;
+        }
+
         headers.forEach(header => {
           const sqlColName = header.toLowerCase()
             .normalize("NFD")
@@ -290,7 +300,41 @@ export default function ModulePlaceholder({
             .replace(/[^a-z0-9]/g, "_")
             .replace(/^_+|_+$/g, "")
             .trim();
-          const rawVal = row.values && row.values[header] !== undefined ? row.values[header] : '';
+          
+          // Try to get rawVal from row.values, or directly from row
+          let rawVal = '';
+          if (row.values && row.values[header] !== undefined) {
+            rawVal = row.values[header];
+          } else {
+            // Find property in row direct keys
+            const propKeys = [
+              sqlColName,
+              header,
+              header.toLowerCase(),
+              header.toUpperCase()
+            ];
+            // Also fall back to common property names
+            const cleanH = header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            if (cleanH.includes('codigo') || cleanH.includes('code')) {
+              propKeys.push('codigo', 'code');
+            } else if (cleanH.includes('nombre') || cleanH.includes('name') || cleanH.includes('articulo') || cleanH.includes('producto')) {
+              propKeys.push('nombre_producto', 'nombre', 'name', 'articulo', 'producto');
+            } else if (cleanH.includes('unidad') || cleanH.includes('cant') || cleanH.includes('surtir') || cleanH.includes('unidades') || cleanH.includes('cantidad')) {
+              propKeys.push('unidad_surtida', 'unidades', 'cantidad', 'cant', 'surtir');
+            } else if (cleanH.includes('costo') || cleanH.includes('cost')) {
+              propKeys.push('costo_surtido', 'costo', 'cost');
+            } else if (cleanH.includes('precio') || cleanH.includes('vta') || cleanH.includes('venta') || cleanH.includes('price')) {
+              propKeys.push('precio_venta', 'precio', 'vta', 'venta', 'price');
+            } else if (cleanH.includes('proveedor') || cleanH.includes('prov') || cleanH.includes('brand') || cleanH.includes('marca')) {
+              propKeys.push('proveedor', 'prov', 'brand', 'marca');
+            }
+
+            const foundKey = propKeys.find(k => row[k] !== undefined);
+            if (foundKey !== undefined) {
+              rawVal = row[foundKey];
+            }
+          }
+
           const cleanH = header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
           const isNum = cleanH.includes('precio') || cleanH.includes('vta') || cleanH.includes('costo') || cleanH.includes('surtir') || cleanH.includes('unidades') || cleanH.includes('cantidad') || cleanH.includes('cabe') || cleanH.includes('canal');
           if (isNum) {
@@ -300,6 +344,7 @@ export default function ModulePlaceholder({
             obj[sqlColName] = rawVal;
           }
         });
+
         obj.fecha_registro = row.fecha_registro || new Date().toISOString().split('T')[0];
         return obj;
       });
@@ -3087,7 +3132,11 @@ export default function ModulePlaceholder({
           const currentRows = getActiveSubmenuData();
           const headers = submenuHeaders[activeSupplySubmenu] || [];
 
-          let sqlText = `-- PostgreSQL DDL - Creación de Estructura de Tabla y Consultas de Surtido (${activeMeta.name})\n`;
+          let sqlText = `-- ⚡ SCRIPT DE CONFIGURACIÓN SUPABASE (${activeMeta.name.toUpperCase()})\n`;
+          sqlText += `-- 💡 Pasos para sincronizar:\n`;
+          sqlText += `--   1. Abre tu panel de Supabase y ve a la sección "SQL Editor".\n`;
+          sqlText += `--   2. Crea una nueva consulta ("New Query"), pega TODO este código y haz clic en "Run".\n`;
+          sqlText += `--   3. ¡Listo! Ya podrás agregar, importar, modificar o eliminar registros desde la web.\n\n`;
           
           if (headers.length > 0) {
             // Dynamic columns schema based on CSV headers
@@ -3178,6 +3227,13 @@ export default function ModulePlaceholder({
               sqlText += `    precio_venta = EXCLUDED.precio_venta;\n\n`;
             }
           }
+
+          sqlText += `-- ⚠️ DESACTIVAR SEGURIDAD RLS PARA ACCESO DIRECTO DESDE CLIENTE:\n`;
+          sqlText += `ALTER TABLE IF EXISTS ${tableName} DISABLE ROW LEVEL SECURITY;\n`;
+          sqlText += `GRANT ALL ON TABLE ${tableName} TO anon;\n`;
+          sqlText += `GRANT ALL ON TABLE ${tableName} TO authenticated;\n`;
+          sqlText += `GRANT ALL ON SEQUENCE ${tableName}_id_seq TO anon;\n`;
+          sqlText += `GRANT ALL ON SEQUENCE ${tableName}_id_seq TO authenticated;\n\n`;
 
           sqlText += `-- Consulta Analítica de Dashboard: Calcular Ganancia Bruta y Margen Real\n`;
           sqlText += `SELECT \n`;
