@@ -94,10 +94,25 @@ export default function App() {
   // PWA installation and splash screen states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallModal, setShowInstallModal] = useState<boolean>(false);
-  const [isSplashActive, setIsSplashActive] = useState<boolean>(true);
+  const [isSplashActive, setIsSplashActive] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('surtiantojo_splash_shown') !== 'true';
+    } catch (e) {
+      return true;
+    }
+  });
 
   // Sync PWA triggers and auto-dismiss splash layout
   useEffect(() => {
+    try {
+      const shown = sessionStorage.getItem('surtiantojo_splash_shown');
+      if (shown === 'true') {
+        setIsSplashActive(false);
+      } else {
+        sessionStorage.setItem('surtiantojo_splash_shown', 'true');
+      }
+    } catch (e) {}
+
     // 2.2 seconds display time for the unencapsulated full-screen launch splash
     const splashTimer = setTimeout(() => {
       setIsSplashActive(false);

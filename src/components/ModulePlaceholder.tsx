@@ -183,12 +183,33 @@ export default function ModulePlaceholder({
 
   // --- SUBMENU GENERAL SURTIDO & EXCEL EXPORT SYSTEM STATES ---
   const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>('cer_bb');
-  const [supplySubmenuList, setSupplySubmenuList] = useState([
-    { id: 'vending_surtido', name: 'Surtido de Terminales', title: 'Surtido General de Máquinas', desc: 'Control físico de stock en terminales con indicadores de carga acumulada y reabastecimiento directo.' },
-    { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
-    { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
-    { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' }
-  ]);
+  const [supplySubmenuList, setSupplySubmenuList] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_submenu_list');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [
+      { id: 'vending_surtido', name: 'Surtido de Terminales', title: 'Surtido General de Máquinas', desc: 'Control físico de stock en terminales con indicadores de carga acumulada y reabastecimiento directo.' },
+      { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
+      { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
+      { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' }
+    ];
+  });
+
+  const [isEditSubmenuOpen, setIsEditSubmenuOpen] = useState(false);
+  const [editSubmenuId, setEditSubmenuId] = useState('');
+  const [editSubmenuName, setEditSubmenuName] = useState('');
+  const [editSubmenuTitle, setEditSubmenuTitle] = useState('');
+  const [editSubmenuDesc, setEditSubmenuDesc] = useState('');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(supplySubmenuList));
+    } catch (e) {}
+  }, [supplySubmenuList]);
 
   const [cerBBData, setCerBBData] = useState<any[]>(() => {
     try {
@@ -460,8 +481,19 @@ export default function ModulePlaceholder({
             desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`
           }));
           
-          // Merge loaded submenus, keeping default ones
-          const merged = [...supplySubmenuList];
+          // Merge loaded submenus, updating matching ones
+          const merged = supplySubmenuList.map(submenu => {
+            const remote = loadedMenus.find((lm: any) => lm.id === submenu.id);
+            if (remote) {
+              return {
+                ...submenu,
+                name: remote.name,
+                title: remote.title,
+                desc: remote.desc
+              };
+            }
+            return submenu;
+          });
           loadedMenus.forEach((lm: any) => {
             if (!merged.some(m => m.id === lm.id)) {
               merged.push(lm);
@@ -3617,6 +3649,41 @@ export default function ModulePlaceholder({
           setAddSubmenuOpen(false);
         };
 
+        const handleSaveEditedSubmenu = () => {
+          if (!editSubmenuName.trim()) {
+            alert("Por favor escribe el nombre de acceso para el submenú.");
+            return;
+          }
+
+          setSupplySubmenuList(prev => prev.map(s => {
+            if (s.id === editSubmenuId) {
+              return {
+                ...s,
+                name: editSubmenuName.trim(),
+                title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
+                desc: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`
+              };
+            }
+            return s;
+          }));
+
+          // Persist to Supabase if connected
+          supabase.from('surtido_submenus').upsert({
+            id: editSubmenuId,
+            name: editSubmenuName.trim(),
+            title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
+            description: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`
+          }).then(({ error }) => {
+            if (error) {
+              console.warn("Could not update submenu config in Supabase:", error.message);
+            } else {
+              console.log("Submenu updated successfully in Supabase!");
+            }
+          });
+
+          setIsEditSubmenuOpen(false);
+        };
+
         // 1. RENDER DEDICATED FULL SECTION/PAGE FORM IF MACHINE IS SELECTED FOR REFILL
         if (activeRefillMachineId && activeMachine) {
           return (
@@ -3966,7 +4033,23 @@ export default function ModulePlaceholder({
                       ) : (
                         <FileSpreadsheet className="w-3.5 h-3.5" />
                       )}
-                      {submenu.name}
+                      <span>{submenu.name}</span>
+                      {isActive && (
+                        <span 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditSubmenuId(submenu.id);
+                            setEditSubmenuName(submenu.name);
+                            setEditSubmenuTitle(submenu.title || `Reporte Surtido ${submenu.name}`);
+                            setEditSubmenuDesc(submenu.desc || submenu.description || '');
+                            setIsEditSubmenuOpen(true);
+                          }}
+                          className="p-0.5 rounded-md hover:bg-white/20 transition-all ml-1 flex items-center justify-center shrink-0"
+                          title="Editar nombre de este acceso"
+                        >
+                          <Edit className="w-3 h-3 text-white" />
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -3987,13 +4070,29 @@ export default function ModulePlaceholder({
             {activeSupplySubmenu === 'vending_surtido' ? (
               // Option A: Render standard general vending terminals cards
               <div className="space-y-6">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-2xl text-left select-none">
-                  <h4 className="text-sm font-black text-[#043077] uppercase tracking-wider flex items-center gap-2">
-                    📥 Control Central de Surtido y Abastecimiento
-                  </h4>
-                  <p className="text-xs text-slate-600 font-semibold mt-1.5 leading-relaxed">
-                    Selecciona cualquier máquina o icono a continuación para visualizar su producto cargado, configurar su abastecimiento express desde el catálogo o consultar sus métricas de llenado acumuladas en tiempo real.
-                  </p>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-2xl text-left select-none flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-black text-[#043077] uppercase tracking-wider flex items-center gap-2">
+                      📥 {activeMeta.title || 'Control Central de Surtido y Abastecimiento'}
+                    </h4>
+                    <p className="text-xs text-slate-600 font-semibold mt-1.5 leading-relaxed">
+                      {activeMeta.desc || 'Selecciona cualquier máquina o icono a continuación para visualizar su producto cargado, configurar su abastecimiento express desde el catálogo o consultar sus métricas de llenado acumuladas en tiempo real.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditSubmenuId(activeMeta.id);
+                      setEditSubmenuName(activeMeta.name);
+                      setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
+                      setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
+                      setIsEditSubmenuOpen(true);
+                    }}
+                    className="px-3 py-1.5 bg-[#043077]/10 hover:bg-[#043077]/20 text-[#043077] font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 shrink-0 cursor-pointer self-stretch md:self-auto text-center justify-center"
+                    title="Editar nombre de este acceso"
+                  >
+                    <Edit className="w-3.5 h-3.5" /> Editar Acceso
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -4113,7 +4212,21 @@ export default function ModulePlaceholder({
                   <div>
                     <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                       <FileSpreadsheet className="w-5 h-5 text-[#043077]" />
-                      {activeMeta.title}
+                      <span>{activeMeta.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditSubmenuId(activeMeta.id);
+                          setEditSubmenuName(activeMeta.name);
+                          setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
+                          setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
+                          setIsEditSubmenuOpen(true);
+                        }}
+                        className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-[9px] uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5 cursor-pointer ml-2 shrink-0"
+                        title="Editar nombre y descripción de este acceso"
+                      >
+                        <Edit className="w-3 h-3" /> Editar Acceso
+                      </button>
                     </h3>
                     <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta.desc}</p>
                   </div>
@@ -4701,6 +4814,86 @@ export default function ModulePlaceholder({
                       className="flex-1 py-2.5 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
                     >
                       Dar de Alta Acceso
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {/* Edit Submenu/Access Modal */}
+            {isEditSubmenuOpen && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xl w-full max-w-md space-y-4 text-left"
+                >
+                  <div className="flex justify-between items-center border-b border-slate-150 pb-3">
+                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-1.5">
+                      <Edit className="w-5 h-5 text-[#043077]" /> Editar Nombre de Acceso
+                    </h3>
+                    <button 
+                      type="button"
+                      onClick={() => setIsEditSubmenuOpen(false)}
+                      className="text-slate-400 hover:text-slate-600 font-black text-md"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Modifica los campos del acceso seleccionado para ajustar su título en las pestañas del submenú, reportes y descripciones operacionales.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Nombre Corto de Acceso (Pestaña)</label>
+                      <input
+                        type="text"
+                        placeholder="p. ej: Cervezas BB, Refrescos"
+                        value={editSubmenuName}
+                        onChange={(e) => setEditSubmenuName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título del Reporte / Hoja</label>
+                      <input
+                        type="text"
+                        placeholder="p. ej: Reporte Consolidado de Cervezas BB"
+                        value={editSubmenuTitle}
+                        onChange={(e) => setEditSubmenuTitle(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Descripción / Notas</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Propósito u observaciones de este lote de surtido comercial..."
+                        value={editSubmenuDesc}
+                        onChange={(e) => setEditSubmenuDesc(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-150 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditSubmenuOpen(false)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveEditedSubmenu}
+                      className="flex-1 py-2.5 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
+                    >
+                      Guardar Cambios
                     </button>
                   </div>
                 </motion.div>
