@@ -186,7 +186,8 @@ export default function ModulePlaceholder({
   const [supplySubmenuList, setSupplySubmenuList] = useState([
     { id: 'vending_surtido', name: 'Surtido de Terminales', title: 'Surtido General de Máquinas', desc: 'Control físico de stock en terminales con indicadores de carga acumulada y reabastecimiento directo.' },
     { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
-    { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' }
+    { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
+    { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' }
   ]);
 
   const [cerBBData, setCerBBData] = useState<any[]>(() => {
@@ -201,6 +202,15 @@ export default function ModulePlaceholder({
   const [artAltData, setArtAltData] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_art_alt');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [artCtData, setArtCtData] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_art_ct');
       return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
@@ -245,6 +255,12 @@ export default function ModulePlaceholder({
       localStorage.setItem('surtiantojo_art_alt', JSON.stringify(artAltData));
     } catch (e) {}
   }, [artAltData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_art_ct', JSON.stringify(artCtData));
+    } catch (e) {}
+  }, [artCtData]);
 
   useEffect(() => {
     try {
@@ -303,7 +319,7 @@ export default function ModulePlaceholder({
   useEffect(() => {
     const loadFromSupabase = async () => {
       try {
-        const submenus = ['cer_bb', 'art_alt'];
+        const submenus = ['cer_bb', 'art_alt', 'art_ct'];
         for (const tabId of submenus) {
           const tableName = `surtido_${tabId}`;
           const { data, error } = await supabase.from(tableName).select('*');
@@ -356,6 +372,7 @@ export default function ModulePlaceholder({
             setSubmenuHeaders(prev => ({ ...prev, [tabId]: headers }));
             if (tabId === 'cer_bb') setCerBBData(rows);
             else if (tabId === 'art_alt') setArtAltData(rows);
+            else if (tabId === 'art_ct') setArtCtData(rows);
           }
         }
       } catch (e) {
@@ -1043,6 +1060,10 @@ export default function ModulePlaceholder({
             setArtAltData(parsedRows);
             setTimeout(() => saveToSupabase('art_alt', parsedRows), 10);
           }
+          else if (tabId === 'art_ct') {
+            setArtCtData(parsedRows);
+            setTimeout(() => saveToSupabase('art_ct', parsedRows), 10);
+          }
           else {
             setGenericSubmenuData(prev => ({
               ...prev,
@@ -1062,6 +1083,13 @@ export default function ModulePlaceholder({
             setArtAltData(prev => {
               const res = [...prev, ...parsedRows];
               setTimeout(() => saveToSupabase('art_alt', res), 10);
+              return res;
+            });
+          }
+          else if (tabId === 'art_ct') {
+            setArtCtData(prev => {
+              const res = [...prev, ...parsedRows];
+              setTimeout(() => saveToSupabase('art_ct', res), 10);
               return res;
             });
           }
@@ -2989,6 +3017,7 @@ export default function ModulePlaceholder({
           switch (activeSupplySubmenu) {
             case 'cer_bb': return cerBBData;
             case 'art_alt': return artAltData;
+            case 'art_ct': return artCtData;
             default: return genericSubmenuData[activeSupplySubmenu] || [];
           }
         };
@@ -3004,6 +3033,12 @@ export default function ModulePlaceholder({
             setArtAltData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
               setTimeout(() => saveToSupabase('art_alt', res), 10);
+              return res;
+            });
+          } else if (activeSupplySubmenu === 'art_ct') {
+            setArtCtData(prev => {
+              const res = typeof updater === 'function' ? updater(prev) : updater;
+              setTimeout(() => saveToSupabase('art_ct', res), 10);
               return res;
             });
           } else {
@@ -3184,6 +3219,7 @@ export default function ModulePlaceholder({
           
           if (tabId === 'cer_bb') dataToExport = cerBBData;
           else if (tabId === 'art_alt') dataToExport = artAltData;
+          else if (tabId === 'art_ct') dataToExport = artCtData;
           else dataToExport = genericSubmenuData[tabId] || [];
 
           if (dataToExport.length === 0) {
