@@ -408,7 +408,9 @@ export default function ModulePlaceholder({
     colMap: Record<string, number>;
     finalHeaderIdx: number;
   } | null>(null);
-  const [isImportingProgress, setIsImportingProgress] = useState(false);  // Robust number parsing with currency sign and comma decimal safety
+  const [isImportingProgress, setIsImportingProgress] = useState(false);
+  const [submenuSearchQuery, setSubmenuSearchQuery] = useState('');
+  const [showSQLSchema, setShowSQLSchema] = useState(false);
   const cleanNumberStr = (str: string): string => {
     if (!str) return '0';
     let clean = str.trim();
@@ -3016,9 +3018,6 @@ export default function ModulePlaceholder({
             });
           }
         };
-
-        const [submenuSearchQuery, setSubmenuSearchQuery] = useState('');
-        const [showSQLSchema, setShowSQLSchema] = useState(false);
 
         const currentSubmenuData = getActiveSubmenuData();
         const activeMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu) || supplySubmenuList[0];
