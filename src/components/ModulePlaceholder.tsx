@@ -48,6 +48,7 @@ import {
   Milk
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from '../lib/supabase';
 
 const PRODUCT_FIELDS = [
   { key: 'codigo', label: 'Código / Ref ID' },
@@ -181,14 +182,198 @@ export default function ModulePlaceholder({
     { id: 'vidrio_bb', name: 'Vidrio BB', title: 'Reporte Vidrio BB Cristalino', desc: 'Registro de surtido de botellas, frascos de conserva y cristalería fina.' }
   ]);
 
-  const [cerBBData, setCerBBData] = useState<any[]>([]);
+  const [cerBBData, setCerBBData] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_cer_bb');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
-  const [cafeEXPData, setCafeEXPData] = useState<any[]>([]);
+  const [cafeEXPData, setCafeEXPData] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_cafe_exp');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
-  const [vidrioBBData, setVidrioBBData] = useState<any[]>([]);
+  const [vidrioBBData, setVidrioBBData] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_vidrio_bb');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   // Dynamic content list map for custom added ones!
-  const [genericSubmenuData, setGenericSubmenuData] = useState<Record<string, Array<any>>>({});
+  const [genericSubmenuData, setGenericSubmenuData] = useState<Record<string, Array<any>>>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_generic_submenu');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  // Save submenu headers for dynamic CSV import
+  const [submenuHeaders, setSubmenuHeaders] = useState<Record<string, string[]>>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_submenu_headers');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  // Values for adding dynamic row
+  const [addRowValues, setAddRowValues] = useState<Record<string, string>>({});
+
+  // Values for editing dynamic row
+  const [editRowValues, setEditRowValues] = useState<Record<string, string>>({});
+
+  // Sync state with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_cer_bb', JSON.stringify(cerBBData));
+    } catch (e) {}
+  }, [cerBBData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_cafe_exp', JSON.stringify(cafeEXPData));
+    } catch (e) {}
+  }, [cafeEXPData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_vidrio_bb', JSON.stringify(vidrioBBData));
+    } catch (e) {}
+  }, [vidrioBBData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_generic_submenu', JSON.stringify(genericSubmenuData));
+    } catch (e) {}
+  }, [genericSubmenuData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_submenu_headers', JSON.stringify(submenuHeaders));
+    } catch (e) {}
+  }, [submenuHeaders]);
+
+  // Save Surtido rows to Supabase table
+  const saveToSupabase = async (tabId: string, rows: any[]) => {
+    try {
+      const tableName = `surtido_${tabId}`;
+      const headers = submenuHeaders[tabId] || [];
+      if (headers.length === 0) return;
+
+      const mappedRows = rows.map(row => {
+        const obj: any = {};
+        headers.forEach(header => {
+          const sqlColName = header.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "_")
+            .replace(/^_+|_+$/g, "")
+            .trim();
+          const rawVal = row.values && row.values[header] !== undefined ? row.values[header] : '';
+          const cleanH = header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+          const isNum = cleanH.includes('precio') || cleanH.includes('vta') || cleanH.includes('costo') || cleanH.includes('surtir') || cleanH.includes('unidades') || cleanH.includes('cantidad') || cleanH.includes('cabe') || cleanH.includes('canal');
+          if (isNum) {
+            const numStr = String(rawVal).replace(/[^0-9.-]/g, '');
+            obj[sqlColName] = parseFloat(numStr) || 0;
+          } else {
+            obj[sqlColName] = rawVal;
+          }
+        });
+        obj.fecha_registro = row.fecha_registro || new Date().toISOString().split('T')[0];
+        return obj;
+      });
+
+      const { error } = await supabase.from(tableName).upsert(mappedRows);
+      if (error) {
+        console.warn(`Supabase sync failed for ${tableName}:`, error.message);
+      } else {
+        console.log(`Supabase sync success for ${tableName}`);
+      }
+    } catch (err) {
+      console.error("Error in saveToSupabase:", err);
+    }
+  };
+
+  // Load Surtido records on mount from Supabase
+  useEffect(() => {
+    const loadFromSupabase = async () => {
+      try {
+        const submenus = ['cer_bb', 'cafe_exp', 'vidrio_bb'];
+        for (const tabId of submenus) {
+          const tableName = `surtido_${tabId}`;
+          const { data, error } = await supabase.from(tableName).select('*');
+          if (!error && data && data.length > 0) {
+            // Find columns excluding standard auto IDs
+            const cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'fecha_registro');
+            // Reconstruct original-looking headers
+            const headers = cols.map(c => {
+              return c.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            });
+            
+            const rows = data.map((item: any, rIndex: number) => {
+              const rowValues: Record<string, string> = {};
+              cols.forEach((col, idx) => {
+                rowValues[headers[idx]] = String(item[col] !== null && item[col] !== undefined ? item[col] : '');
+              });
+
+              // Extract standard values
+              let matchedCodigo = '';
+              let matchedNombre = '';
+              let matchedUnidades = 0;
+              let matchedCosto = 0;
+              let matchedPrecio = 0;
+              let matchedProveedor = 'Proveedor General';
+
+              headers.forEach(h => {
+                const cleanH = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+                const val = rowValues[h] || '';
+                if (cleanH === 'codigo' || cleanH === 'sku' || cleanH === 'codig') matchedCodigo = val;
+                else if (cleanH === 'producto' || cleanH === 'nombre' || cleanH === 'articulo') matchedNombre = val;
+                else if (cleanH === 'surtir' || cleanH === 'cantidad' || cleanH === 'unidades') matchedUnidades = parseFloat(val) || 0;
+                else if (cleanH === 'costo') matchedCosto = parseFloat(val) || 0;
+                else if (cleanH === 'precio' || cleanH === 'preciovta' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'vta') matchedPrecio = parseFloat(val) || 0;
+                else if (cleanH === 'proveedor') matchedProveedor = val;
+              });
+
+              return {
+                id: item.id || Date.now() + rIndex + Math.random(),
+                codigo: (matchedCodigo || `PROD-S-${rIndex}`).toUpperCase(),
+                nombre_producto: matchedNombre || `Producto ${rIndex}`,
+                unidad_surtida: matchedUnidades,
+                costo_surtido: matchedCosto,
+                precio_venta: matchedPrecio,
+                proveedor: matchedProveedor,
+                fecha_registro: item.fecha_registro || new Date().toISOString().split('T')[0],
+                values: rowValues
+              };
+            });
+
+            setSubmenuHeaders(prev => ({ ...prev, [tabId]: headers }));
+            if (tabId === 'cer_bb') setCerBBData(rows);
+            else if (tabId === 'cafe_exp') setCafeEXPData(rows);
+            else if (tabId === 'vidrio_bb') setVidrioBBData(rows);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load from Supabase Surtido tables:", e);
+      }
+    };
+
+    loadFromSupabase();
+  }, []);
 
   // Form states for adding items
   const [addSupplyRowOpen, setAddSupplyRowOpen] = useState(false);
@@ -708,6 +893,7 @@ export default function ModulePlaceholder({
         }
 
         const rawHeaders = lines[headerIdx];
+        const originalHeaders = rawHeaders.map((h, i) => h.trim() || `Columna_${i + 1}`);
         const headersCleaned = rawHeaders.map(cleanHeader);
 
         let colCodigo = -1;
@@ -720,9 +906,9 @@ export default function ModulePlaceholder({
 
         // 1st Priority: Exact / Close matches
         headersCleaned.forEach((h, idx) => {
-          if (h === 'codigo' || h === 'sku') colCodigo = idx;
+          if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') colCodigo = idx;
           else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
-          else if (h === 'surtir' || h === 'cantidad' || h === 'unidades') colUnidades = idx;
+          else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') colUnidades = idx;
           else if (h === 'costo') colCosto = idx;
           else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
           else if (h === 'proveedor') colProveedor = idx;
@@ -731,7 +917,7 @@ export default function ModulePlaceholder({
 
         // 2nd Priority: Partial match fallback
         headersCleaned.forEach((h, idx) => {
-          if (colCodigo === -1 && (h.includes('codigo') || h.includes('sku') || h === 'ref' || h === 'code') && h !== 'prodcodigo') {
+          if (colCodigo === -1 && (h.includes('codigo') || h.includes('sku') || h.includes('codig') || h === 'ref' || h === 'code') && h !== 'prodcodigo') {
             colCodigo = idx;
           }
           if (colNombre === -1 && (h.includes('producto') || h.includes('nombre') || h.includes('articulo') || h === 'item' || h.includes('descripcion'))) {
@@ -825,6 +1011,12 @@ export default function ModulePlaceholder({
             }
           }
 
+          // Map original dynamic columns
+          const rowValues: Record<string, string> = {};
+          originalHeaders.forEach((headerName, idx) => {
+            rowValues[headerName] = row[idx] !== undefined ? row[idx].trim() : '';
+          });
+
           parsedRows.push({
             id: Date.now() + r + Math.random(),
             codigo: codigoStr,
@@ -833,7 +1025,8 @@ export default function ModulePlaceholder({
             costo_surtido: costoVal,
             precio_venta: precioVal,
             proveedor: provStr,
-            fecha_registro: dateStr
+            fecha_registro: dateStr,
+            values: rowValues
           });
         }
 
@@ -842,26 +1035,63 @@ export default function ModulePlaceholder({
           return;
         }
 
+        // Apply headers first
+        setSubmenuHeaders(prev => ({
+          ...prev,
+          [tabId]: originalHeaders
+        }));
+
         if (confirm(`Se detectaron ${parsedRows.length} registros en el archivo.\n\n¿Quieres REEMPLAZAR todos los registros actuales de esta sección con la nueva importación?\n(Aceptar = Reemplazar por completo, Cancelar = Agregar al final del listado)`)) {
-          if (tabId === 'cer_bb') setCerBBData(parsedRows);
-          else if (tabId === 'cafe_exp') setCafeEXPData(parsedRows);
-          else if (tabId === 'vidrio_bb') setVidrioBBData(parsedRows);
+          if (tabId === 'cer_bb') {
+            setCerBBData(parsedRows);
+            setTimeout(() => saveToSupabase('cer_bb', parsedRows), 10);
+          }
+          else if (tabId === 'cafe_exp') {
+            setCafeEXPData(parsedRows);
+            setTimeout(() => saveToSupabase('cafe_exp', parsedRows), 10);
+          }
+          else if (tabId === 'vidrio_bb') {
+            setVidrioBBData(parsedRows);
+            setTimeout(() => saveToSupabase('vidrio_bb', parsedRows), 10);
+          }
           else {
             setGenericSubmenuData(prev => ({
               ...prev,
               [tabId]: parsedRows
             }));
+            setTimeout(() => saveToSupabase(tabId, parsedRows), 10);
           }
         } else {
-          const appendData = (prev: any[]) => [...prev, ...parsedRows];
-          if (tabId === 'cer_bb') setCerBBData(appendData);
-          else if (tabId === 'cafe_exp') setCafeEXPData(appendData);
-          else if (tabId === 'vidrio_bb') setVidrioBBData(appendData);
+          if (tabId === 'cer_bb') {
+            setCerBBData(prev => {
+              const res = [...prev, ...parsedRows];
+              setTimeout(() => saveToSupabase('cer_bb', res), 10);
+              return res;
+            });
+          }
+          else if (tabId === 'cafe_exp') {
+            setCafeEXPData(prev => {
+              const res = [...prev, ...parsedRows];
+              setTimeout(() => saveToSupabase('cafe_exp', res), 10);
+              return res;
+            });
+          }
+          else if (tabId === 'vidrio_bb') {
+            setVidrioBBData(prev => {
+              const res = [...prev, ...parsedRows];
+              setTimeout(() => saveToSupabase('vidrio_bb', res), 10);
+              return res;
+            });
+          }
           else {
-            setGenericSubmenuData(prev => ({
-              ...prev,
-              [tabId]: [...(prev[tabId] || []), ...parsedRows]
-            }));
+            setGenericSubmenuData(prev => {
+              const res = [...(prev[tabId] || []), ...parsedRows];
+              setTimeout(() => saveToSupabase(tabId, res), 10);
+              return {
+                ...prev,
+                [tabId]: res
+              };
+            });
           }
         }
 
@@ -2783,22 +3013,34 @@ export default function ModulePlaceholder({
         };
 
         const handleUpdateSubmenuData = (updater: any) => {
-          switch (activeSupplySubmenu) {
-            case 'cer_bb':
-              setCerBBData(updater);
-              break;
-            case 'cafe_exp':
-              setCafeEXPData(updater);
-              break;
-            case 'vidrio_bb':
-              setVidrioBBData(updater);
-              break;
-            default:
-              setGenericSubmenuData(prev => ({
+          if (activeSupplySubmenu === 'cer_bb') {
+            setCerBBData(prev => {
+              const res = typeof updater === 'function' ? updater(prev) : updater;
+              setTimeout(() => saveToSupabase('cer_bb', res), 10);
+              return res;
+            });
+          } else if (activeSupplySubmenu === 'cafe_exp') {
+            setCafeEXPData(prev => {
+              const res = typeof updater === 'function' ? updater(prev) : updater;
+              setTimeout(() => saveToSupabase('cafe_exp', res), 10);
+              return res;
+            });
+          } else if (activeSupplySubmenu === 'vidrio_bb') {
+            setVidrioBBData(prev => {
+              const res = typeof updater === 'function' ? updater(prev) : updater;
+              setTimeout(() => saveToSupabase('vidrio_bb', res), 10);
+              return res;
+            });
+          } else {
+            setGenericSubmenuData(prev => {
+              const currentList = prev[activeSupplySubmenu] || [];
+              const res = typeof updater === 'function' ? updater(currentList) : updater;
+              setTimeout(() => saveToSupabase(activeSupplySubmenu, res), 10);
+              return {
                 ...prev,
-                [activeSupplySubmenu]: typeof updater === 'function' ? updater(prev[activeSupplySubmenu] || []) : updater
-              }));
-              break;
+                [activeSupplySubmenu]: res
+              };
+            });
           }
         };
 
@@ -2836,44 +3078,127 @@ export default function ModulePlaceholder({
         const getDynamicSQL = () => {
           const tableName = `surtido_${activeSupplySubmenu}`;
           const currentRows = getActiveSubmenuData();
+          const headers = submenuHeaders[activeSupplySubmenu] || [];
 
           let sqlText = `-- PostgreSQL DDL - Creación de Estructura de Tabla y Consultas de Surtido (${activeMeta.name})\n`;
-          sqlText += `CREATE TABLE IF NOT EXISTS ${tableName} (\n`;
-          sqlText += `    id SERIAL PRIMARY KEY,\n`;
-          sqlText += `    codigo VARCHAR(50) UNIQUE NOT NULL,\n`;
-          sqlText += `    nombre_producto VARCHAR(150) NOT NULL,\n`;
-          sqlText += `    unidad_surtida INT DEFAULT 0,\n`;
-          sqlText += `    costo_surtido DECIMAL(10,2) DEFAULT 0.00,\n`;
-          sqlText += `    precio_venta DECIMAL(10,2) DEFAULT 0.00,\n`;
-          sqlText += `    importe_total DECIMAL(10,2) GENERATED ALWAYS AS (unidad_surtida * precio_venta) STORED,\n`;
-          sqlText += `    fecha_registro DATE DEFAULT CURRENT_DATE,\n`;
-          sqlText += `    proveedor VARCHAR(100) DEFAULT 'Proveedor General'\n`;
-          sqlText += `);\n\n`;
+          
+          if (headers.length > 0) {
+            // Dynamic columns schema based on CSV headers
+            sqlText += `CREATE TABLE IF NOT EXISTS ${tableName} (\n`;
+            sqlText += `    id SERIAL PRIMARY KEY,\n`;
+            
+            headers.forEach(header => {
+              const cleanH = cleanHeader(header);
+              // Clean name to be a safe SQL identifier
+              const sqlColName = header.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "_")
+                .replace(/^_+|_+$/g, "")
+                .trim();
 
-          if (currentRows.length > 0) {
-            sqlText += `-- Seeding Inicial de Registros de Surtido\n`;
-            sqlText += `INSERT INTO ${tableName} (codigo, nombre_producto, unidad_surtida, costo_surtido, precio_venta, proveedor, fecha_registro)\nVALUES\n`;
-            
-            const insertValues = currentRows.map(row => {
-              const codeEscaped = `'${(row.codigo || '').replace(/'/g, "''")}'`;
-              const nameEscaped = `'${(row.nombre_producto || '').replace(/'/g, "''")}'`;
-              const provEscaped = `'${(row.proveedor || '').replace(/'/g, "''")}'`;
-              return `(${codeEscaped}, ${nameEscaped}, ${row.unidad_surtida}, ${row.costo_surtido}, ${row.precio_venta}, ${provEscaped}, '${row.fecha_registro}')`;
-            }).join(',\n');
-            
-            sqlText += insertValues + `\nON CONFLICT (codigo) DO UPDATE SET\n`;
-            sqlText += `    unidad_surtida = EXCLUDED.unidad_surtida,\n`;
-            sqlText += `    costo_surtido = EXCLUDED.costo_surtido,\n`;
-            sqlText += `    precio_venta = EXCLUDED.precio_venta;\n\n`;
+              const isNum = cleanH.includes('precio') || cleanH.includes('vta') || cleanH.includes('costo') || cleanH.includes('surtir') || cleanH.includes('unidades') || cleanH.includes('cantidad') || cleanH.includes('cabe') || cleanH.includes('canal');
+              const isInt = cleanH.includes('surtir') || cleanH.includes('unidades') || cleanH.includes('cantidad') || cleanH.includes('cabe') || cleanH.includes('canal');
+
+              if (isInt) {
+                sqlText += `    ${sqlColName} INT DEFAULT 0,\n`;
+              } else if (isNum) {
+                sqlText += `    ${sqlColName} DECIMAL(10,2) DEFAULT 0.00,\n`;
+              } else {
+                sqlText += `    ${sqlColName} VARCHAR(150) DEFAULT '',\n`;
+              }
+            });
+            sqlText += `    fecha_registro DATE DEFAULT CURRENT_DATE\n`;
+            sqlText += `);\n\n`;
+
+            if (currentRows.length > 0) {
+              const sqlCols = headers.map(header => {
+                return header.toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .replace(/[^a-z0-9]/g, "_")
+                  .replace(/^_+|_+$/g, "")
+                  .trim();
+              });
+
+              sqlText += `-- Seeding Inicial de Registros de Surtido (${activeMeta.name})\n`;
+              sqlText += `INSERT INTO ${tableName} (${sqlCols.join(', ')})\nVALUES\n`;
+              
+              const insertValues = currentRows.map(row => {
+                const rowVals = headers.map(header => {
+                  const val = row.values && row.values[header] !== undefined ? row.values[header] : '';
+                  const cleanH = cleanHeader(header);
+                  const isNum = cleanH.includes('precio') || cleanH.includes('vta') || cleanH.includes('costo') || cleanH.includes('surtir') || cleanH.includes('unidades') || cleanH.includes('cantidad') || cleanH.includes('cabe') || cleanH.includes('canal');
+                  if (isNum) {
+                    const numStr = String(val).replace(/[^0-9.-]/g, '');
+                    return numStr ? numStr : '0';
+                  }
+                  return `'${String(val).replace(/'/g, "''")}'`;
+                });
+                return `(${rowVals.join(', ')})`;
+              }).join(',\n');
+
+              sqlText += insertValues + `;\n\n`;
+            }
+          } else {
+            // Default table schema
+            sqlText += `CREATE TABLE IF NOT EXISTS ${tableName} (\n`;
+            sqlText += `    id SERIAL PRIMARY KEY,\n`;
+            sqlText += `    codigo VARCHAR(50) UNIQUE NOT NULL,\n`;
+            sqlText += `    nombre_producto VARCHAR(150) NOT NULL,\n`;
+            sqlText += `    unidad_surtida INT DEFAULT 0,\n`;
+            sqlText += `    costo_surtido DECIMAL(10,2) DEFAULT 0.00,\n`;
+            sqlText += `    precio_venta DECIMAL(10,2) DEFAULT 0.00,\n`;
+            sqlText += `    importe_total DECIMAL(10,2) GENERATED ALWAYS AS (unidad_surtida * precio_venta) STORED,\n`;
+            sqlText += `    fecha_registro DATE DEFAULT CURRENT_DATE,\n`;
+            sqlText += `    proveedor VARCHAR(100) DEFAULT 'Proveedor General'\n`;
+            sqlText += `);\n\n`;
+
+            if (currentRows.length > 0) {
+              sqlText += `-- Seeding Inicial de Registros de Surtido\n`;
+              sqlText += `INSERT INTO ${tableName} (codigo, nombre_producto, unidad_surtida, costo_surtido, precio_venta, proveedor, fecha_registro)\nVALUES\n`;
+              
+              const insertValues = currentRows.map(row => {
+                const codeEscaped = `'${(row.codigo || '').replace(/'/g, "''")}'`;
+                const nameEscaped = `'${(row.nombre_producto || '').replace(/'/g, "''")}'`;
+                const provEscaped = `'${(row.proveedor || '').replace(/'/g, "''")}'`;
+                return `(${codeEscaped}, ${nameEscaped}, ${row.unidad_surtida}, ${row.costo_surtido}, ${row.precio_venta}, ${provEscaped}, '${row.fecha_registro}')`;
+              }).join(',\n');
+              
+              sqlText += insertValues + `\nON CONFLICT (codigo) DO UPDATE SET\n`;
+              sqlText += `    unidad_surtida = EXCLUDED.unidad_surtida,\n`;
+              sqlText += `    costo_surtido = EXCLUDED.costo_surtido,\n`;
+              sqlText += `    precio_venta = EXCLUDED.precio_venta;\n\n`;
+            }
           }
 
           sqlText += `-- Consulta Analítica de Dashboard: Calcular Ganancia Bruta y Margen Real\n`;
           sqlText += `SELECT \n`;
-          sqlText += `    SUM(unidad_surtida) AS total_piezas_surtidas,\n`;
-          sqlText += `    SUM(unidad_surtida * costo_surtido) AS inversion_total,\n`;
-          sqlText += `    SUM(unidad_surtida * precio_venta) AS venta_proyectada,\n`;
-          sqlText += `    SUM(unidad_surtida * (precio_venta - costo_surtido)) AS ganancia_bruta_proyectada,\n`;
-          sqlText += `    ROUND(AVG(NULLIF(precio_venta - costo_surtido, 0) / NULLIF(precio_venta, 0) * 100), 2) AS margen_promedio_general\n`;
+          if (headers.length > 0) {
+            // Find columns for calculations
+            let surtirCol = 'surtir';
+            let precioCol = 'precio_vta';
+            let costoCol = '0'; // fallback if no costo exists
+            headers.forEach(h => {
+              const cleanH = cleanHeader(h);
+              const sqlCol = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "_").trim();
+              if (cleanH === 'surtir' || cleanH === 'cantidad' || cleanH === 'unidades') surtirCol = sqlCol;
+              else if (cleanH === 'precio' || cleanH === 'preciovta' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'vta') precioCol = sqlCol;
+              else if (cleanH === 'costo') costoCol = sqlCol;
+            });
+
+            sqlText += `    SUM(${surtirCol}) AS total_piezas_surtidas,\n`;
+            sqlText += `    SUM(${surtirCol} * ${costoCol}) AS inversion_total,\n`;
+            sqlText += `    SUM(${surtirCol} * ${precioCol}) AS venta_proyectada,\n`;
+            sqlText += `    SUM(${surtirCol} * (${precioCol} - ${costoCol})) AS ganancia_bruta_proyectada,\n`;
+            sqlText += `    ROUND(AVG(NULLIF(${precioCol} - ${costoCol}, 0) / NULLIF(${precioCol}, 0) * 100), 2) AS margen_promedio_general\n`;
+          } else {
+            sqlText += `    SUM(unidad_surtida) AS total_piezas_surtidas,\n`;
+            sqlText += `    SUM(unidad_surtida * costo_surtido) AS inversion_total,\n`;
+            sqlText += `    SUM(unidad_surtida * precio_venta) AS venta_proyectada,\n`;
+            sqlText += `    SUM(unidad_surtida * (precio_venta - costo_surtido)) AS ganancia_bruta_proyectada,\n`;
+            sqlText += `    ROUND(AVG(NULLIF(precio_venta - costo_surtido, 0) / NULLIF(precio_venta, 0) * 100), 2) AS margen_promedio_general\n`;
+          }
           sqlText += `FROM ${tableName};`;
 
           return sqlText;
@@ -3830,27 +4155,36 @@ export default function ModulePlaceholder({
                               }}
                             />
                           </th>
-                          <th className="py-3 px-4">Código / SKU</th>
-                          <th className="py-3 px-4">Producto o Artículo</th>
-                          <th className="py-3 px-4 text-center">Unidades</th>
-                          <th className="py-3 px-4 text-right">Costo Unit.</th>
-                          <th className="py-3 px-4 text-right">Precio Venta</th>
-                          <th className="py-3 px-4 text-right">Importe Total</th>
-                          <th className="py-3 px-4">Proveedor</th>
-                          <th className="py-3 px-4">Fecha Surtido</th>
+                          {submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0 ? (
+                            submenuHeaders[activeSupplySubmenu].map((header, idx) => (
+                              <th key={idx} className="py-3 px-4">{header}</th>
+                            ))
+                          ) : (
+                            <>
+                              <th className="py-3 px-4">Código / SKU</th>
+                              <th className="py-3 px-4">Producto o Artículo</th>
+                              <th className="py-3 px-4 text-center">Unidades</th>
+                              <th className="py-3 px-4 text-right">Costo Unit.</th>
+                              <th className="py-3 px-4 text-right">Precio Venta</th>
+                              <th className="py-3 px-4 text-right">Importe Total</th>
+                              <th className="py-3 px-4">Proveedor</th>
+                              <th className="py-3 px-4">Fecha Surtido</th>
+                            </>
+                          )}
                           <th className="py-3 px-4 text-center">Controles</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {filteredSubmenuRows.length === 0 ? (
                           <tr>
-                            <td colSpan={10} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
+                            <td colSpan={15} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
                               No hay registros cargados para {activeMeta.name} que coincidan con la búsqueda.
                             </td>
                           </tr>
                         ) : (
                           filteredSubmenuRows.map((row) => {
                             const isEditing = row.id === editingRowId;
+                            const hasDynamicHeaders = submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0;
                             const totalVal = isEditing 
                               ? safeVal(editRowUnidades) * safeVal(editRowPrecio)
                               : safeVal(row.unidad_surtida) * safeVal(row.precio_venta);
@@ -3869,63 +4203,78 @@ export default function ModulePlaceholder({
                                         className="rounded border-slate-200 text-slate-300 h-3.5 w-3.5 cursor-not-allowed opacity-50"
                                       />
                                     </td>
-                                    <td className="py-2 px-3">
-                                      <input
-                                        type="text"
-                                        value={editRowCodigo}
-                                        onChange={(e) => setEditRowCodigo(e.target.value)}
-                                        className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-[#043077]"
-                                      />
-                                    </td>
-                                    <td className="py-2 px-3">
-                                      <input
-                                        type="text"
-                                        value={editRowNombre}
-                                        onChange={(e) => setEditRowNombre(e.target.value)}
-                                        className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800"
-                                      />
-                                    </td>
-                                    <td className="py-2 px-3 text-center">
-                                      <input
-                                        type="number"
-                                        step="any"
-                                        value={editRowUnidades}
-                                        onChange={(e) => setEditRowUnidades(parseFloat(e.target.value) || 0)}
-                                        className="w-16 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-center"
-                                      />
-                                    </td>
-                                    <td className="py-2 px-3 text-right">
-                                      <input
-                                        type="number"
-                                        step="any"
-                                        value={editRowCosto}
-                                        onChange={(e) => setEditRowCosto(parseFloat(e.target.value) || 0)}
-                                        className="w-20 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono text-right"
-                                      />
-                                    </td>
-                                    <td className="py-2 px-3 text-right">
-                                      <input
-                                        type="number"
-                                        step="any"
-                                        value={editRowPrecio}
-                                        onChange={(e) => setEditRowPrecio(parseFloat(e.target.value) || 0)}
-                                        className="w-20 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono text-right"
-                                      />
-                                    </td>
-                                    <td className="py-2 px-3 text-right font-mono font-black text-[#043077] select-none">
-                                      {formatMXN(totalVal)}
-                                    </td>
-                                    <td className="py-2 px-3">
-                                      <input
-                                        type="text"
-                                        value={editRowProveedor}
-                                        onChange={(e) => setEditRowProveedor(e.target.value)}
-                                        className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold"
-                                      />
-                                    </td>
-                                    <td className="py-2 px-3 text-slate-400 font-medium font-mono select-none">
-                                      {row.fecha_registro}
-                                    </td>
+                                    {hasDynamicHeaders ? (
+                                      submenuHeaders[activeSupplySubmenu].map((header, idx) => (
+                                        <td key={idx} className="py-2 px-3">
+                                          <input
+                                            type="text"
+                                            value={editRowValues[header] !== undefined ? editRowValues[header] : ''}
+                                            onChange={(e) => setEditRowValues(prev => ({ ...prev, [header]: e.target.value }))}
+                                            className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold text-slate-800"
+                                          />
+                                        </td>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <td className="py-2 px-3">
+                                          <input
+                                            type="text"
+                                            value={editRowCodigo}
+                                            onChange={(e) => setEditRowCodigo(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-[#043077]"
+                                          />
+                                        </td>
+                                        <td className="py-2 px-3">
+                                          <input
+                                            type="text"
+                                            value={editRowNombre}
+                                            onChange={(e) => setEditRowNombre(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-bold text-slate-800"
+                                          />
+                                        </td>
+                                        <td className="py-2 px-3 text-center">
+                                          <input
+                                            type="number"
+                                            step="any"
+                                            value={editRowUnidades}
+                                            onChange={(e) => setEditRowUnidades(parseFloat(e.target.value) || 0)}
+                                            className="w-16 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-center"
+                                          />
+                                        </td>
+                                        <td className="py-2 px-3 text-right">
+                                          <input
+                                            type="number"
+                                            step="any"
+                                            value={editRowCosto}
+                                            onChange={(e) => setEditRowCosto(parseFloat(e.target.value) || 0)}
+                                            className="w-20 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                                          />
+                                        </td>
+                                        <td className="py-2 px-3 text-right">
+                                          <input
+                                            type="number"
+                                            step="any"
+                                            value={editRowPrecio}
+                                            onChange={(e) => setEditRowPrecio(parseFloat(e.target.value) || 0)}
+                                            className="w-20 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                                          />
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-mono font-black text-[#043077] select-none">
+                                          {formatMXN(totalVal)}
+                                        </td>
+                                        <td className="py-2 px-3">
+                                          <input
+                                            type="text"
+                                            value={editRowProveedor}
+                                            onChange={(e) => setEditRowProveedor(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold"
+                                          />
+                                        </td>
+                                        <td className="py-2 px-3 text-slate-400 font-medium font-mono select-none">
+                                          {row.fecha_registro}
+                                        </td>
+                                      </>
+                                    )}
                                     <td className="py-2 px-3 text-center">
                                       <div className="flex items-center justify-center gap-1.5">
                                         <button
@@ -3961,30 +4310,48 @@ export default function ModulePlaceholder({
                                         }}
                                       />
                                     </td>
-                                    <td className="py-3 px-4 font-mono font-black text-[#043077]">
-                                      {row.codigo}
-                                    </td>
-                                    <td className="py-3 px-4 font-extrabold text-slate-800">
-                                      {row.nombre_producto}
-                                    </td>
-                                    <td className="py-3 px-4 text-center font-mono font-black text-slate-700">
-                                      {row.unidad_surtida}
-                                    </td>
-                                    <td className="py-3 px-4 text-right font-mono text-slate-600">
-                                      {formatMXN(row.costo_surtido)}
-                                    </td>
-                                    <td className="py-3 px-4 text-right font-mono text-slate-600">
-                                      {formatMXN(row.precio_venta)}
-                                    </td>
-                                    <td className="py-3 px-4 text-right font-mono font-black text-[#043077]">
-                                      {formatMXN(totalVal)}
-                                    </td>
-                                    <td className="py-3 px-4 text-slate-500 font-semibold">
-                                      {row.proveedor}
-                                    </td>
-                                    <td className="py-3 px-4 text-slate-400 font-medium">
-                                      {row.fecha_registro}
-                                    </td>
+                                    {hasDynamicHeaders ? (
+                                      submenuHeaders[activeSupplySubmenu].map((header, idx) => {
+                                        const cellVal = row.values && row.values[header] !== undefined ? row.values[header] : '';
+                                        const cleanH = cleanHeader(header);
+                                        const isCode = cleanH.includes('codigo') || cleanH.includes('sku') || cleanH.includes('codig');
+                                        return (
+                                          <td 
+                                            key={idx} 
+                                            className={`py-3 px-4 ${isCode ? 'font-mono font-black text-[#043077]' : 'font-medium text-slate-700'}`}
+                                          >
+                                            {cellVal}
+                                          </td>
+                                        );
+                                      })
+                                    ) : (
+                                      <>
+                                        <td className="py-3 px-4 font-mono font-black text-[#043077]">
+                                          {row.codigo}
+                                        </td>
+                                        <td className="py-3 px-4 font-extrabold text-slate-800">
+                                          {row.nombre_producto}
+                                        </td>
+                                        <td className="py-3 px-4 text-center font-mono font-black text-slate-700">
+                                          {row.unidad_surtida}
+                                        </td>
+                                        <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                          {formatMXN(row.costo_surtido)}
+                                        </td>
+                                        <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                          {formatMXN(row.precio_venta)}
+                                        </td>
+                                        <td className="py-3 px-4 text-right font-mono font-black text-[#043077]">
+                                          {formatMXN(totalVal)}
+                                        </td>
+                                        <td className="py-3 px-4 text-slate-500 font-semibold">
+                                          {row.proveedor}
+                                        </td>
+                                        <td className="py-3 px-4 text-slate-400 font-medium">
+                                          {row.fecha_registro}
+                                        </td>
+                                      </>
+                                    )}
                                     <td className="py-3 px-4 text-center">
                                       <div className="flex items-center justify-center gap-1">
                                         <button
