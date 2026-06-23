@@ -186,8 +186,7 @@ export default function ModulePlaceholder({
   const [supplySubmenuList, setSupplySubmenuList] = useState([
     { id: 'vending_surtido', name: 'Surtido de Terminales', title: 'Surtido General de Máquinas', desc: 'Control físico de stock en terminales con indicadores de carga acumulada y reabastecimiento directo.' },
     { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
-    { id: 'cafe_exp', name: 'Café EXP', title: 'Reporte Café EXP Especializado', desc: 'Inventario y surtido de granos selectos y moliendas de café para terminales premium.' },
-    { id: 'vidrio_bb', name: 'Vidrio BB', title: 'Reporte Vidrio BB Cristalino', desc: 'Registro de surtido de botellas, frascos de conserva y cristalería fina.' }
+    { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' }
   ]);
 
   const [cerBBData, setCerBBData] = useState<any[]>(() => {
@@ -199,18 +198,9 @@ export default function ModulePlaceholder({
     }
   });
 
-  const [cafeEXPData, setCafeEXPData] = useState<any[]>(() => {
+  const [artAltData, setArtAltData] = useState<any[]>(() => {
     try {
-      const stored = localStorage.getItem('surtiantojo_cafe_exp');
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [vidrioBBData, setVidrioBBData] = useState<any[]>(() => {
-    try {
-      const stored = localStorage.getItem('surtiantojo_vidrio_bb');
+      const stored = localStorage.getItem('surtiantojo_art_alt');
       return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
@@ -252,15 +242,9 @@ export default function ModulePlaceholder({
 
   useEffect(() => {
     try {
-      localStorage.setItem('surtiantojo_cafe_exp', JSON.stringify(cafeEXPData));
+      localStorage.setItem('surtiantojo_art_alt', JSON.stringify(artAltData));
     } catch (e) {}
-  }, [cafeEXPData]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('surtiantojo_vidrio_bb', JSON.stringify(vidrioBBData));
-    } catch (e) {}
-  }, [vidrioBBData]);
+  }, [artAltData]);
 
   useEffect(() => {
     try {
@@ -319,7 +303,7 @@ export default function ModulePlaceholder({
   useEffect(() => {
     const loadFromSupabase = async () => {
       try {
-        const submenus = ['cer_bb', 'cafe_exp', 'vidrio_bb'];
+        const submenus = ['cer_bb', 'art_alt'];
         for (const tabId of submenus) {
           const tableName = `surtido_${tabId}`;
           const { data, error } = await supabase.from(tableName).select('*');
@@ -371,8 +355,7 @@ export default function ModulePlaceholder({
 
             setSubmenuHeaders(prev => ({ ...prev, [tabId]: headers }));
             if (tabId === 'cer_bb') setCerBBData(rows);
-            else if (tabId === 'cafe_exp') setCafeEXPData(rows);
-            else if (tabId === 'vidrio_bb') setVidrioBBData(rows);
+            else if (tabId === 'art_alt') setArtAltData(rows);
           }
         }
       } catch (e) {
@@ -1054,13 +1037,9 @@ export default function ModulePlaceholder({
             setCerBBData(parsedRows);
             setTimeout(() => saveToSupabase('cer_bb', parsedRows), 10);
           }
-          else if (tabId === 'cafe_exp') {
-            setCafeEXPData(parsedRows);
-            setTimeout(() => saveToSupabase('cafe_exp', parsedRows), 10);
-          }
-          else if (tabId === 'vidrio_bb') {
-            setVidrioBBData(parsedRows);
-            setTimeout(() => saveToSupabase('vidrio_bb', parsedRows), 10);
+          else if (tabId === 'art_alt') {
+            setArtAltData(parsedRows);
+            setTimeout(() => saveToSupabase('art_alt', parsedRows), 10);
           }
           else {
             setGenericSubmenuData(prev => ({
@@ -1077,17 +1056,10 @@ export default function ModulePlaceholder({
               return res;
             });
           }
-          else if (tabId === 'cafe_exp') {
-            setCafeEXPData(prev => {
+          else if (tabId === 'art_alt') {
+            setArtAltData(prev => {
               const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('cafe_exp', res), 10);
-              return res;
-            });
-          }
-          else if (tabId === 'vidrio_bb') {
-            setVidrioBBData(prev => {
-              const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('vidrio_bb', res), 10);
+              setTimeout(() => saveToSupabase('art_alt', res), 10);
               return res;
             });
           }
@@ -3014,8 +2986,7 @@ export default function ModulePlaceholder({
         const getActiveSubmenuData = (): any[] => {
           switch (activeSupplySubmenu) {
             case 'cer_bb': return cerBBData;
-            case 'cafe_exp': return cafeEXPData;
-            case 'vidrio_bb': return vidrioBBData;
+            case 'art_alt': return artAltData;
             default: return genericSubmenuData[activeSupplySubmenu] || [];
           }
         };
@@ -3027,16 +2998,10 @@ export default function ModulePlaceholder({
               setTimeout(() => saveToSupabase('cer_bb', res), 10);
               return res;
             });
-          } else if (activeSupplySubmenu === 'cafe_exp') {
-            setCafeEXPData(prev => {
+          } else if (activeSupplySubmenu === 'art_alt') {
+            setArtAltData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
-              setTimeout(() => saveToSupabase('cafe_exp', res), 10);
-              return res;
-            });
-          } else if (activeSupplySubmenu === 'vidrio_bb') {
-            setVidrioBBData(prev => {
-              const res = typeof updater === 'function' ? updater(prev) : updater;
-              setTimeout(() => saveToSupabase('vidrio_bb', res), 10);
+              setTimeout(() => saveToSupabase('art_alt', res), 10);
               return res;
             });
           } else {
@@ -3219,8 +3184,7 @@ export default function ModulePlaceholder({
           let dataToExport: any[] = [];
           
           if (tabId === 'cer_bb') dataToExport = cerBBData;
-          else if (tabId === 'cafe_exp') dataToExport = cafeEXPData;
-          else if (tabId === 'vidrio_bb') dataToExport = vidrioBBData;
+          else if (tabId === 'art_alt') dataToExport = artAltData;
           else dataToExport = genericSubmenuData[tabId] || [];
 
           if (dataToExport.length === 0) {
