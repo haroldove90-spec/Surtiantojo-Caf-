@@ -390,6 +390,8 @@ export default function ModulePlaceholder({
       });
 
       let combinedData: any[] = [];
+      let insertErrGlobal: any = null;
+      let updateErrGlobal: any = null;
 
       if (mappedRowsToUpdate.length > 0) {
         const { data: updateRes, error: updateErr } = await supabase
@@ -399,6 +401,7 @@ export default function ModulePlaceholder({
         
         if (updateErr) {
           console.warn(`Supabase update failed for ${tableName}:`, updateErr.message);
+          updateErrGlobal = updateErr;
         } else if (updateRes) {
           combinedData = [...combinedData, ...updateRes];
         }
@@ -412,8 +415,82 @@ export default function ModulePlaceholder({
         
         if (insertErr) {
           console.warn(`Supabase insert failed for ${tableName}:`, insertErr.message);
+          insertErrGlobal = insertErr;
         } else if (insertRes) {
           combinedData = [...combinedData, ...insertRes];
+        }
+      }
+
+      // FALLBACK TO STANDARD SCHEMA IF THERE WAS AN ERROR (like missing columns in Supabase)
+      if (insertErrGlobal || updateErrGlobal) {
+        console.log(`Attempting fallback to standard schema for table ${tableName} due to column/insert errors...`);
+        const standardRowsToInsert: any[] = [];
+        const standardRowsToUpdate: any[] = [];
+
+        rows.forEach(row => {
+          const standardObj: any = {
+            codigo: String(row.codigo || '').toUpperCase(),
+            nombre_producto: String(row.nombre_producto || ''),
+            unidad_surtida: parseFloat(row.unidad_surtida) || 0,
+            costo_surtido: parseFloat(row.costo_surtido) || 0,
+            precio_venta: parseFloat(row.precio_venta) || 0,
+            proveedor: String(row.proveedor || 'Proveedor General'),
+            fecha_registro: row.fecha_registro || new Date().toISOString().split('T')[0]
+          };
+          
+          let hasValidId = false;
+          if (row.id && typeof row.id === 'number' && row.id < 1000000000) {
+            standardObj.id = row.id;
+            hasValidId = true;
+          }
+
+          if (hasValidId) {
+            standardRowsToUpdate.push(standardObj);
+          } else {
+            standardRowsToInsert.push(standardObj);
+          }
+        });
+
+        let fallbackCombined: any[] = [];
+        let fallbackSucceeded = true;
+
+        if (standardRowsToUpdate.length > 0) {
+          const { data: fallbackUpdateRes, error: fallbackUpdateErr } = await supabase
+            .from(tableName)
+            .upsert(standardRowsToUpdate, { onConflict: 'id' })
+            .select();
+          
+          if (fallbackUpdateErr) {
+            console.error(`Fallback standard update failed for ${tableName}:`, fallbackUpdateErr.message);
+            fallbackSucceeded = false;
+          } else if (fallbackUpdateRes) {
+            fallbackCombined = [...fallbackCombined, ...fallbackUpdateRes];
+          }
+        }
+
+        if (standardRowsToInsert.length > 0 && fallbackSucceeded) {
+          const { data: fallbackInsertRes, error: fallbackInsertErr } = await supabase
+            .from(tableName)
+            .insert(standardRowsToInsert)
+            .select();
+          
+          if (fallbackInsertErr) {
+            console.error(`Fallback standard insert failed for ${tableName}:`, fallbackInsertErr.message);
+            fallbackSucceeded = false;
+          } else if (fallbackInsertRes) {
+            fallbackCombined = [...fallbackCombined, ...fallbackInsertRes];
+          }
+        }
+
+        if (fallbackSucceeded && fallbackCombined.length > 0) {
+          console.log(`Fallback to standard schema succeeded for ${tableName}!`);
+          combinedData = fallbackCombined;
+          // Set headers to the standard columns since we had to fallback
+          headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
+          setSubmenuHeaders(prev => ({
+            ...prev,
+            [tabId]: ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor']
+          }));
         }
       }
 
