@@ -181,24 +181,11 @@ export default function ModulePlaceholder({
     { id: 'vidrio_bb', name: 'Vidrio BB', title: 'Reporte Vidrio BB Cristalino', desc: 'Registro de surtido de botellas, frascos de conserva y cristalería fina.' }
   ]);
 
-  const [cerBBData, setCerBBData] = useState([
-    { id: 1, codigo: 'CER-BB-01', nombre_producto: 'Jarros Infantiles Petit Azul', unidad_surtida: 120, costo_surtido: 45.00, precio_venta: 85.00, proveedor: 'Vajillas Oaxaca', fecha_registro: '2026-06-20' },
-    { id: 2, codigo: 'CER-BB-02', nombre_producto: 'Taza Pastel Cer BB Ambar', unidad_surtida: 80, costo_surtido: 50.00, precio_venta: 95.00, proveedor: 'Vajillas Oaxaca', fecha_registro: '2026-06-21' },
-    { id: 3, codigo: 'CER-BB-03', nombre_producto: 'Tazón Sopero Cer BB Rústico', unidad_surtida: 150, costo_surtido: 60.00, precio_venta: 110.00, proveedor: 'Artesanías BB Co.', fecha_registro: '2026-06-22' },
-    { id: 4, codigo: 'CER-BB-04', nombre_producto: 'Set Café Express BB (4 pzas)', unidad_surtida: 45, costo_surtido: 120.00, precio_venta: 220.00, proveedor: 'Vajillas Oaxaca', fecha_registro: '2026-06-23' },
-    { id: 5, codigo: 'CER-BB-05', nombre_producto: 'Vaso Cerámica Térmico BB', unidad_surtida: 90, costo_surtido: 75.00, precio_venta: 140.00, proveedor: 'Distribuidora del Centro', fecha_registro: '2026-06-23' },
-  ]);
+  const [cerBBData, setCerBBData] = useState<any[]>([]);
 
-  const [cafeEXPData, setCafeEXPData] = useState([
-    { id: 1, codigo: 'CAF-EX-01', nombre_producto: 'Café Grano Veracruz Espresso 1kg', unidad_surtida: 60, costo_surtido: 180.00, precio_venta: 290.00, proveedor: 'Cafetalera Coatepec', fecha_registro: '2026-06-18' },
-    { id: 2, codigo: 'CAF-EX-02', nombre_producto: 'Café Chiapas Orgánico Molido 500g', unidad_surtida: 100, costo_surtido: 95.00, precio_venta: 165.00, proveedor: 'Finca El Triunfo', fecha_registro: '2026-06-19' },
-    { id: 3, codigo: 'CAF-EX-03', nombre_producto: 'Café Blended Signature Espresso 1kg', unidad_surtida: 40, costo_surtido: 210.00, precio_venta: 340.00, proveedor: 'Importadora BB Alianzas', fecha_registro: '2026-06-22' },
-  ]);
+  const [cafeEXPData, setCafeEXPData] = useState<any[]>([]);
 
-  const [vidrioBBData, setVidrioBBData] = useState([
-    { id: 1, codigo: 'VID-BB-01', nombre_producto: 'Frasco de Vidrio Bebidas 350ml', unidad_surtida: 300, costo_surtido: 8.50, precio_venta: 14.00, proveedor: 'Vitromex Co.', fecha_registro: '2026-06-15' },
-    { id: 2, codigo: 'VID-BB-02', nombre_producto: 'Botella de Vidrio Conservas 500ml', unidad_surtida: 180, costo_surtido: 11.20, precio_venta: 22.00, proveedor: 'Vitromex Co.', fecha_registro: '2026-06-20' },
-  ]);
+  const [vidrioBBData, setVidrioBBData] = useState<any[]>([]);
 
   // Dynamic content list map for custom added ones!
   const [genericSubmenuData, setGenericSubmenuData] = useState<Record<string, Array<any>>>({});
@@ -589,6 +576,217 @@ export default function ModulePlaceholder({
     } finally {
       setIsImportingProgress(false);
     }
+  };
+
+  const handleImportSubmenuCSV = (e: React.ChangeEvent<HTMLInputElement>, tabId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) return;
+
+        // Detect delimiter (semicolon for Spanish locales, comma for US, or tab)
+        let delimiter = ',';
+        let countComma = 0;
+        let countSemi = 0;
+        let countTab = 0;
+        let inQuotes = false;
+        const sample = text.slice(0, 2000);
+        for (let i = 0; i < sample.length; i++) {
+          const char = sample[i];
+          if (char === '"') inQuotes = !inQuotes;
+          else if (!inQuotes) {
+            if (char === ',') countComma++;
+            else if (char === ';') countSemi++;
+            else if (char === '\t') countTab++;
+          }
+        }
+        if (countSemi > countComma && countSemi > countTab) delimiter = ';';
+        else if (countTab > countComma && countTab > countSemi) delimiter = '\t';
+
+        // Custom parser supporting escaped quotes and line breaks
+        const lines: string[][] = [];
+        let currentRow: string[] = [];
+        let currentVal = '';
+        inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const nextChar = text[i + 1];
+          if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+              currentVal += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === delimiter && !inQuotes) {
+            currentRow.push(currentVal.trim());
+            currentVal = '';
+          } else if ((char === '\r' || char === '\n') && !inQuotes) {
+            if (char === '\r' && nextChar === '\n') i++;
+            currentRow.push(currentVal.trim());
+            if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+              lines.push(currentRow);
+            }
+            currentRow = [];
+            currentVal = '';
+          } else {
+            currentVal += char;
+          }
+        }
+        if (currentVal !== '' || currentRow.length > 0) {
+          currentRow.push(currentVal.trim());
+          if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+            lines.push(currentRow);
+          }
+        }
+
+        if (lines.length < 2) {
+          alert('El archivo no contiene suficientes registros o está vacío.');
+          return;
+        }
+
+        // Normalize cleaner for column header scoring
+        const cleanHeader = (h: string) => {
+          return h.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // remove accents
+            .replace(/[^a-z0-9]/g, "") // alphanumeric only
+            .trim();
+        };
+
+        // Score first 15 lines to identify where headers reside
+        let headerIdx = 0;
+        let maxScore = -1;
+        const targetKeywords = ['codigo', 'producto', 'nombre', 'unidades', 'cantidad', 'costo', 'precio', 'proveedor', 'fecha'];
+        
+        for (let i = 0; i < Math.min(lines.length, 15); i++) {
+          let score = 0;
+          for (const col of lines[i]) {
+            const val = cleanHeader(col);
+            if (targetKeywords.some(k => val.includes(k))) score++;
+          }
+          if (score > maxScore && score >= 2) {
+            maxScore = score;
+            headerIdx = i;
+          }
+        }
+
+        const rawHeaders = lines[headerIdx];
+        const headersCleaned = rawHeaders.map(cleanHeader);
+
+        let colCodigo = -1;
+        let colNombre = -1;
+        let colUnidades = -1;
+        let colCosto = -1;
+        let colPrecio = -1;
+        let colProveedor = -1;
+        let colFecha = -1;
+
+        headersCleaned.forEach((h, idx) => {
+          if (h.includes('codigo') || h === 'sku' || h === 'ref' || h === 'id' || h === 'code') colCodigo = idx;
+          else if (h.includes('producto') || h.includes('nombre') || h.includes('articulo') || h === 'item' || h.includes('descripcion')) colNombre = idx;
+          else if (h.includes('unidad') || h.includes('cantidad') || h.includes('piezas') || h === 'cant' || h === 'qty' || h.includes('surtid')) colUnidades = idx;
+          else if (h.includes('costo') || h.includes('compra') || h.includes('adquisicion')) colCosto = idx;
+          else if (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta') colPrecio = idx;
+          else if (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor')) colProveedor = idx;
+          else if (h.includes('fecha') || h.includes('registro')) colFecha = idx;
+        });
+
+        // Set standard index fallbacks if mapping couldn't auto-resolve
+        if (colCodigo === -1 && headersCleaned.length > 0) colCodigo = 0;
+        if (colNombre === -1 && headersCleaned.length > 1) colNombre = 1;
+        if (colUnidades === -1 && headersCleaned.length > 2) colUnidades = 2;
+        if (colCosto === -1 && headersCleaned.length > 3) colCosto = 3;
+        if (colPrecio === -1 && headersCleaned.length > 4) colPrecio = 4;
+        if (colProveedor === -1 && headersCleaned.length > 5) colProveedor = 5;
+
+        const parsedRows: any[] = [];
+        for (let r = headerIdx + 1; r < lines.length; r++) {
+          const row = lines[r];
+          if (row.length === 0 || (row.length === 1 && row[0] === '')) continue;
+
+          // Robust float parser
+          const cleanNumVal = (str: string): number => {
+            if (!str) return 0;
+            const cleaned = str.replace(/[^0-9.,-]/g, '').trim();
+            if (!cleaned) return 0;
+            if (cleaned.includes(',') && !cleaned.includes('.')) {
+              return parseFloat(cleaned.replace(',', '.')) || 0;
+            }
+            if (cleaned.includes(',') && cleaned.includes('.')) {
+              return parseFloat(cleaned.replace(/,/g, '')) || 0;
+            }
+            return parseFloat(cleaned) || 0;
+          };
+
+          const codigoStr = colCodigo !== -1 && row[colCodigo] ? row[colCodigo].trim().toUpperCase() : `PROD-S-${r}`;
+          const nombreStr = colNombre !== -1 && row[colNombre] ? row[colNombre].trim() : `Producto Importado ${r}`;
+          const unidadesVal = colUnidades !== -1 && row[colUnidades] ? Math.round(cleanNumVal(row[colUnidades])) : 0;
+          const costoVal = colCosto !== -1 && row[colCosto] ? cleanNumVal(row[colCosto]) : 0;
+          const precioVal = colPrecio !== -1 && row[colPrecio] ? cleanNumVal(row[colPrecio]) : 0;
+          const provStr = colProveedor !== -1 && row[colProveedor] ? row[colProveedor].trim() : 'Proveedor General';
+          
+          let dateStr = new Date().toISOString().split('T')[0];
+          if (colFecha !== -1 && row[colFecha]) {
+            const d = new Date(row[colFecha].trim());
+            if (!isNaN(d.getTime())) {
+              dateStr = d.toISOString().split('T')[0];
+            }
+          }
+
+          parsedRows.push({
+            id: Date.now() + r + Math.random(),
+            codigo: codigoStr,
+            nombre_producto: nombreStr,
+            unidad_surtida: unidadesVal,
+            costo_surtido: costoVal,
+            precio_venta: precioVal,
+            proveedor: provStr,
+            fecha_registro: dateStr
+          });
+        }
+
+        if (parsedRows.length === 0) {
+          alert('No se encontraron registros de surtido válidos para importar.');
+          return;
+        }
+
+        if (confirm(`Se detectaron ${parsedRows.length} registros en el archivo.\n\n¿Quieres REEMPLAZAR todos los registros actuales de esta sección con la nueva importación?\n(Aceptar = Reemplazar por completo, Cancelar = Agregar al final del listado)`)) {
+          if (tabId === 'cer_bb') setCerBBData(parsedRows);
+          else if (tabId === 'cafe_exp') setCafeEXPData(parsedRows);
+          else if (tabId === 'vidrio_bb') setVidrioBBData(parsedRows);
+          else {
+            setGenericSubmenuData(prev => ({
+              ...prev,
+              [tabId]: parsedRows
+            }));
+          }
+        } else {
+          const appendData = (prev: any[]) => [...prev, ...parsedRows];
+          if (tabId === 'cer_bb') setCerBBData(appendData);
+          else if (tabId === 'cafe_exp') setCafeEXPData(appendData);
+          else if (tabId === 'vidrio_bb') setVidrioBBData(appendData);
+          else {
+            setGenericSubmenuData(prev => ({
+              ...prev,
+              [tabId]: [...(prev[tabId] || []), ...parsedRows]
+            }));
+          }
+        }
+
+        alert(`¡Importación exitosa! Se han guardado ${parsedRows.length} registros en el submenú de surtido.`);
+      } catch (err) {
+        console.error("CSV upload parse error", err);
+        alert('Ocurrió un error al procesar el archivo Excel/CSV.');
+      }
+    };
+
+    reader.readAsText(file, "UTF-8");
+    e.target.value = '';
   };
 
   // Form state
@@ -3218,13 +3416,18 @@ export default function ModulePlaceholder({
                     <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta.desc}</p>
                   </div>
                   
-                  {/* Master quick export Excel trigger */}
-                  <button
-                    onClick={() => handleExportToExcel(activeSupplySubmenu)}
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap self-stretch md:self-auto text-center justify-center"
+                  {/* Master quick import Excel trigger */}
+                  <label
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap self-stretch md:self-auto text-center justify-center select-none"
                   >
-                    <Download className="w-4 h-4" /> Exportar a Excel (.csv)
-                  </button>
+                    <Download className="w-4 h-4 rotate-180" /> Importar de Excel (.csv)
+                    <input
+                      type="file"
+                      accept=".csv,.txt"
+                      className="hidden"
+                      onChange={(e) => handleImportSubmenuCSV(e, activeSupplySubmenu)}
+                    />
+                  </label>
                 </div>
 
                 {/* KPI Metrics Dashboard based on live filters of the report */}
