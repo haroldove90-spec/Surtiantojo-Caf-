@@ -183,20 +183,28 @@ export default function ModulePlaceholder({
 
   // --- SUBMENU GENERAL SURTIDO & EXCEL EXPORT SYSTEM STATES ---
   const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>('cer_bb');
+
+  const sortSubmenus = (list: any[]) => {
+    const vending = list.filter(item => item.id === 'vending_surtido');
+    const others = list.filter(item => item.id !== 'vending_surtido');
+    others.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    return [...vending, ...others];
+  };
+
   const [supplySubmenuList, setSupplySubmenuList] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_submenu_list');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return sortSubmenus(parsed);
       }
     } catch (e) {}
-    return [
+    return sortSubmenus([
       { id: 'vending_surtido', name: 'Surtido de Terminales', title: 'Surtido General de Máquinas', desc: 'Control físico de stock en terminales con indicadores de carga acumulada y reabastecimiento directo.' },
       { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
       { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
       { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' }
-    ];
+    ]);
   });
 
   const [isEditSubmenuOpen, setIsEditSubmenuOpen] = useState(false);
@@ -306,14 +314,8 @@ export default function ModulePlaceholder({
         headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
       }
 
-      // Check if we can use 'codigo' as conflict target (highly recommended for standard tables)
-      const isStandardTable = ['cer_bb', 'art_alt', 'art_ct'].includes(tabId) || tabId.startsWith('custom_');
-      const hasCodigo = headers.some(h => {
-        const cleanH = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
-        return cleanH === 'codigo' || cleanH === 'sku' || cleanH === 'codig';
-      });
-
-      const conflictTarget = (isStandardTable || hasCodigo) ? 'codigo' : 'id';
+      // Always use 'id' as the conflict target since the generated tables do not have unique constraints on other keys like 'codigo'
+      const conflictTarget = 'id';
 
       const mappedRows = rows.map(row => {
         const obj: any = {};
@@ -499,8 +501,9 @@ export default function ModulePlaceholder({
               merged.push(lm);
             }
           });
-          setSupplySubmenuList(merged);
-          currentMenuList = merged;
+          const sortedMerged = sortSubmenus(merged);
+          setSupplySubmenuList(sortedMerged);
+          currentMenuList = sortedMerged;
         }
 
         const submenus = currentMenuList.map(s => s.id).filter(id => id !== 'vending_surtido');
@@ -3607,7 +3610,7 @@ export default function ModulePlaceholder({
             desc: newSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${newSubmenuName}.`
           };
 
-          setSupplySubmenuList(prev => [...prev, newTabItem]);
+          setSupplySubmenuList(prev => sortSubmenus([...prev, newTabItem]));
           
           const initialRow = { 
             id: 1, 
@@ -3655,7 +3658,7 @@ export default function ModulePlaceholder({
             return;
           }
 
-          setSupplySubmenuList(prev => prev.map(s => {
+          setSupplySubmenuList(prev => sortSubmenus(prev.map(s => {
             if (s.id === editSubmenuId) {
               return {
                 ...s,
@@ -3665,7 +3668,7 @@ export default function ModulePlaceholder({
               };
             }
             return s;
-          }));
+          })));
 
           // Persist to Supabase if connected
           supabase.from('surtido_submenus').upsert({
