@@ -304,25 +304,28 @@ export default function ModulePlaceholder({
   }, [submenuHeaders]);
 
   // Save Surtido rows to Supabase table
-  const saveToSupabase = async (tabId: string, rows: any[]) => {
+  const saveToSupabase = async (tabId: string, rows: any[], customHeaders?: string[]) => {
     try {
       const tableName = `surtido_${tabId}`;
-      let headers = submenuHeaders[tabId] || [];
+      let headers = customHeaders || submenuHeaders[tabId] || [];
       
       // If there are no custom headers yet, let's use the default ones
       if (headers.length === 0) {
         headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
       }
 
-      // Always use 'id' as the conflict target since the generated tables do not have unique constraints on other keys like 'codigo'
-      const conflictTarget = 'id';
+      // We split the rows into those to update (valid DB id) and those to insert (no valid DB id)
+      const mappedRowsToInsert: any[] = [];
+      const mappedRowsToUpdate: any[] = [];
 
-      const mappedRows = rows.map(row => {
+      rows.forEach(row => {
         const obj: any = {};
+        let hasValidId = false;
         
-        // Only include ID if it is a valid database ID (not a large JS timestamp from Date.now())
+        // Only include ID if it is a valid database ID (not a large JS timestamp from Date.now() / Math.random())
         if (row.id && typeof row.id === 'number' && row.id < 1000000000) {
           obj.id = row.id;
+          hasValidId = true;
         }
 
         headers.forEach(header => {
@@ -378,53 +381,143 @@ export default function ModulePlaceholder({
         });
 
         obj.fecha_registro = row.fecha_registro || new Date().toISOString().split('T')[0];
-        return obj;
+        
+        if (hasValidId) {
+          mappedRowsToUpdate.push(obj);
+        } else {
+          mappedRowsToInsert.push(obj);
+        }
       });
 
-      if (mappedRows.length === 0) return;
+      let combinedData: any[] = [];
 
-      const { data, error } = await supabase.from(tableName).upsert(mappedRows, { onConflict: conflictTarget }).select();
-      if (error) {
-        console.warn(`Supabase sync failed for ${tableName} (onConflict: ${conflictTarget}):`, error.message);
-      } else {
-        console.log(`Supabase sync success for ${tableName} (onConflict: ${conflictTarget})`, data);
-        if (data && data.length > 0) {
-          // Reconstruct rows with real DB ids so that subsequent edits/deletes are perfect
-          const updatedRows = data.map((item: any) => {
-            const rowValues: Record<string, string> = {};
-            headers.forEach(h => {
-              const sqlColName = h.toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/[^a-z0-9]/g, "_")
-                .replace(/^_+|_+$/g, "")
-                .trim();
-              rowValues[h] = String(item[sqlColName] !== null && item[sqlColName] !== undefined ? item[sqlColName] : '');
-            });
+      if (mappedRowsToUpdate.length > 0) {
+        const { data: updateRes, error: updateErr } = await supabase
+          .from(tableName)
+          .upsert(mappedRowsToUpdate, { onConflict: 'id' })
+          .select();
+        
+        if (updateErr) {
+          console.warn(`Supabase update failed for ${tableName}:`, updateErr.message);
+        } else if (updateRes) {
+          combinedData = [...combinedData, ...updateRes];
+        }
+      }
 
-            return {
-              id: item.id,
-              codigo: String(item.codigo || '').toUpperCase(),
-              nombre_producto: String(item.nombre_producto || ''),
-              unidad_surtida: parseFloat(item.unidad_surtida) || 0,
-              costo_surtido: parseFloat(item.costo_surtido) || 0,
-              precio_venta: parseFloat(item.precio_venta) || 0,
-              proveedor: String(item.proveedor || 'Proveedor General'),
-              fecha_registro: item.fecha_registro || new Date().toISOString().split('T')[0],
-              values: rowValues
-            };
+      if (mappedRowsToInsert.length > 0) {
+        const { data: insertRes, error: insertErr } = await supabase
+          .from(tableName)
+          .insert(mappedRowsToInsert)
+          .select();
+        
+        if (insertErr) {
+          console.warn(`Supabase insert failed for ${tableName}:`, insertErr.message);
+        } else if (insertRes) {
+          combinedData = [...combinedData, ...insertRes];
+        }
+      }
+
+      if (combinedData.length > 0) {
+        const cleanHeaderHelper = (h: string) => {
+          return h.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "")
+            .trim();
+        };
+
+        const headersCleaned = headers.map(cleanHeaderHelper);
+
+        let colCodigo = -1;
+        let colNombre = -1;
+        let colUnidades = -1;
+        let colCosto = -1;
+        let colPrecio = -1;
+        let colProveedor = -1;
+
+        headersCleaned.forEach((h, idx) => {
+          if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') colCodigo = idx;
+          else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
+          else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') colUnidades = idx;
+          else if (h === 'costo') colCosto = idx;
+          else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
+          else if (h === 'proveedor') colProveedor = idx;
+        });
+
+        headersCleaned.forEach((h, idx) => {
+          if (colCodigo === -1 && (h.includes('codigo') || h.includes('sku') || h.includes('codig') || h === 'ref' || h === 'code') && h !== 'prodcodigo') {
+            colCodigo = idx;
+          }
+          if (colNombre === -1 && (h.includes('producto') || h.includes('nombre') || h.includes('articulo') || h === 'item' || h.includes('descripcion'))) {
+            colNombre = idx;
+          }
+          if (colUnidades === -1 && (h.includes('surtir') || h.includes('surtid') || h.includes('cantidad') || h.includes('unidad') || h.includes('piezas') || h === 'cant' || h === 'qty')) {
+            colUnidades = idx;
+          }
+          if (colCosto === -1 && (h.includes('costo') || h.includes('compra') || h.includes('adquisicion'))) {
+            colCosto = idx;
+          }
+          if (colPrecio === -1 && (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta' || h.includes('vta'))) {
+            colPrecio = idx;
+          }
+          if (colProveedor === -1 && (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor'))) {
+            colProveedor = idx;
+          }
+        });
+
+        const updatedRows = combinedData.map((item: any) => {
+          const rowValues: Record<string, string> = {};
+          headers.forEach(h => {
+            const sqlColName = h.toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/[^a-z0-9]/g, "_")
+              .replace(/^_+|_+$/g, "")
+              .trim();
+            rowValues[h] = String(item[sqlColName] !== null && item[sqlColName] !== undefined ? item[sqlColName] : '');
           });
 
-          // Safely set states without infinite looping
-          if (tabId === 'cer_bb') setCerBBData(updatedRows);
-          else if (tabId === 'art_alt') setArtAltData(updatedRows);
-          else if (tabId === 'art_ct') setArtCtData(updatedRows);
-          else {
-            setGenericSubmenuData(prev => ({
-              ...prev,
-              [tabId]: updatedRows
-            }));
-          }
+          const getColVal = (idx: number, fallback: any = '') => {
+            if (idx === -1) return fallback;
+            const h = headers[idx];
+            const sqlColName = h.toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/[^a-z0-9]/g, "_")
+              .replace(/^_+|_+$/g, "")
+              .trim();
+            return item[sqlColName] !== undefined && item[sqlColName] !== null ? item[sqlColName] : fallback;
+          };
+
+          const codigoVal = String(getColVal(colCodigo, '')).trim();
+          const nombreVal = String(getColVal(colNombre, '')).trim();
+          const unidadesVal = parseFloat(getColVal(colUnidades, 0)) || 0;
+          const costoVal = parseFloat(getColVal(colCosto, 0)) || 0;
+          const precioVal = parseFloat(getColVal(colPrecio, 0)) || 0;
+          const provVal = String(getColVal(colProveedor, 'Proveedor General')).trim();
+
+          return {
+            id: item.id,
+            codigo: (codigoVal || `PROD-S-${item.id}`).toUpperCase(),
+            nombre_producto: nombreVal || `Producto ${item.id}`,
+            unidad_surtida: unidadesVal,
+            costo_surtido: costoVal,
+            precio_venta: precioVal,
+            proveedor: provVal,
+            fecha_registro: item.fecha_registro || new Date().toISOString().split('T')[0],
+            values: rowValues
+          };
+        });
+
+        // Safely set states without infinite looping
+        if (tabId === 'cer_bb') setCerBBData(updatedRows);
+        else if (tabId === 'art_alt') setArtAltData(updatedRows);
+        else if (tabId === 'art_ct') setArtCtData(updatedRows);
+        else {
+          setGenericSubmenuData(prev => ({
+            ...prev,
+            [tabId]: updatedRows
+          }));
         }
       }
     } catch (err) {
@@ -1266,50 +1359,50 @@ export default function ModulePlaceholder({
           clearTableInSupabase(tabId).then(() => {
             if (tabId === 'cer_bb') {
               setCerBBData(parsedRows);
-              setTimeout(() => saveToSupabase('cer_bb', parsedRows), 10);
+              setTimeout(() => saveToSupabase('cer_bb', parsedRows, originalHeaders), 10);
             }
             else if (tabId === 'art_alt') {
               setArtAltData(parsedRows);
-              setTimeout(() => saveToSupabase('art_alt', parsedRows), 10);
+              setTimeout(() => saveToSupabase('art_alt', parsedRows, originalHeaders), 10);
             }
             else if (tabId === 'art_ct') {
               setArtCtData(parsedRows);
-              setTimeout(() => saveToSupabase('art_ct', parsedRows), 10);
+              setTimeout(() => saveToSupabase('art_ct', parsedRows, originalHeaders), 10);
             }
             else {
               setGenericSubmenuData(prev => ({
                 ...prev,
                 [tabId]: parsedRows
               }));
-              setTimeout(() => saveToSupabase(tabId, parsedRows), 10);
+              setTimeout(() => saveToSupabase(tabId, parsedRows, originalHeaders), 10);
             }
           });
         } else {
           if (tabId === 'cer_bb') {
             setCerBBData(prev => {
               const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('cer_bb', res), 10);
+              setTimeout(() => saveToSupabase('cer_bb', res, originalHeaders), 10);
               return res;
             });
           }
           else if (tabId === 'art_alt') {
             setArtAltData(prev => {
               const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('art_alt', res), 10);
+              setTimeout(() => saveToSupabase('art_alt', res, originalHeaders), 10);
               return res;
             });
           }
           else if (tabId === 'art_ct') {
             setArtCtData(prev => {
               const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('art_ct', res), 10);
+              setTimeout(() => saveToSupabase('art_ct', res, originalHeaders), 10);
               return res;
             });
           }
           else {
             setGenericSubmenuData(prev => {
               const res = [...(prev[tabId] || []), ...parsedRows];
-              setTimeout(() => saveToSupabase(tabId, res), 10);
+              setTimeout(() => saveToSupabase(tabId, res, originalHeaders), 10);
               return {
                 ...prev,
                 [tabId]: res
