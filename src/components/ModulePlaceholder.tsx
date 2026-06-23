@@ -208,6 +208,13 @@ export default function ModulePlaceholder({
   const [editRowPrecio, setEditRowPrecio] = useState(0);
   const [editRowProveedor, setEditRowProveedor] = useState('');
 
+  // Bulk deletion selection state
+  const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    setSelectedRowIds([]);
+  }, [activeSupplySubmenu]);
+
   // Form states for creating custom submenus
   const [addSubmenuOpen, setAddSubmenuOpen] = useState(false);
   const [newSubmenuName, setNewSubmenuName] = useState('');
@@ -2957,6 +2964,27 @@ export default function ModulePlaceholder({
         const handleDeleteRow = (rowId: number) => {
           if (confirm("¿Estás seguro de eliminar este registro de surtido?")) {
             handleUpdateSubmenuData((prev: any[]) => prev.filter(r => r.id !== rowId));
+            setSelectedRowIds(prev => prev.filter(id => id !== rowId));
+          }
+        };
+
+        const handleDeleteSelected = () => {
+          if (selectedRowIds.length === 0) return;
+          if (confirm(`¿Estás seguro de que deseas eliminar los ${selectedRowIds.length} registros seleccionados de forma masiva?`)) {
+            handleUpdateSubmenuData((prev: any[]) => prev.filter(r => !selectedRowIds.includes(r.id)));
+            setSelectedRowIds([]);
+          }
+        };
+
+        const handleClearAllSubmenuRows = () => {
+          const count = currentSubmenuData.length;
+          if (count === 0) {
+            alert("No hay registros para borrar en esta sección.");
+            return;
+          }
+          if (confirm(`⚠️ ALERTA DE BORRADO MASIVO \n\n¿Estás completamente seguro de eliminar TODOS los ${count} registros de esta sección (${activeMeta.name})?\n\nEsta acción borrará la tabla entera.`)) {
+            handleUpdateSubmenuData([]);
+            setSelectedRowIds([]);
           }
         };
 
@@ -3604,7 +3632,29 @@ export default function ModulePlaceholder({
                   </div>
 
                   {/* Actions buttons */}
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    {selectedRowIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelected}
+                        className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                        title="Eliminar registros seleccionados con la casilla"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Borrar Seleccionados ({selectedRowIds.length})
+                      </button>
+                    )}
+
+                    {currentSubmenuData.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearAllSubmenuRows}
+                        className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/30 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="Eliminar todos los registros de esta sección de forma masiva"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Vaciar Sección
+                      </button>
+                    )}
+
                     {/* Inline code SQL triggers */}
                     <button
                       type="button"
@@ -3764,6 +3814,22 @@ export default function ModulePlaceholder({
                     <table className="w-full text-xs text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200 select-none">
+                          <th className="py-3 px-3 text-center w-10">
+                            <input
+                              type="checkbox"
+                              className="rounded border-slate-300 text-[#043077] focus:ring-[#043077] h-3.5 w-3.5 cursor-pointer"
+                              checked={filteredSubmenuRows.length > 0 && filteredSubmenuRows.every(r => selectedRowIds.includes(r.id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const allIds = filteredSubmenuRows.map(r => r.id);
+                                  setSelectedRowIds(prev => Array.from(new Set([...prev, ...allIds])));
+                                } else {
+                                  const visibleIds = new Set(filteredSubmenuRows.map(r => r.id));
+                                  setSelectedRowIds(prev => prev.filter(id => !visibleIds.has(id)));
+                                }
+                              }}
+                            />
+                          </th>
                           <th className="py-3 px-4">Código / SKU</th>
                           <th className="py-3 px-4">Producto o Artículo</th>
                           <th className="py-3 px-4 text-center">Unidades</th>
@@ -3778,7 +3844,7 @@ export default function ModulePlaceholder({
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {filteredSubmenuRows.length === 0 ? (
                           <tr>
-                            <td colSpan={9} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
+                            <td colSpan={10} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
                               No hay registros cargados para {activeMeta.name} que coincidan con la búsqueda.
                             </td>
                           </tr>
@@ -3796,6 +3862,13 @@ export default function ModulePlaceholder({
                               >
                                 {isEditing ? (
                                   <>
+                                    <td className="py-2 px-3 text-center">
+                                      <input
+                                        type="checkbox"
+                                        disabled
+                                        className="rounded border-slate-200 text-slate-300 h-3.5 w-3.5 cursor-not-allowed opacity-50"
+                                      />
+                                    </td>
                                     <td className="py-2 px-3">
                                       <input
                                         type="text"
@@ -3874,6 +3947,20 @@ export default function ModulePlaceholder({
                                   </>
                                 ) : (
                                   <>
+                                    <td className="py-3 px-3 text-center">
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300 text-[#043077] focus:ring-[#043077] h-3.5 w-3.5 cursor-pointer"
+                                        checked={selectedRowIds.includes(row.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedRowIds(prev => [...prev, row.id]);
+                                          } else {
+                                            setSelectedRowIds(prev => prev.filter(id => id !== row.id));
+                                          }
+                                        }}
+                                      />
+                                    </td>
                                     <td className="py-3 px-4 font-mono font-black text-[#043077]">
                                       {row.codigo}
                                     </td>
