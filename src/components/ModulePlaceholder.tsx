@@ -3592,7 +3592,7 @@ export default function ModulePlaceholder({
             // Default table schema
             sqlText += `CREATE TABLE ${tableName} (\n`;
             sqlText += `    id SERIAL PRIMARY KEY,\n`;
-            sqlText += `    codigo VARCHAR(50) UNIQUE NOT NULL,\n`;
+            sqlText += `    codigo VARCHAR(50) NOT NULL,\n`;
             sqlText += `    nombre_producto VARCHAR(150) NOT NULL,\n`;
             sqlText += `    unidad_surtida INT DEFAULT 0,\n`;
             sqlText += `    costo_surtido DECIMAL(10,2) DEFAULT 0.00,\n`;
@@ -3613,10 +3613,7 @@ export default function ModulePlaceholder({
                 return `(${codeEscaped}, ${nameEscaped}, ${row.unidad_surtida}, ${row.costo_surtido}, ${row.precio_venta}, ${provEscaped}, '${row.fecha_registro}')`;
               }).join(',\n');
               
-              sqlText += insertValues + `\nON CONFLICT (codigo) DO UPDATE SET\n`;
-              sqlText += `    unidad_surtida = EXCLUDED.unidad_surtida,\n`;
-              sqlText += `    costo_surtido = EXCLUDED.costo_surtido,\n`;
-              sqlText += `    precio_venta = EXCLUDED.precio_venta;\n\n`;
+              sqlText += insertValues + `;\n\n`;
             }
           }
 
@@ -3713,11 +3710,98 @@ export default function ModulePlaceholder({
           document.body.removeChild(link);
         };
 
+        const handleExportAllToExcel = () => {
+          // Collect records from all submenus
+          const allRows: any[] = [];
+          
+          supplySubmenuList.forEach(submenu => {
+            let data: any[] = [];
+            if (submenu.id === 'cer_bb') data = cerBBData;
+            else if (submenu.id === 'art_alt') data = artAltData;
+            else if (submenu.id === 'art_ct') data = artCtData;
+            else data = genericSubmenuData[submenu.id] || [];
+            
+            data.forEach(item => {
+              allRows.push({
+                ...item,
+                seccion_origen: submenu.name
+              });
+            });
+          });
+
+          if (allRows.length === 0) {
+            alert("No hay registros en ninguna sección para ser exportados.");
+            return;
+          }
+
+          const colKeys = ['seccion_origen', 'id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'proveedor', 'fecha_registro'];
+          const colLabels = ['Sección', 'ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'Proveedor', 'Fecha Registro'];
+
+          const headers = colLabels.join(';');
+          const rows = allRows.map(item => {
+            const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
+            const rowCopy = {
+              ...item,
+              importe_total: totalImport
+            };
+            return colKeys.map(key => {
+              const val = rowCopy[key];
+              if (val === undefined || val === null) return '';
+              if (typeof val === 'number') {
+                return val.toFixed(2).replace('.', ',');
+              }
+              let valStr = String(val).replace(/"/g, '""');
+              if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
+                valStr = `"${valStr}"`;
+              }
+              return valStr;
+            }).join(';');
+          });
+
+          const csvContent = "\uFEFF" + "sep=;\n" + [headers, ...rows].join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.setAttribute("href", url);
+          link.setAttribute("download", `surtido_completo_todos_los_registros.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
         const handleAddRow = () => {
           if (!rowCodigo.trim() || !rowNombre.trim()) {
             alert("Por favor completa el código y nombre del producto.");
             return;
           }
+
+          const hasDynamicHeaders = submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0;
+          let newRowValues: Record<string, string> = {};
+          
+          if (hasDynamicHeaders) {
+            const headers = submenuHeaders[activeSupplySubmenu] || [];
+            const headersCleaned = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim());
+            
+            headersCleaned.forEach((h, idx) => {
+              const originalHeader = headers[idx];
+              if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') {
+                newRowValues[originalHeader] = rowCodigo.trim().toUpperCase();
+              } else if (h === 'producto' || h === 'nombre' || h === 'articulo') {
+                newRowValues[originalHeader] = rowNombre.trim();
+              } else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') {
+                newRowValues[originalHeader] = String(safeVal(rowUnidades));
+              } else if (h === 'costo') {
+                newRowValues[originalHeader] = String(safeVal(rowCosto));
+              } else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') {
+                newRowValues[originalHeader] = String(safeVal(rowPrecio));
+              } else if (h === 'proveedor') {
+                newRowValues[originalHeader] = rowProveedor.trim() || 'Proveedor General';
+              } else {
+                newRowValues[originalHeader] = '';
+              }
+            });
+          }
+
           const newRow = {
             id: Date.now(),
             codigo: rowCodigo.trim().toUpperCase(),
@@ -3726,7 +3810,8 @@ export default function ModulePlaceholder({
             costo_surtido: safeVal(rowCosto),
             precio_venta: safeVal(rowPrecio),
             proveedor: rowProveedor.trim() || 'Proveedor General',
-            fecha_registro: new Date().toISOString().split('T')[0]
+            fecha_registro: new Date().toISOString().split('T')[0],
+            values: hasDynamicHeaders ? newRowValues : undefined
           };
 
           handleUpdateSubmenuData((prev: any[]) => [...prev, newRow]);
@@ -3779,20 +3864,81 @@ export default function ModulePlaceholder({
           setEditRowCosto(safeVal(row.costo_surtido));
           setEditRowPrecio(safeVal(row.precio_venta));
           setEditRowProveedor(row.proveedor || '');
+          setEditRowValues(row.values || {});
         };
 
         const handleSaveRow = (rowId: number) => {
           handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
             if (r.id === rowId) {
-              return {
-                ...r,
-                codigo: editRowCodigo.trim().toUpperCase(),
-                nombre_producto: editRowNombre.trim(),
-                unidad_surtida: safeVal(editRowUnidades),
-                costo_surtido: safeVal(editRowCosto),
-                precio_venta: safeVal(editRowPrecio),
-                proveedor: editRowProveedor.trim() || 'Proveedor General'
-              };
+              const hasDynamicHeaders = submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0;
+              if (hasDynamicHeaders) {
+                const updatedValues = { ...(r.values || {}), ...editRowValues };
+                
+                // Extract standard fields using header mapping
+                let colCodigo = -1;
+                let colNombre = -1;
+                let colUnidades = -1;
+                let colCosto = -1;
+                let colPrecio = -1;
+                let colProveedor = -1;
+                const headers = submenuHeaders[activeSupplySubmenu] || [];
+                const headersCleaned = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim());
+                
+                headersCleaned.forEach((h, idx) => {
+                  if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') colCodigo = idx;
+                  else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
+                  else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') colUnidades = idx;
+                  else if (h === 'costo') colCosto = idx;
+                  else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
+                  else if (h === 'proveedor') colProveedor = idx;
+                });
+                
+                headersCleaned.forEach((h, idx) => {
+                  if (colCodigo === -1 && (h.includes('codigo') || h.includes('sku') || h.includes('codig') || h === 'ref' || h === 'code')) colCodigo = idx;
+                  if (colNombre === -1 && (h.includes('producto') || h.includes('nombre') || h.includes('articulo') || h === 'item' || h.includes('descripcion'))) colNombre = idx;
+                  if (colUnidades === -1 && (h.includes('surtir') || h.includes('surtid') || h.includes('cantidad') || h.includes('unidad') || h.includes('piezas'))) colUnidades = idx;
+                  if (colCosto === -1 && (h.includes('costo') || h.includes('compra') || h.includes('adquisicion'))) colCosto = idx;
+                  if (colPrecio === -1 && (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta' || h.includes('vta'))) colPrecio = idx;
+                  if (colProveedor === -1 && (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor'))) colProveedor = idx;
+                });
+
+                const codeHeader = colCodigo !== -1 ? headers[colCodigo] : '';
+                const nameHeader = colNombre !== -1 ? headers[colNombre] : '';
+                const unidadesHeader = colUnidades !== -1 ? headers[colUnidades] : '';
+                const costoHeader = colCosto !== -1 ? headers[colCosto] : '';
+                const precioHeader = colPrecio !== -1 ? headers[colPrecio] : '';
+                const provHeader = colProveedor !== -1 ? headers[colProveedor] : '';
+
+                const cleanNumVal = (str: any): number => {
+                  if (str === undefined || str === null) return 0;
+                  const cleaned = String(str).replace(/[^0-9.,-]/g, '').trim();
+                  if (!cleaned) return 0;
+                  if (cleaned.includes(',') && !cleaned.includes('.')) return parseFloat(cleaned.replace(',', '.')) || 0;
+                  if (cleaned.includes(',') && cleaned.includes('.')) return parseFloat(cleaned.replace(/,/g, '')) || 0;
+                  return parseFloat(cleaned) || 0;
+                };
+
+                return {
+                  ...r,
+                  codigo: codeHeader ? String(updatedValues[codeHeader] || '').trim().toUpperCase() : r.codigo,
+                  nombre_producto: nameHeader ? String(updatedValues[nameHeader] || '').trim() : r.nombre_producto,
+                  unidad_surtida: unidadesHeader ? cleanNumVal(updatedValues[unidadesHeader]) : r.unidad_surtida,
+                  costo_surtido: costoHeader ? cleanNumVal(updatedValues[costoHeader]) : r.costo_surtido,
+                  precio_venta: precioHeader ? cleanNumVal(updatedValues[precioHeader]) : r.precio_venta,
+                  proveedor: provHeader ? String(updatedValues[provHeader] || '').trim() : r.proveedor,
+                  values: updatedValues
+                };
+              } else {
+                return {
+                  ...r,
+                  codigo: editRowCodigo.trim().toUpperCase(),
+                  nombre_producto: editRowNombre.trim(),
+                  unidad_surtida: safeVal(editRowUnidades),
+                  costo_surtido: safeVal(editRowCosto),
+                  precio_venta: safeVal(editRowPrecio),
+                  proveedor: editRowProveedor.trim() || 'Proveedor General'
+                };
+              }
             }
             return r;
           }));
@@ -4583,6 +4729,26 @@ export default function ModulePlaceholder({
                         <Trash2 className="w-3.5 h-3.5" /> Vaciar Sección
                       </button>
                     )}
+
+                    {currentSubmenuData.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleExportToExcel(activeSupplySubmenu)}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                        title="Exportar registros de esta sección a Excel"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" /> Exportar Excel
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleExportAllToExcel}
+                      className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                      title="Exportar todos los registros de todos los submenús a un solo archivo Excel"
+                    >
+                      <Layers className="w-4 h-4" /> Exportar Todo
+                    </button>
 
                     {/* Inline code SQL triggers */}
                     <button
