@@ -3528,10 +3528,11 @@ export default function ModulePlaceholder({
           sqlText += `GRANT ALL ON TABLE surtido_submenus TO authenticated;\n\n`;
 
           sqlText += `-- 📊 2. TABLA DE REGISTROS DE ESTE ACCESO (${activeMeta.name.toUpperCase()})\n`;
+          sqlText += `DROP TABLE IF EXISTS ${tableName} CASCADE;\n\n`;
           
           if (headers.length > 0) {
             // Dynamic columns schema based on CSV headers
-            sqlText += `CREATE TABLE IF NOT EXISTS ${tableName} (\n`;
+            sqlText += `CREATE TABLE ${tableName} (\n`;
             sqlText += `    id SERIAL PRIMARY KEY,\n`;
             
             headers.forEach(header => {
@@ -3589,7 +3590,7 @@ export default function ModulePlaceholder({
             }
           } else {
             // Default table schema
-            sqlText += `CREATE TABLE IF NOT EXISTS ${tableName} (\n`;
+            sqlText += `CREATE TABLE ${tableName} (\n`;
             sqlText += `    id SERIAL PRIMARY KEY,\n`;
             sqlText += `    codigo VARCHAR(50) UNIQUE NOT NULL,\n`;
             sqlText += `    nombre_producto VARCHAR(150) NOT NULL,\n`;
