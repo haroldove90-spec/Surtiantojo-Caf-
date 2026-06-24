@@ -187,13 +187,10 @@ export default function ModulePlaceholder({
   const [viewingItem, setViewingItem] = useState<any | null>(null);
 
   // --- SUBMENU GENERAL SURTIDO & EXCEL EXPORT SYSTEM STATES ---
-  const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>('cer_bb');
-
   const sortSubmenus = (list: any[]) => {
-    const vending = list.filter(item => item.id === 'vending_surtido');
-    const others = list.filter(item => item.id !== 'vending_surtido');
+    const others = list.filter(item => item && item.id !== 'vending_surtido');
     others.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
-    return [...vending, ...others];
+    return others;
   };
 
   const [supplySubmenuList, setSupplySubmenuList] = useState<any[]>(() => {
@@ -205,11 +202,14 @@ export default function ModulePlaceholder({
       }
     } catch (e) {}
     return sortSubmenus([
-      { id: 'vending_surtido', name: 'Surtido de Terminales', title: 'Surtido General de Máquinas', desc: 'Control físico de stock en terminales con indicadores de carga acumulada y reabastecimiento directo.' },
       { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
       { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
       { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' }
     ]);
+  });
+
+  const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>(() => {
+    return supplySubmenuList[0]?.id || 'art_alt';
   });
 
   const [isEditSubmenuOpen, setIsEditSubmenuOpen] = useState(false);

@@ -509,7 +509,7 @@ export default function App() {
   const formattedDate = "Hoy, 09:45 AM";
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] flex flex-col font-sans text-slate-800 antialiased overflow-x-hidden max-w-full w-full">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#F1F5F9] flex flex-col font-sans text-slate-800 antialiased overflow-x-hidden max-w-full w-full">
       
       {/* GLOBAL NAVBAR / HEADER - STYLED IN DEEP BLUE #043077 */}
       <header id="global-header" className="sticky top-0 z-40 bg-[#043077] border-b border-blue-900/40 shadow-sm px-6 h-16 flex items-center shrink-0">
@@ -563,7 +563,7 @@ export default function App() {
       </header>
 
       {/* DETAILED CONTENT AREA & SIDEBAR */}
-      <div className="flex-grow flex w-full max-w-full overflow-x-hidden mx-auto relative min-w-0">
+      <div className="flex-grow flex w-full max-w-full overflow-x-hidden mx-auto relative min-w-0 lg:h-[calc(100vh-64px)] lg:overflow-hidden">
         
         {/* DESKTOP SIDEBAR - STYLED IN DEEP BLUE #043077 WITH PREMIUM GRADIENT */}
         <aside 
