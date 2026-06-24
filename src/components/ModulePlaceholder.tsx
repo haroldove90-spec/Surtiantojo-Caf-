@@ -188,9 +188,19 @@ export default function ModulePlaceholder({
 
   // --- SUBMENU GENERAL SURTIDO & EXCEL EXPORT SYSTEM STATES ---
   const sortSubmenus = (list: any[]) => {
-    const others = list.filter(item => item && item.id !== 'vending_surtido');
-    others.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
-    return others;
+    if (!list || !Array.isArray(list)) return [];
+    const others = list.filter(item => item && item.id && item.id !== 'vending_surtido');
+    // Deduplicate by ID to prevent duplication error
+    const unique: any[] = [];
+    const seen = new Set<string>();
+    others.forEach(item => {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        unique.push(item);
+      }
+    });
+    unique.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    return unique;
   };
 
   const [supplySubmenuList, setSupplySubmenuList] = useState<any[]>(() => {
@@ -4094,6 +4104,59 @@ export default function ModulePlaceholder({
           setIsEditSubmenuOpen(false);
         };
 
+        const handleDeleteSubmenu = (submenuId: string) => {
+          const submenu = supplySubmenuList.find(s => s.id === submenuId);
+          if (!submenu) return;
+          
+          const isDefault = ['cer_bb', 'art_alt', 'art_ct'].includes(submenuId);
+          const confirmMsg = isDefault 
+            ? `¿Estás seguro de que deseas eliminar la sección predeterminada "${submenu.name}"? Se perderán todos sus datos.`
+            : `¿Estás seguro de que deseas eliminar la sección "${submenu.name}"? Esta acción borrará el acceso y todos sus datos asociados.`;
+            
+          if (!window.confirm(confirmMsg)) {
+            return;
+          }
+
+          // Delete from local list state
+          setSupplySubmenuList(prev => prev.filter(s => s.id !== submenuId));
+          
+          // Clean up generic state data
+          setGenericSubmenuData(prev => {
+            const copy = { ...prev };
+            delete copy[submenuId];
+            return copy;
+          });
+
+          // Clean up localStorage for this specific submenu data
+          try {
+            localStorage.removeItem(`surtiantojo_${submenuId}`);
+          } catch (e) {}
+
+          // Delete from Supabase 'surtido_submenus' metadata table if connected
+          supabase.from('surtido_submenus').delete().eq('id', submenuId).then(({ error }) => {
+            if (error) {
+              console.warn("Could not delete submenu metadata from Supabase:", error.message);
+            } else {
+              console.log("Submenu deleted from Supabase!");
+            }
+          });
+
+          // Clear table data in Supabase if any
+          clearTableInSupabase(submenuId);
+
+          // If the deleted submenu was the active one, switch to the first available
+          if (activeSupplySubmenu === submenuId) {
+            const remaining = supplySubmenuList.filter(s => s.id !== submenuId);
+            if (remaining.length > 0) {
+              setActiveSupplySubmenu(remaining[0].id);
+            } else {
+              setActiveSupplySubmenu('art_alt');
+            }
+          }
+
+          setIsEditSubmenuOpen(false);
+        };
+
         // 1. RENDER DEDICATED FULL SECTION/PAGE FORM IF MACHINE IS SELECTED FOR REFILL
         if (activeRefillMachineId && activeMachine) {
           return (
@@ -5416,20 +5479,31 @@ export default function ModulePlaceholder({
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-150 flex gap-3">
+                  <div className="pt-3 border-t border-slate-150 flex flex-col gap-2.5">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditSubmenuOpen(false)}
+                        className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveEditedSubmenu}
+                        className="flex-1 py-2.5 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
+                      >
+                        Guardar Cambios
+                      </button>
+                    </div>
+
                     <button
                       type="button"
-                      onClick={() => setIsEditSubmenuOpen(false)}
-                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+                      onClick={() => handleDeleteSubmenu(editSubmenuId)}
+                      className="w-full mt-1.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
                     >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveEditedSubmenu}
-                      className="flex-1 py-2.5 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
-                    >
-                      Guardar Cambios
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Eliminar Esta Sección
                     </button>
                   </div>
                 </motion.div>
