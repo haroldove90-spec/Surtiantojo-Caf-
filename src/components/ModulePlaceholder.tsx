@@ -219,8 +219,20 @@ export default function ModulePlaceholder({
   });
 
   const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>(() => {
+    try {
+      const storedActive = localStorage.getItem('surtiantojo_active_submenu');
+      if (storedActive) {
+        return storedActive;
+      }
+    } catch (e) {}
     return supplySubmenuList[0]?.id || 'art_alt';
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_active_submenu', activeSupplySubmenu);
+    } catch (e) {}
+  }, [activeSupplySubmenu]);
 
   const [isEditSubmenuOpen, setIsEditSubmenuOpen] = useState(false);
   const [editSubmenuId, setEditSubmenuId] = useState('');
