@@ -453,6 +453,8 @@ export default function ModulePlaceholder({
 
         let fallbackCombined: any[] = [];
         let fallbackSucceeded = true;
+        let fallbackUpdateErrObj: any = null;
+        let fallbackInsertErrObj: any = null;
 
         if (standardRowsToUpdate.length > 0) {
           const { data: fallbackUpdateRes, error: fallbackUpdateErr } = await supabase
@@ -462,6 +464,7 @@ export default function ModulePlaceholder({
           
           if (fallbackUpdateErr) {
             console.error(`Fallback standard update failed for ${tableName}:`, fallbackUpdateErr.message);
+            fallbackUpdateErrObj = fallbackUpdateErr;
             fallbackSucceeded = false;
           } else if (fallbackUpdateRes) {
             fallbackCombined = [...fallbackCombined, ...fallbackUpdateRes];
@@ -476,6 +479,7 @@ export default function ModulePlaceholder({
           
           if (fallbackInsertErr) {
             console.error(`Fallback standard insert failed for ${tableName}:`, fallbackInsertErr.message);
+            fallbackInsertErrObj = fallbackInsertErr;
             fallbackSucceeded = false;
           } else if (fallbackInsertRes) {
             fallbackCombined = [...fallbackCombined, ...fallbackInsertRes];
@@ -485,13 +489,31 @@ export default function ModulePlaceholder({
         if (fallbackSucceeded && fallbackCombined.length > 0) {
           console.log(`Fallback to standard schema succeeded for ${tableName}!`);
           combinedData = fallbackCombined;
+          setSupabaseError(null);
           // Set headers to the standard columns since we had to fallback
           headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
           setSubmenuHeaders(prev => ({
             ...prev,
             [tabId]: ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor']
           }));
+        } else {
+          // Both original insert and fallback failed
+          const primaryErr = insertErrGlobal || updateErrGlobal;
+          const fallbackErr = fallbackInsertErrObj || fallbackUpdateErrObj;
+          const errMsg = fallbackErr?.message || primaryErr?.message || 'Error desconocido';
+          const errCode = fallbackErr?.code || primaryErr?.code || '';
+          
+          if (errCode === '42P01' || errMsg.toLowerCase().includes('does not exist')) {
+            setSupabaseError(`No se pudo guardar: La tabla '${tableName}' no existe en tu base de datos de Supabase. Haz clic en el botón '⚡ SQL' de abajo, copia el script y ejecútalo en Supabase.`);
+          } else if (errMsg.toLowerCase().includes('column') && errMsg.toLowerCase().includes('does not exist')) {
+            setSupabaseError(`No se pudo guardar: Columnas incompatibles con la base de datos (${errMsg}). Debes volver a generar y ejecutar el script '⚡ SQL' en tu panel de Supabase.`);
+          } else {
+            setSupabaseError(`No se pudo guardar en Supabase: ${errMsg}`);
+          }
         }
+      } else {
+        // Clear error if save succeeded on first try
+        setSupabaseError(null);
       }
 
       if (combinedData.length > 0) {
@@ -677,10 +699,17 @@ export default function ModulePlaceholder({
         }
 
         const submenus = currentMenuList.map(s => s.id).filter(id => id !== 'vending_surtido');
+        const missingTablesList: string[] = [];
+
         for (const tabId of submenus) {
           const tableName = `surtido_${tabId}`;
           const { data, error } = await supabase.from(tableName).select('*');
-          if (!error && data && data.length > 0) {
+          if (error) {
+            console.warn(`Could not load records from Supabase table ${tableName}:`, error.message);
+            if (error.code === '42P01' || error.message.toLowerCase().includes('does not exist')) {
+              missingTablesList.push(tableName);
+            }
+          } else if (data && data.length > 0) {
             // Find columns excluding standard auto IDs
             const cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'fecha_registro');
             // Reconstruct original-looking headers
@@ -756,6 +785,15 @@ export default function ModulePlaceholder({
             }
           }
         }
+
+        if (missingTablesList.length > 0) {
+          const displayNames = missingTablesList.map(t => {
+            const shortId = t.replace('surtido_', '');
+            const m = currentMenuList.find(s => s.id === shortId);
+            return m ? m.name : shortId.toUpperCase();
+          });
+          setSupabaseError(`Las tablas de Supabase para las secciones (${displayNames.join(', ')}) no existen en tu base de datos de Supabase. Los registros importados se muestran de forma temporal, pero NO se guardarán permanentemente hasta que ejecutes el script SQL en tu consola de Supabase.`);
+        }
       } catch (e) {
         console.warn("Could not load from Supabase Surtido tables:", e);
       }
@@ -809,6 +847,8 @@ export default function ModulePlaceholder({
   const [isImportingProgress, setIsImportingProgress] = useState(false);
   const [submenuSearchQuery, setSubmenuSearchQuery] = useState('');
   const [showSQLSchema, setShowSQLSchema] = useState(false);
+  const [supabaseError, setSupabaseError] = useState<string | null>(null);
+  const [copiedSQL, setCopiedSQL] = useState(false);
   const cleanNumberStr = (str: string): string => {
     if (!str) return '0';
     let clean = str.trim();
@@ -4418,6 +4458,46 @@ export default function ModulePlaceholder({
                   </label>
                 </div>
 
+                {supabaseError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-5 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex flex-col md:flex-row gap-4 items-start text-left shadow-2xs relative"
+                  >
+                    <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5 flex-1">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                        ⚠️ Sincronización Local Activa (No guardado en Supabase)
+                      </h4>
+                      <p className="text-xs text-amber-700 leading-relaxed font-semibold">
+                        {supabaseError}
+                      </p>
+                      <div className="text-[11px] text-amber-800 font-medium bg-amber-100/50 p-4 rounded-xl border border-amber-200/50 space-y-1 mt-2">
+                        <span className="block font-black uppercase text-[10px] tracking-wide mb-1.5 text-amber-900">¿Cómo solucionar esto en tu panel de Supabase?</span>
+                        <ol className="list-decimal pl-4 space-y-1.5 font-bold">
+                          <li>
+                            Haz clic en el botón <span className="font-extrabold text-amber-900 bg-amber-200/70 px-1.5 py-0.5 rounded border border-amber-350/50 text-[10px] inline-block">⚡ SQL</span> de abajo para ver el script de tu sección actual.
+                          </li>
+                          <li>
+                            Copia todo el script SQL generado de forma automática.
+                          </li>
+                          <li>
+                            Abre tu consola de administración de Supabase (SQL Editor), crea una nueva consulta ("New Query"), pega el código y haz clic en el botón <span className="text-emerald-700 font-extrabold">"Run"</span>. ¡Y listo!
+                          </li>
+                        </ol>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSupabaseError(null)}
+                      className="absolute top-4 right-4 text-amber-500 hover:text-amber-800 font-black text-xs cursor-pointer px-2 py-1 bg-amber-100 hover:bg-amber-200 rounded-lg"
+                      title="Ocultar advertencia"
+                    >
+                      Cerrar [X]
+                    </button>
+                  </motion.div>
+                )}
+
                 {/* KPI Metrics Dashboard based on live filters of the report */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
@@ -4640,12 +4720,30 @@ export default function ModulePlaceholder({
                   >
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                       <span className="text-xs font-bold text-amber-400 block">⚡ SCRIPT SQL DE CREACIÓN Y SEEDING ({activeMeta.name})</span>
-                      <button 
-                        onClick={() => setShowSQLSchema(false)} 
-                        className="text-slate-500 hover:text-slate-300 text-xs font-black"
-                      >
-                        Cerrar [X]
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(getDynamicSQL());
+                            setCopiedSQL(true);
+                            setTimeout(() => setCopiedSQL(false), 2000);
+                          }}
+                          className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                            copiedSQL 
+                              ? 'bg-emerald-600 text-white animate-pulse' 
+                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700'
+                          }`}
+                        >
+                          {copiedSQL ? '✓ ¡Copiado!' : '📋 Copiar SQL'}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setShowSQLSchema(false)} 
+                          className="text-slate-500 hover:text-slate-300 text-xs font-black px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 cursor-pointer"
+                        >
+                          Cerrar [X]
+                        </button>
+                      </div>
                     </div>
                     <pre className="text-[11px] leading-relaxed max-h-[300px] overflow-y-auto pr-2 select-all bg-slate-950 p-3 rounded-lg border border-slate-800">
                       <code>{getDynamicSQL()}</code>
