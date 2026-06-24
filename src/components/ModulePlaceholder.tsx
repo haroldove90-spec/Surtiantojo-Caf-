@@ -169,6 +169,11 @@ export default function ModulePlaceholder({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [tableScrollWidth, setTableScrollWidth] = useState<number>(0);
 
+  // Scroll synchronizer refs for Submenus
+  const submenuTopScrollRef = useRef<HTMLDivElement>(null);
+  const submenuTableContainerRef = useRef<HTMLDivElement>(null);
+  const [submenuScrollWidth, setSubmenuScrollWidth] = useState<number>(0);
+
   // Sorting state (Excel-like)
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -1792,6 +1797,46 @@ export default function ModulePlaceholder({
       }
     }
   };
+
+  // Synchronize scroll positions for submenus safely
+  const handleSubmenuTopScroll = () => {
+    if (submenuTopScrollRef.current && submenuTableContainerRef.current) {
+      if (Math.abs(submenuTableContainerRef.current.scrollLeft - submenuTopScrollRef.current.scrollLeft) > 1) {
+        submenuTableContainerRef.current.scrollLeft = submenuTopScrollRef.current.scrollLeft;
+      }
+    }
+  };
+
+  const handleSubmenuTableScroll = () => {
+    if (submenuTopScrollRef.current && submenuTableContainerRef.current) {
+      if (Math.abs(submenuTopScrollRef.current.scrollLeft - submenuTableContainerRef.current.scrollLeft) > 1) {
+        submenuTopScrollRef.current.scrollLeft = submenuTableContainerRef.current.scrollLeft;
+      }
+    }
+  };
+
+  // Measure and synchronize widths on content/pagination shift for submenus
+  useEffect(() => {
+    const updateWidth = () => {
+      if (submenuTableContainerRef.current) {
+        setSubmenuScrollWidth(submenuTableContainerRef.current.scrollWidth);
+      }
+    };
+    // Wait slightly for browser render cycle
+    const timer = setTimeout(updateWidth, 50);
+    // Observe size changes
+    if (typeof ResizeObserver !== 'undefined' && submenuTableContainerRef.current) {
+      const observer = new ResizeObserver(() => {
+        updateWidth();
+      });
+      observer.observe(submenuTableContainerRef.current);
+      return () => {
+        clearTimeout(timer);
+        observer.disconnect();
+      };
+    }
+    return () => clearTimeout(timer);
+  }, [activeSupplySubmenu, genericSubmenuData, cerBBData, artAltData, artCtData, submenuHeaders]);
 
   const isAllSelected = useMemo(() => {
     if (filteredProducts.length === 0) return false;
@@ -4923,7 +4968,22 @@ export default function ModulePlaceholder({
 
                 {/* Interactive Rows spreadsheet table layout representation matches file structure */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-3xs">
-                  <div className="overflow-x-auto">
+                  
+                  {/* Barra de scroll superior sincronizada */}
+                  <div 
+                    ref={submenuTopScrollRef}
+                    onScroll={handleSubmenuTopScroll}
+                    className="w-full overflow-x-auto select-none bg-slate-50 border-b border-slate-100"
+                    style={{ height: '12px', scrollbarWidth: 'thin' }}
+                  >
+                    <div style={{ width: `${submenuScrollWidth}px`, height: '1px' }}></div>
+                  </div>
+
+                  <div 
+                    ref={submenuTableContainerRef}
+                    onScroll={handleSubmenuTableScroll}
+                    className="overflow-x-auto"
+                  >
                     <table className="w-full text-xs text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200 select-none">
