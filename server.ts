@@ -8,6 +8,7 @@ async function startServer() {
   // Hostinger (and other cloud environments) assigns a dynamic port via process.env.PORT.
   // For AI Studio's reverse proxy, we default to 3000.
   const PORT = process.env.PORT || 3000;
+  const listenTarget = isNaN(Number(PORT)) ? PORT : Number(PORT);
 
   // Simple health check endpoint
   app.get("/api/health", (req, res) => {
@@ -29,9 +30,15 @@ async function startServer() {
     });
   }
 
-  app.listen(Number(PORT), "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (typeof listenTarget === "number") {
+    app.listen(listenTarget, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${listenTarget}`);
+    });
+  } else {
+    app.listen(listenTarget, () => {
+      console.log(`Server running on Unix socket: ${listenTarget}`);
+    });
+  }
 }
 
 startServer();
