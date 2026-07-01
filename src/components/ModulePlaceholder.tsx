@@ -204,19 +204,68 @@ export default function ModulePlaceholder({
   };
 
   const [supplySubmenuList, setSupplySubmenuList] = useState<any[]>(() => {
+    const defaultSubmenus = [
+      // Botanas
+      { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
+      { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' },
+      { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', desc: 'Surtido de artículos de botanas y confitería PRK.' },
+      { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', desc: 'Surtido de la máquina CER 1 para botanas.' },
+      { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', desc: 'Surtido de la máquina CER 2 para botanas.' },
+      { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', desc: 'Surtido de la máquina CER 3 para botanas y snacks.' },
+      { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', desc: 'Surtido de la máquina CG 1 para botanas.' },
+      { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', desc: 'Surtido de la máquina CG 2 para botanas.' },
+      { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', desc: 'Surtido de la máquina CG 3 para botanas.' },
+      // Bebidas
+      { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', desc: 'Surtido de la máquina de bebidas CER BB.' },
+      { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', desc: 'Surtido de la máquina de bebidas CONT. BB.' },
+      { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', desc: 'Surtido de la máquina de bebidas VITRO BB.' }
+    ];
+
     try {
       const stored = localStorage.getItem('surtiantojo_submenu_list');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return sortSubmenus(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Merge parsed submenus and defaults, making sure all default ones exist
+          const merged = [...parsed];
+          defaultSubmenus.forEach(def => {
+            if (!merged.some(item => item.id === def.id)) {
+              merged.push(def);
+            }
+          });
+          return sortSubmenus(merged);
+        }
       }
     } catch (e) {}
-    return sortSubmenus([
-      { id: 'cer_bb', name: 'Cer BB', title: 'Reporte Surtido Cer BB', desc: 'Concentrado de surtido de tazas, jarros infantiles y productos de cerámica provistos por Vajillas Oaxaca.' },
-      { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
-      { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' }
-    ]);
+    return sortSubmenus(defaultSubmenus);
   });
+
+  const getSubmenuGroup = (id: string, name: string): 'botana' | 'bebidas' | 'cafe' => {
+    const lowerId = id.toLowerCase();
+    const lowerName = (name || '').toLowerCase();
+    
+    if (
+      lowerId.includes('cer_bb') || 
+      lowerId.includes('cont_bb') || 
+      lowerId.includes('vitro_bb') ||
+      lowerName.includes('bebida') ||
+      lowerName.includes('bb') ||
+      lowerId.includes('bebida') ||
+      lowerId.includes('bb')
+    ) {
+      return 'bebidas';
+    }
+    
+    if (
+      lowerId.includes('cafe') || 
+      lowerName.includes('café') || 
+      lowerName.includes('cafe')
+    ) {
+      return 'cafe';
+    }
+    
+    return 'botana';
+  };
 
   const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>(() => {
     try {
@@ -228,11 +277,38 @@ export default function ModulePlaceholder({
     return supplySubmenuList[0]?.id || 'art_alt';
   });
 
+  const [activeCategory, setActiveCategory] = useState<'botana' | 'bebidas' | 'cafe'>(() => {
+    return getSubmenuGroup(activeSupplySubmenu, '');
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem('surtiantojo_active_submenu', activeSupplySubmenu);
     } catch (e) {}
   }, [activeSupplySubmenu]);
+
+  useEffect(() => {
+    if (activeSupplySubmenu) {
+      const activeMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu);
+      const category = getSubmenuGroup(activeSupplySubmenu, activeMeta?.name || '');
+      setActiveCategory(category);
+    }
+  }, [activeSupplySubmenu, supplySubmenuList]);
+
+  const handleSelectCategory = (category: 'botana' | 'bebidas' | 'cafe') => {
+    setActiveCategory(category);
+    if (category === 'cafe') {
+      return;
+    }
+    const categorySubmenus = supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name) === category);
+    if (categorySubmenus.length > 0) {
+      // Prioritize active selection if already in that category, otherwise choose first
+      const currentActiveBelongs = getSubmenuGroup(activeSupplySubmenu, '') === category;
+      if (!currentActiveBelongs) {
+        setActiveSupplySubmenu(categorySubmenus[0].id);
+      }
+    }
+  };
 
   const [isEditSubmenuOpen, setIsEditSubmenuOpen] = useState(false);
   const [editSubmenuId, setEditSubmenuId] = useState('');
@@ -3513,7 +3589,27 @@ export default function ModulePlaceholder({
             case 'cer_bb': return cerBBData;
             case 'art_alt': return artAltData;
             case 'art_ct': return artCtData;
-            default: return genericSubmenuData[activeSupplySubmenu] || [];
+            default: {
+              const currentData = genericSubmenuData[activeSupplySubmenu];
+              if (!currentData || currentData.length === 0) {
+                const submenuMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu);
+                const subName = submenuMeta ? submenuMeta.name : 'Insumo';
+                const pCode = `${subName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-1`;
+                return [
+                  {
+                    id: 1,
+                    codigo: pCode,
+                    nombre_producto: `Surtido Inicial de ${subName}`,
+                    unidad_surtida: 40,
+                    costo_surtido: 15.00,
+                    precio_venta: 30.00,
+                    proveedor: 'Proveedor General',
+                    fecha_registro: new Date().toISOString().split('T')[0]
+                  }
+                ];
+              }
+              return currentData;
+            }
           }
         };
 
@@ -3539,7 +3635,24 @@ export default function ModulePlaceholder({
           } else {
             setGenericSubmenuData(prev => {
               const currentList = prev[activeSupplySubmenu] || [];
-              const res = typeof updater === 'function' ? updater(currentList) : updater;
+              const actualList = currentList.length > 0 ? currentList : (() => {
+                const submenuMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu);
+                const subName = submenuMeta ? submenuMeta.name : 'Insumo';
+                const pCode = `${subName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-1`;
+                return [
+                  {
+                    id: 1,
+                    codigo: pCode,
+                    nombre_producto: `Surtido Inicial de ${subName}`,
+                    unidad_surtida: 40,
+                    costo_surtido: 15.00,
+                    precio_venta: 30.00,
+                    proveedor: 'Proveedor General',
+                    fecha_registro: new Date().toISOString().split('T')[0]
+                  }
+                ];
+              })();
+              const res = typeof updater === 'function' ? updater(actualList) : updater;
               setTimeout(() => saveToSupabase(activeSupplySubmenu, res), 10);
               return {
                 ...prev,
@@ -4494,65 +4607,225 @@ export default function ModulePlaceholder({
           <div className="space-y-6 text-left">
             
             {/* Elegant Submenu Control Accesses bar */}
-            <div className="flex flex-col gap-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#043077]">Visualizar Accesos Surtido en Submenú</span>
-              <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-150 pb-2">
-                {supplySubmenuList.map((submenu) => {
-                  const isActive = activeSupplySubmenu === submenu.id;
-                  const isMissing = missingTables.includes(`surtido_${submenu.id}`);
-                  return (
-                    <button
-                      key={submenu.id}
-                      onClick={() => {
-                        setActiveSupplySubmenu(submenu.id);
-                        setShowSQLSchema(false);
-                        setSubmenuSearchQuery('');
-                      }}
-                      className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isActive
-                          ? 'bg-[#043077] text-white shadow-xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200/50'
-                      }`}
-                    >
-                      {submenu.id === 'vending_surtido' ? (
-                        <Sliders className="w-3.5 h-3.5" />
-                      ) : (
-                        <FileSpreadsheet className={`w-3.5 h-3.5 ${isMissing ? 'text-amber-500' : ''}`} />
-                      )}
-                      <span>{submenu.name}</span>
-                      {isMissing && (
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 ml-0.5 animate-pulse" title="Sincronización local activa (Sin tabla en Supabase)" />
-                      )}
-                      {isActive && (
-                        <span 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditSubmenuId(submenu.id);
-                            setEditSubmenuName(submenu.name);
-                            setEditSubmenuTitle(submenu.title || `Reporte Surtido ${submenu.name}`);
-                            setEditSubmenuDesc(submenu.desc || submenu.description || '');
-                            setIsEditSubmenuOpen(true);
-                          }}
-                          className="p-0.5 rounded-md hover:bg-white/20 transition-all ml-1 flex items-center justify-center shrink-0"
-                          title="Editar nombre de este acceso"
-                        >
-                          <Edit className="w-3 h-3 text-white" />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-                
-                {/* Plus access button */}
+            <div className="flex flex-col gap-4">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#043077]">Organización de Accesos Surtido</span>
+              
+              {/* 4 Core Menus Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Menu 1: Maq. Botana */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('botana')}
+                  className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                    activeCategory === 'botana'
+                      ? 'bg-blue-50/70 border-blue-200 shadow-xs ring-1 ring-blue-100'
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-5 text-blue-900 group-hover:scale-110 transition-transform">
+                    <Boxes className="w-16 h-16" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl ${
+                      activeCategory === 'botana' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <Boxes className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 1</span>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Maq. Botana</h4>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 font-bold">
+                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name) === 'botana').length} Accesos
+                    </span>
+                    {activeCategory === 'botana' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Menu 2: Maq. Bebidas */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('bebidas')}
+                  className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                    activeCategory === 'bebidas'
+                      ? 'bg-blue-50/70 border-blue-200 shadow-xs ring-1 ring-blue-100'
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-5 text-blue-900 group-hover:scale-110 transition-transform">
+                    <CupSoda className="w-16 h-16" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl ${
+                      activeCategory === 'bebidas' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <CupSoda className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 2</span>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Maq. Bebidas</h4>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 font-bold">
+                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name) === 'bebidas').length} Accesos
+                    </span>
+                    {activeCategory === 'bebidas' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Menu 3: Maq. de Café */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('cafe')}
+                  className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                    activeCategory === 'cafe'
+                      ? 'bg-amber-50/50 border-amber-200 shadow-xs ring-1 ring-amber-100'
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-5 text-amber-900 group-hover:scale-110 transition-transform">
+                    <Coffee className="w-16 h-16" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl ${
+                      activeCategory === 'cafe' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <Coffee className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 3</span>
+                        <span className="text-[9px] bg-indigo-50 text-indigo-700 font-black px-1.5 py-0.5 rounded-md uppercase">Próximamente</span>
+                      </div>
+                      <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Maq. de Café</h4>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 font-semibold italic">No habilitado</span>
+                    {activeCategory === 'cafe' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Menu 4: Registrar acceso */}
                 <button
                   type="button"
                   onClick={() => setAddSubmenuOpen(true)}
-                  className="px-3 py-2 bg-indigo-50 border border-indigo-200 text-[#043077] text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-indigo-100/80 transition-all flex items-center gap-1 cursor-pointer"
-                  title="Dar de alta nuevo acceso al submenú"
+                  className="p-3.5 bg-indigo-50/60 border border-indigo-150 rounded-2xl text-left transition-all hover:bg-indigo-100/70 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Registrar Acceso
+                  <div className="absolute top-0 right-0 p-4 opacity-5 text-indigo-900 group-hover:scale-110 transition-transform">
+                    <Plus className="w-16 h-16" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-xs">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-indigo-600 font-extrabold block uppercase tracking-wider">Menu 4</span>
+                      <h4 className="text-xs font-black text-[#043077] uppercase tracking-wider">Registrar acceso</h4>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-left">
+                    <span className="text-[10px] text-indigo-700 font-extrabold flex items-center gap-1">
+                      Crear nueva sección +
+                    </span>
+                  </div>
                 </button>
               </div>
+
+              {/* Submenu lists for the chosen category */}
+              <AnimatePresence mode="wait">
+                {activeCategory !== 'cafe' ? (
+                  <motion.div
+                    key={activeCategory}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="bg-slate-50/50 border border-slate-200/60 p-4 rounded-2xl"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                        Selecciona el Submenú para {activeCategory === 'botana' ? 'Máquinas de Botana' : 'Máquinas de Bebidas'}:
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {supplySubmenuList
+                          .filter(submenu => getSubmenuGroup(submenu.id, submenu.name) === activeCategory)
+                          .map((submenu) => {
+                            const isActive = activeSupplySubmenu === submenu.id;
+                            const isMissing = missingTables.includes(`surtido_${submenu.id}`);
+                            return (
+                              <button
+                                key={submenu.id}
+                                onClick={() => {
+                                  setActiveSupplySubmenu(submenu.id);
+                                  setShowSQLSchema(false);
+                                  setSubmenuSearchQuery('');
+                                }}
+                                className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                                  isActive
+                                    ? 'bg-[#043077] text-white shadow-md scale-102 ring-2 ring-blue-100'
+                                    : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                                }`}
+                              >
+                                {submenu.id === 'vending_surtido' ? (
+                                  <Sliders className="w-3.5 h-3.5" />
+                                ) : (
+                                  <FileSpreadsheet className={`w-3.5 h-3.5 ${isMissing ? 'text-amber-500' : ''}`} />
+                                )}
+                                <span>{submenu.name}</span>
+                                {isMissing && (
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 ml-0.5 animate-pulse" title="Sincronización local activa (Sin tabla en Supabase)" />
+                                )}
+                                {isActive && (
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditSubmenuId(submenu.id);
+                                      setEditSubmenuName(submenu.name);
+                                      setEditSubmenuTitle(submenu.title || `Reporte Surtido ${submenu.name}`);
+                                      setEditSubmenuDesc(submenu.desc || submenu.description || '');
+                                      setIsEditSubmenuOpen(true);
+                                    }}
+                                    className="p-0.5 rounded-md hover:bg-white/20 transition-all ml-1 flex items-center justify-center shrink-0"
+                                    title="Editar nombre de este acceso"
+                                  >
+                                    <Edit className="w-3 h-3 text-white" />
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="cafe-coming-soon"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="p-6 bg-amber-50/30 border border-dashed border-amber-200 rounded-2xl flex flex-col items-center justify-center text-center gap-2"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-700 font-extrabold text-lg">
+                      ☕
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">Módulo de Café (Próximamente)</h4>
+                      <p className="text-[11px] text-amber-700/80 font-semibold mt-1 max-w-md">
+                        Esta sección estará disponible próximamente para la administración automatizada de insumos, granos de café, y consumibles de máquinas expendedoras.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Render dynamically depending on chosen submenu */}
