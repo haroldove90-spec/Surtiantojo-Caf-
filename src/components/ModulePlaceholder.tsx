@@ -918,6 +918,12 @@ export default function ModulePlaceholder({
   const [rowPrecio, setRowPrecio] = useState(0);
   const [rowProveedor, setRowProveedor] = useState('');
 
+  // Intelligent search suggestion states for adding items
+  const [codigoSuggestions, setCodigoSuggestions] = useState<any[]>([]);
+  const [nombreSuggestions, setNombreSuggestions] = useState<any[]>([]);
+  const [showCodigoSuggestions, setShowCodigoSuggestions] = useState(false);
+  const [showNombreSuggestions, setShowNombreSuggestions] = useState(false);
+
   // Inline Row Editing states for spreadsheet table rows
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [editRowCodigo, setEditRowCodigo] = useState('');
@@ -932,7 +938,21 @@ export default function ModulePlaceholder({
 
   useEffect(() => {
     setSelectedRowIds([]);
+    setShowCodigoSuggestions(false);
+    setShowNombreSuggestions(false);
   }, [activeSupplySubmenu]);
+
+  // Click away listener to close intelligent search suggestions
+  useEffect(() => {
+    const handleClickAway = () => {
+      setShowCodigoSuggestions(false);
+      setShowNombreSuggestions(false);
+    };
+    document.addEventListener('click', handleClickAway);
+    return () => {
+      document.removeEventListener('click', handleClickAway);
+    };
+  }, []);
 
   // Form states for creating custom submenus
   const [addSubmenuOpen, setAddSubmenuOpen] = useState(false);
@@ -3954,6 +3974,23 @@ export default function ModulePlaceholder({
           document.body.removeChild(link);
         };
 
+        const handleSelectProduct = (prod: any) => {
+          setRowCodigo(prod.codigo || prod.id || '');
+          setRowNombre(prod.nombre || '');
+          let cost = prod.precio_unidad || 0;
+          if (cost === 0 && prod.precio_caja && prod.piezas_por_caja) {
+            cost = Number((prod.precio_caja / prod.piezas_por_caja).toFixed(2));
+          }
+          setRowCosto(cost || prod.precio_venta || 0);
+          setRowPrecio(prod.precio_venta || 0);
+          setRowProveedor(prod.proveedor || 'Genérico');
+          
+          setCodigoSuggestions([]);
+          setNombreSuggestions([]);
+          setShowCodigoSuggestions(false);
+          setShowNombreSuggestions(false);
+        };
+
         const handleAddRow = () => {
           if (!rowCodigo.trim() || !rowNombre.trim()) {
             alert("Por favor completa el código y nombre del producto.");
@@ -3991,6 +4028,7 @@ export default function ModulePlaceholder({
             id: Date.now(),
             codigo: rowCodigo.trim().toUpperCase(),
             nombre_producto: rowNombre.trim(),
+            text_search_ref: `${rowCodigo.trim().toLowerCase()} ${rowNombre.trim().toLowerCase()}`,
             unidad_surtida: safeVal(rowUnidades),
             costo_surtido: safeVal(rowCosto),
             precio_venta: safeVal(rowPrecio),
@@ -4009,6 +4047,10 @@ export default function ModulePlaceholder({
           setRowPrecio(0);
           setRowProveedor('');
           setAddSupplyRowOpen(false);
+          setCodigoSuggestions([]);
+          setNombreSuggestions([]);
+          setShowCodigoSuggestions(false);
+          setShowNombreSuggestions(false);
         };
 
         const handleDeleteRow = (rowId: number) => {
@@ -5226,25 +5268,149 @@ export default function ModulePlaceholder({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 relative">
                         <label className="text-[10px] text-slate-500 font-bold block">Código Producto</label>
                         <input
                           type="text"
                           placeholder="p. ej: CER-BB-06"
                           value={rowCodigo}
-                          onChange={(e) => setRowCodigo(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRowCodigo(val);
+                            if (val.trim()) {
+                              const filtered = products.filter(p => 
+                                String(p.codigo || '').toLowerCase().includes(val.toLowerCase()) ||
+                                String(p.nombre || '').toLowerCase().includes(val.toLowerCase()) ||
+                                String(p.id || '').toLowerCase().includes(val.toLowerCase())
+                              );
+                              setCodigoSuggestions(filtered.slice(0, 10));
+                              setShowCodigoSuggestions(true);
+                            } else {
+                              setCodigoSuggestions([]);
+                              setShowCodigoSuggestions(false);
+                            }
+                          }}
+                          onFocus={() => {
+                            if (rowCodigo.trim()) {
+                              const filtered = products.filter(p => 
+                                String(p.codigo || '').toLowerCase().includes(rowCodigo.toLowerCase()) ||
+                                String(p.nombre || '').toLowerCase().includes(rowCodigo.toLowerCase()) ||
+                                String(p.id || '').toLowerCase().includes(rowCodigo.toLowerCase())
+                              );
+                              setCodigoSuggestions(filtered.slice(0, 10));
+                              setShowCodigoSuggestions(true);
+                            }
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
                         />
+                        {showCodigoSuggestions && codigoSuggestions.length > 0 && (
+                          <div 
+                            className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            {codigoSuggestions.map((prod) => (
+                              <button
+                                key={prod.id}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectProduct(prod);
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 flex flex-col gap-0.5 cursor-pointer"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="font-mono font-black text-[11px] text-[#043077]">
+                                    {prod.codigo || `ID: ${prod.id}`}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-[100px]">
+                                    {prod.proveedor || 'Genérico'}
+                                  </span>
+                                </div>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {prod.nombre}
+                                </span>
+                                <div className="flex gap-2 text-[9px] text-slate-500 font-bold">
+                                  <span>Costo: <strong className="text-slate-700">${prod.precio_unidad || 0}</strong></span>
+                                  <span>Precio: <strong className="text-emerald-600">${prod.precio_venta || 0}</strong></span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="space-y-1 md:col-span-2">
+                      <div className="space-y-1 md:col-span-2 relative">
                         <label className="text-[10px] text-slate-500 font-bold block">Nombre Producto / Artículo</label>
                         <input
                           type="text"
                           placeholder="Nombre comercial"
                           value={rowNombre}
-                          onChange={(e) => setRowNombre(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRowNombre(val);
+                            if (val.trim()) {
+                              const filtered = products.filter(p => 
+                                String(p.nombre || '').toLowerCase().includes(val.toLowerCase()) ||
+                                String(p.codigo || '').toLowerCase().includes(val.toLowerCase())
+                              );
+                              setNombreSuggestions(filtered.slice(0, 10));
+                              setShowNombreSuggestions(true);
+                            } else {
+                              setNombreSuggestions([]);
+                              setShowNombreSuggestions(false);
+                            }
+                          }}
+                          onFocus={() => {
+                            if (rowNombre.trim()) {
+                              const filtered = products.filter(p => 
+                                String(p.nombre || '').toLowerCase().includes(rowNombre.toLowerCase()) ||
+                                String(p.codigo || '').toLowerCase().includes(rowNombre.toLowerCase())
+                              );
+                              setNombreSuggestions(filtered.slice(0, 10));
+                              setShowNombreSuggestions(true);
+                            }
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
                         />
+                        {showNombreSuggestions && nombreSuggestions.length > 0 && (
+                          <div 
+                            className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            {nombreSuggestions.map((prod) => (
+                              <button
+                                key={prod.id}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectProduct(prod);
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 flex flex-col gap-0.5 cursor-pointer"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="font-mono font-black text-[11px] text-[#043077]">
+                                    {prod.codigo || `ID: ${prod.id}`}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-[100px]">
+                                    {prod.proveedor || 'Genérico'}
+                                  </span>
+                                </div>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {prod.nombre}
+                                </span>
+                                <div className="flex gap-2 text-[9px] text-slate-500 font-bold">
+                                  <span>Costo: <strong className="text-slate-700">${prod.precio_unidad || 0}</strong></span>
+                                  <span>Precio: <strong className="text-emerald-600">${prod.precio_venta || 0}</strong></span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] text-slate-500 font-bold block">Unidades Surtidas</label>
