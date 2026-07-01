@@ -503,7 +503,7 @@ export default function ModulePlaceholder({
           .select();
         
         if (updateErr) {
-          console.warn(`Supabase update failed for ${tableName}:`, updateErr.message);
+          console.log(`Supabase update notice for ${tableName}:`, updateErr.message);
           updateErrGlobal = updateErr;
         } else if (updateRes) {
           combinedData = [...combinedData, ...updateRes];
@@ -517,7 +517,7 @@ export default function ModulePlaceholder({
           .select();
         
         if (insertErr) {
-          console.warn(`Supabase insert failed for ${tableName}:`, insertErr.message);
+          console.log(`Supabase insert notice for ${tableName}:`, insertErr.message);
           insertErrGlobal = insertErr;
         } else if (insertRes) {
           combinedData = [...combinedData, ...insertRes];
@@ -742,7 +742,7 @@ export default function ModulePlaceholder({
 
       const { error } = await supabase.from(tableName).delete().in('id', validDbIds);
       if (error) {
-        console.warn(`Supabase delete failed for ${tableName}:`, error.message);
+        console.log(`Supabase delete info for ${tableName}:`, error.message);
       } else {
         console.log(`Supabase delete success for ${tableName} on IDs:`, validDbIds);
       }
@@ -757,7 +757,7 @@ export default function ModulePlaceholder({
       const tableName = `surtido_${tabId}`;
       const { error } = await supabase.from(tableName).delete().neq('id', 0);
       if (error) {
-        console.warn(`Supabase clear failed for ${tableName}:`, error.message);
+        console.log(`Supabase clear info for ${tableName}:`, error.message);
       } else {
         console.log(`Supabase clear success for ${tableName}`);
       }
@@ -811,7 +811,7 @@ export default function ModulePlaceholder({
           const tableName = `surtido_${tabId}`;
           const { data, error } = await supabase.from(tableName).select('*');
           if (error) {
-            console.warn(`Could not load records from Supabase table ${tableName}:`, error.message);
+            console.log(`Supabase table lookup info for ${tableName}:`, error.message);
             if (error.code === '42P01' || error.message.toLowerCase().includes('does not exist')) {
               missingTablesList.push(tableName);
             }
@@ -902,7 +902,7 @@ export default function ModulePlaceholder({
           setSupabaseError(`Las tablas de Supabase para las secciones (${displayNames.join(', ')}) no existen en tu base de datos de Supabase. Los registros importados se muestran de forma temporal, pero NO se guardarán permanentemente hasta que ejecutes el script SQL en tu consola de Supabase.`);
         }
       } catch (e) {
-        console.warn("Could not load from Supabase Surtido tables:", e);
+        console.log("Supabase tables note:", e);
       }
     };
 
@@ -4179,7 +4179,7 @@ export default function ModulePlaceholder({
             description: newTabItem.desc
           }).then(({ error }) => {
             if (error) {
-              console.warn("Could not save new submenu config to Supabase:", error.message);
+              console.log("Supabase submenus config status:", error.message);
             } else {
               console.log("Submenu registered successfully in Supabase!");
               // Save default row inside the new table in Supabase!
@@ -4220,7 +4220,7 @@ export default function ModulePlaceholder({
             description: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`
           }).then(({ error }) => {
             if (error) {
-              console.warn("Could not update submenu config in Supabase:", error.message);
+              console.log("Supabase submenus update status:", error.message);
             } else {
               console.log("Submenu updated successfully in Supabase!");
             }
@@ -4260,7 +4260,7 @@ export default function ModulePlaceholder({
           // Delete from Supabase 'surtido_submenus' metadata table if connected
           supabase.from('surtido_submenus').delete().eq('id', submenuId).then(({ error }) => {
             if (error) {
-              console.warn("Could not delete submenu metadata from Supabase:", error.message);
+              console.log("Supabase submenus delete status:", error.message);
             } else {
               console.log("Submenu deleted from Supabase!");
             }
