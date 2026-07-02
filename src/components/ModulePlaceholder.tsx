@@ -917,6 +917,32 @@ export default function ModulePlaceholder({
   const [rowCosto, setRowCosto] = useState(0);
   const [rowPrecio, setRowPrecio] = useState(0);
   const [rowProveedor, setRowProveedor] = useState('');
+  const [rowSeleccion, setRowSeleccion] = useState('');
+
+  // Helper to get next vending slot/selection automatically
+  const getNextSeleccion = (rows: any[]): string => {
+    let maxVal = 0;
+    rows.forEach(r => {
+      let valStr = '';
+      if (r.values) {
+        const selKey = Object.keys(r.values).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim() === 'sel');
+        if (selKey) {
+          valStr = r.values[selKey];
+        }
+      }
+      if (!valStr) {
+        valStr = r.sel || r.seleccion || '';
+      }
+      const num = parseInt(valStr);
+      if (!isNaN(num) && num > maxVal) {
+        maxVal = num;
+      }
+    });
+    if (maxVal === 0) {
+      return '15'; // Default start value matching the user screenshot first row
+    }
+    return String(maxVal + 2); // Standard dual vending machine slot selection increment
+  };
 
   // Intelligent search suggestion states for adding items
   const [codigoSuggestions, setCodigoSuggestions] = useState<any[]>([]);
@@ -953,6 +979,19 @@ export default function ModulePlaceholder({
       document.removeEventListener('click', handleClickAway);
     };
   }, []);
+
+  // Sync / Auto-calculate selection when form opens or active submenu/data changes
+  useEffect(() => {
+    if (addSupplyRowOpen) {
+      let data: any[] = [];
+      if (activeSupplySubmenu === 'cer_bb') data = cerBBData;
+      else if (activeSupplySubmenu === 'art_alt') data = artAltData;
+      else if (activeSupplySubmenu === 'art_ct') data = artCtData;
+      else data = genericSubmenuData[activeSupplySubmenu] || [];
+      
+      setRowSeleccion(getNextSeleccion(data));
+    }
+  }, [addSupplyRowOpen, activeSupplySubmenu, cerBBData, artAltData, artCtData, genericSubmenuData]);
 
   // Form states for creating custom submenus
   const [addSubmenuOpen, setAddSubmenuOpen] = useState(false);
@@ -4006,7 +4045,9 @@ export default function ModulePlaceholder({
             
             headersCleaned.forEach((h, idx) => {
               const originalHeader = headers[idx];
-              if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') {
+              if (h === 'sel' || h === 'seleccion' || h === 'slot' || h === 'seleccionnum') {
+                newRowValues[originalHeader] = rowSeleccion.trim();
+              } else if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') {
                 newRowValues[originalHeader] = rowCodigo.trim().toUpperCase();
               } else if (h === 'producto' || h === 'nombre' || h === 'articulo') {
                 newRowValues[originalHeader] = rowNombre.trim();
@@ -4032,6 +4073,8 @@ export default function ModulePlaceholder({
             unidad_surtida: safeVal(rowUnidades),
             costo_surtido: safeVal(rowCosto),
             precio_venta: safeVal(rowPrecio),
+            sel: rowSeleccion.trim(),
+            seleccion: rowSeleccion.trim(),
             proveedor: rowProveedor.trim() || 'Proveedor General',
             fecha_registro: new Date().toISOString().split('T')[0],
             values: hasDynamicHeaders ? newRowValues : undefined
@@ -4046,6 +4089,7 @@ export default function ModulePlaceholder({
           setRowCosto(0);
           setRowPrecio(0);
           setRowProveedor('');
+          setRowSeleccion('');
           setAddSupplyRowOpen(false);
           setCodigoSuggestions([]);
           setNombreSuggestions([]);
@@ -5268,6 +5312,16 @@ export default function ModulePlaceholder({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-[#043077] font-extrabold block">Selección (SEL)</label>
+                        <input
+                          type="text"
+                          placeholder="p. ej: 15"
+                          value={rowSeleccion}
+                          onChange={(e) => setRowSeleccion(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-black text-slate-800 focus:ring-1 focus:ring-[#043077]"
+                        />
+                      </div>
                       <div className="space-y-1 relative">
                         <label className="text-[10px] text-slate-500 font-bold block">Código Producto</label>
                         <input
@@ -5423,22 +5477,16 @@ export default function ModulePlaceholder({
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-500 font-bold block">Costo Adquisición ($)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={rowCosto}
-                          onChange={(e) => setRowCosto(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-slate-500 font-bold block">Precio de Venta ($)</label>
+                        <label className="text-[10px] text-[#043077] font-extrabold block">Precio de Venta / Costo ($)</label>
                         <input
                           type="number"
                           step="0.01"
                           value={rowPrecio}
-                          onChange={(e) => setRowPrecio(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setRowPrecio(val);
+                            setRowCosto(val); // Sincroniza el costo automáticamente
+                          }}
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
                         />
                       </div>
