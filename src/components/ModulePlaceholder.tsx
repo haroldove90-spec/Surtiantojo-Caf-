@@ -82,6 +82,8 @@ interface ModulePlaceholderProps {
   onUpdateProduct?: (id: string, product: any) => Promise<void>;
   onDeleteProduct?: (id: string) => Promise<void>;
   onUpdateProductStatusBulk?: (ids: string[], status: 'Activo' | 'Inactivo') => Promise<void>;
+  currentUser?: any;
+  usersList?: any[];
 }
 
 export default function ModulePlaceholder({ 
@@ -91,7 +93,9 @@ export default function ModulePlaceholder({
   onAddProducts,
   onUpdateProduct,
   onDeleteProduct,
-  onUpdateProductStatusBulk
+  onUpdateProductStatusBulk,
+  currentUser,
+  usersList = []
 }: ModulePlaceholderProps) {
   // Safe parsing helper helper for any numeric content loaded via DB/Sync to eliminate any NaN issues
   const safeVal = (val: any): number => {
@@ -6330,46 +6334,103 @@ export default function ModulePlaceholder({
               
               <div className="flex flex-col sm:flex-row sm:items-center gap-5 justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-18 h-18 rounded-full bg-gradient-to-tr from-[#043077] to-blue-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-xs">
-                    GS
+                  <div className="w-18 h-18 rounded-full bg-gradient-to-tr from-[#043077] to-blue-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-xs font-mono">
+                    {(currentUser?.nombre_completo || 'GS')
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="text-xl font-extrabold text-slate-900">Gerencia Surtiantojo</h3>
-                    <p className="text-sm text-[#043077] font-extrabold">Administrador General del Sistema</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Permisos Totales: Lectura, Escritura, Edición de Catálogos</p>
+                    <h3 className="text-xl font-extrabold text-slate-900">{currentUser?.nombre_completo || 'Usuario'}</h3>
+                    <p className="text-sm text-[#043077] font-extrabold">@{currentUser?.username || 'user'}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Permisos del Sistema: {currentUser?.rol === 'Administrador' ? 'Módulos Totales' : 'Módulo Surtido Limitado'}
+                    </p>
                   </div>
                 </div>
-                <button className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-extrabold rounded-xl transition-all">
-                  Editar Información
-                </button>
+                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full font-mono">
+                  Sesión Activa
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-sm">
                 <div className="space-y-3">
                   <div>
-                    <span className="text-slate-400 font-extrabold block uppercase text-xs">CORREO ACCESO</span>
-                    <span className="font-extrabold text-slate-800">gerencia@surtiantojocafe.com</span>
+                    <span className="text-slate-400 font-extrabold block uppercase text-xs">USUARIO REGISTRADO</span>
+                    <span className="font-extrabold text-slate-800">{currentUser?.username || 'S/N'}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 font-extrabold block uppercase text-xs">TELÉFONO DE CONTACTO</span>
-                    <span className="font-extrabold text-slate-800">55-8422-9011</span>
+                    <span className="text-slate-400 font-extrabold block uppercase text-xs">CONTRASEÑA SEGURA</span>
+                    <span className="font-extrabold font-mono text-slate-800">{currentUser?.contrasena || 'S/N'}</span>
                   </div>
                 </div>
                 <div className="space-y-3">
                   <div>
                     <span className="text-slate-400 font-extrabold block uppercase text-xs">ROL ASIGNADO</span>
-                    <span className="inline-flex items-center gap-1.5 text-xs text-white bg-[#043077] px-2.5 py-1 rounded font-mono font-bold uppercase mt-1">
-                      <Shield className="w-3.5 h-3.5" /> Superadministrador
+                    <span className={`inline-flex items-center gap-1.5 text-xs text-white px-2.5 py-1 rounded font-mono font-bold uppercase mt-1 ${
+                      currentUser?.rol === 'Administrador' ? 'bg-[#043077]' : 'bg-emerald-600'
+                    }`}>
+                      <Shield className="w-3.5 h-3.5" /> {currentUser?.rol || 'Operador'}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-400 font-extrabold block uppercase text-xs">ÚLTIMA SESIÓN</span>
-                    <span className="font-extrabold text-slate-800">Hoy, 22:16 UTC desde Navegador Local</span>
+                    <span className="font-extrabold text-slate-800">Hoy, 09:45 AM desde Navegador Local</span>
                   </div>
                 </div>
               </div>
 
             </div>
+
+            {/* If current user is administrator, display the detailed users management table */}
+            {currentUser?.rol === 'Administrador' && (
+              <div className="bg-white border border-slate-150 rounded-2xl p-6 shadow-sm space-y-4">
+                <div>
+                  <h4 className="text-md md:text-lg font-extrabold text-slate-900">👥 Gestión de Roles y Usuarios (Supabase)</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Esta tabla muestra las credenciales autorizadas y sus roles. Para cambiar manualmente los roles de los usuarios, simplemente modifícalos en la tabla <strong className="text-[#043077]">"usuarios"</strong> en Supabase, y el sistema sincronizará y aplicará los permisos automáticamente.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                  <table className="w-full text-xs text-left text-slate-700">
+                    <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100">
+                      <tr>
+                        <th className="py-3 px-4">Nombre Completo</th>
+                        <th className="py-3 px-4">Usuario</th>
+                        <th className="py-3 px-4 font-mono">Contraseña</th>
+                        <th className="py-3 px-4 text-center">Rol (Permisos)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {usersList.map((usr, i) => (
+                        <tr key={i} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-4 font-extrabold text-slate-900">{usr.nombre_completo}</td>
+                          <td className="py-3 px-4 text-[#043077] font-bold font-mono">@{usr.username}</td>
+                          <td className="py-3 px-4 font-mono text-slate-600">{usr.contrasena}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold font-mono uppercase ${
+                              usr.rol === 'Administrador'
+                                ? 'bg-blue-50 text-[#043077] border border-blue-200'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}>
+                              {usr.rol}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-[11px] text-slate-600 leading-normal flex items-center gap-2">
+                  <span className="text-base">💡</span>
+                  <span><strong>Tip de Pruebas:</strong> Al ingresar con el rol <strong>Operador</strong>, la barra lateral se bloquea automáticamente mostrando únicamente el módulo <strong>Surtido</strong>.</span>
+                </div>
+              </div>
+            )}
           </div>
         );
 

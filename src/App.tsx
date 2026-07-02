@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Menu, 
   X, 
@@ -20,7 +20,11 @@ import {
   Database,
   Download,
   Smartphone,
-  Share2
+  Share2,
+  LogOut,
+  ShieldCheck,
+  Lock,
+  UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ModulePlaceholder from './components/ModulePlaceholder';
@@ -39,16 +43,81 @@ const APP_MODULES = [
 
 const INITIAL_PRODUCTS : any[] = [];
 
+const DEFAULT_USERS = [
+  { 
+    username: 'karla_padilla', 
+    nombre_completo: 'Karla Padilla', 
+    rol: 'Administrador', 
+    contrasena: 'KP_Admin_2026!' 
+  },
+  { 
+    username: 'jonathan_moreno', 
+    nombre_completo: 'Jonathan Moreno', 
+    rol: 'Administrador', 
+    contrasena: 'JM_Admin_2026!' 
+  },
+  { 
+    username: 'juan_cedillo', 
+    nombre_completo: 'Juan Manuel Cedillo', 
+    rol: 'Operador', 
+    contrasena: 'JC_Oper_2026!' 
+  },
+  { 
+    username: 'mario_guadalupe', 
+    nombre_completo: 'Mario Guadalupe', 
+    rol: 'Operador', 
+    contrasena: 'MG_Oper_2026!' 
+  },
+  { 
+    username: 'harold_anguiano', 
+    nombre_completo: 'Harold Anguiano', 
+    rol: 'Administrador', 
+    contrasena: 'HA_Admin_2026!' 
+  }
+];
+
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<any | null>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_logged_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [usersList, setUsersList] = useState<any[]>(DEFAULT_USERS);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [loginUsername, setLoginUsername] = useState<string>('');
+  const [loginPassword, setLoginPassword] = useState<string>('');
+  const [loginLoading, setLoginLoading] = useState<boolean>(false);
+  const [showCredsGuide, setShowCredsGuide] = useState<boolean>(true);
+
   const [activeModule, setActiveModule] = useState<string>(() => {
     try {
-      const stored = localStorage.getItem('surtiantojo_active_module');
-      if (stored && APP_MODULES.some(m => m.id === stored)) {
-        return stored;
+      const stored = localStorage.getItem('surtiantojo_logged_user');
+      if (stored) {
+        const userObj = JSON.parse(stored);
+        if (userObj.rol === 'Operador') {
+          return 'supply'; // Operator can only see "Surtido"
+        }
+      }
+      const storedModule = localStorage.getItem('surtiantojo_active_module');
+      if (storedModule && APP_MODULES.some(m => m.id === storedModule)) {
+        return storedModule;
       }
     } catch (e) {}
     return 'metrics';
   });
+
+  const visibleModules = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.rol === 'Operador') {
+      return APP_MODULES.filter(m => m.id === 'supply');
+    }
+    return APP_MODULES;
+  }, [currentUser]);
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
@@ -59,6 +128,13 @@ export default function App() {
       localStorage.setItem('surtiantojo_active_module', activeModule);
     } catch (e) {}
   }, [activeModule]);
+
+  // Lock operator to 'supply' module
+  useEffect(() => {
+    if (currentUser?.rol === 'Operador' && activeModule !== 'supply') {
+      setActiveModule('supply');
+    }
+  }, [currentUser, activeModule]);
   
   // Real active catalog of products state - Purges the old sample IDs in case they are stored
   const [products, setProducts] = useState<any[]>(() => {
@@ -158,6 +234,113 @@ export default function App() {
     }
     checkSupabase();
   }, []);
+
+  // Load / Sync users from Supabase 'usuarios' table
+  useEffect(() => {
+    async function syncUsers() {
+      if (dbStatus !== 'connected') return;
+      try {
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select('*')
+          .order('username', { ascending: true });
+
+        if (error) {
+          console.warn("Supabase usuarios fetch warning: Table 'usuarios' might not exist yet. Using offline-first default credentials.", error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          console.log("Successfully fetched users from Supabase 'usuarios' table:", data);
+          setUsersList(data);
+          
+          // If logged in, update currentUser's role and details in case they changed in Supabase!
+          if (currentUser) {
+            const freshUser = data.find((u: any) => u.username === currentUser.username);
+            if (freshUser) {
+              const hasChanged = freshUser.rol !== currentUser.rol || freshUser.nombre_completo !== currentUser.nombre_completo || freshUser.contrasena !== currentUser.contrasena;
+              if (hasChanged) {
+                console.log("Logged-in user role or details changed in Supabase. Syncing locally:", freshUser);
+                setCurrentUser(freshUser);
+                localStorage.setItem('surtiantojo_logged_user', JSON.stringify(freshUser));
+                if (freshUser.rol === 'Operador') {
+                  setActiveModule('supply');
+                }
+              }
+            }
+          }
+        } else {
+          // If table exists but has no records, let's proactively seed it with default users!
+          console.log("Supabase 'usuarios' table is empty. Seeding with default credentials...");
+          const { error: seedError } = await supabase
+            .from('usuarios')
+            .insert(DEFAULT_USERS);
+          if (seedError) {
+            console.warn("Could not seed default users in Supabase:", seedError);
+          } else {
+            console.log("Seeded default users in Supabase successfully.");
+          }
+        }
+      } catch (err) {
+        console.warn("Error syncing users with Supabase:", err);
+      }
+    }
+    syncUsers();
+  }, [dbStatus, currentUser]);
+
+  const handleLogin = async (usernameInput: string, passwordInput: string) => {
+    setAuthError(null);
+    const cleanedUser = usernameInput.trim().toLowerCase();
+    const cleanedPass = passwordInput.trim();
+
+    // 1. Try to check against the latest pulled/fetched users list
+    let matchedUser = usersList.find(u => u.username.toLowerCase() === cleanedUser);
+
+    // 2. If connected to Supabase, we can also perform a direct real-time fetch to guarantee we have the absolute latest credentials from Supabase!
+    if (dbStatus === 'connected') {
+      try {
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select('*')
+          .eq('username', cleanedUser)
+          .maybeSingle();
+        
+        if (!error && data) {
+          matchedUser = data;
+        }
+      } catch (e) {
+        console.warn("Real-time login query warning:", e);
+      }
+    }
+
+    if (!matchedUser) {
+      setAuthError('Usuario no encontrado.');
+      return false;
+    }
+
+    if (matchedUser.contrasena !== cleanedPass) {
+      setAuthError('Contraseña incorrecta.');
+      return false;
+    }
+
+    // Login successful!
+    setCurrentUser(matchedUser);
+    localStorage.setItem('surtiantojo_logged_user', JSON.stringify(matchedUser));
+    
+    if (matchedUser.rol === 'Operador') {
+      setActiveModule('supply');
+    } else {
+      setActiveModule('metrics');
+    }
+    
+    return true;
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('surtiantojo_logged_user');
+    setActiveModule('metrics'); // Reset module on logout
+  };
 
   // Helper to map robust product objects into the restricted Supabase 'products' table columns
   const mapProductToSupabase = (p: any) => {
@@ -508,6 +691,184 @@ export default function App() {
   // Current formatted date to display on top
   const formattedDate = "Hoy, 09:45 AM";
 
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative font-sans text-slate-200 antialiased overflow-y-auto w-full">
+        {/* Splash screen when loading first time */}
+        <AnimatePresence>
+          {isSplashActive && (
+            <motion.div 
+              id="app-splash-screen"
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.7, ease: 'easeInOut' }}
+              className="fixed inset-0 z-50 bg-[#043077] flex flex-col items-center justify-center p-4 overflow-hidden"
+            >
+              <div className="w-full h-full max-w-lg max-h-[85vh] flex flex-col items-center justify-center relative">
+                <img 
+                  src="https://cotecam.com//surtiantojo.jpg" 
+                  alt="Surtiantojo Splash Logo" 
+                  className="w-full h-full object-contain select-none transition-all"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute bottom-10 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-full border-4 border-white/20 border-t-emerald-400 animate-spin"></div>
+                  <p className="text-white/70 font-mono tracking-widest text-[11px] uppercase font-bold mt-2.5">Administración Surtiantojo</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="w-full max-w-md mx-auto my-8 bg-slate-800 rounded-3xl shadow-2xl border border-slate-700/50 overflow-hidden">
+          <div className="p-8 bg-[#043077] text-center flex flex-col items-center border-b border-blue-900/40">
+            <img 
+              src="https://cotecam.com//surtiantojo.jpg" 
+              alt="Surtiantojo" 
+              referrerPolicy="no-referrer"
+              className="h-16 sm:h-20 object-contain mb-4 rounded-xl shadow-md border border-white/10"
+            />
+            <h2 className="text-xl font-black text-white tracking-tight font-display">
+              Acceso al Sistema
+            </h2>
+            <p className="text-xs text-blue-200 mt-1">
+              Ingresa tus credenciales para administrar Surtiantojo
+            </p>
+          </div>
+
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setLoginLoading(true);
+              const ok = await handleLogin(loginUsername, loginPassword);
+              setLoginLoading(false);
+              if (ok) {
+                setLoginUsername('');
+                setLoginPassword('');
+              }
+            }}
+            className="p-8 space-y-5"
+          >
+            {authError && (
+              <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-300 rounded-xl text-xs font-bold flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                Nombre de Usuario
+              </label>
+              <div className="relative">
+                <input 
+                  type="text"
+                  required
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  placeholder="ej. karla_padilla"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                />
+                <UserCheck className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input 
+                  type="password"
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                />
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-[#043077] hover:from-blue-500 hover:to-blue-700 disabled:opacity-55 active:scale-[0.98] text-white font-extrabold text-sm rounded-xl transition-all shadow-md focus:outline-none cursor-pointer flex items-center justify-center gap-2"
+            >
+              {loginLoading ? (
+                <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <span>Iniciar Sesión</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Collapsible credentials manual helper guide */}
+          <div className="px-8 pb-8 border-t border-slate-700/40 pt-5 bg-slate-900/30">
+            <button 
+              type="button"
+              onClick={() => setShowCredsGuide(!showCredsGuide)}
+              className="w-full flex items-center justify-between text-xs font-bold text-slate-400 hover:text-slate-200 transition-colors focus:outline-none"
+            >
+              <span>🔑 CREDENCIALES DE ACCESO RÁPIDAS</span>
+              <span className="font-mono text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
+                {showCredsGuide ? 'Ocultar' : 'Mostrar'}
+              </span>
+            </button>
+
+            {showCredsGuide && (
+              <div className="mt-4 space-y-3.5">
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Estas son las credenciales autorizadas del sistema. Los administradores ven todos los módulos; los operadores solo ven el módulo <strong className="text-blue-400">Surtido</strong>.
+                </p>
+                <div className="grid grid-cols-1 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+                  {usersList.map((usr, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => {
+                        setLoginUsername(usr.username);
+                        setLoginPassword(usr.contrasena);
+                        setAuthError(null);
+                      }}
+                      className="p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl hover:bg-slate-700/60 transition-all cursor-pointer group flex flex-col gap-1 text-left relative overflow-hidden"
+                    >
+                      {/* Role sticker badge */}
+                      <span className={`absolute right-2.5 top-2.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                        usr.rol === 'Administrador' 
+                          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' 
+                          : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
+                      }`}>
+                        {usr.rol}
+                      </span>
+
+                      <span className="font-bold text-slate-200 text-xs group-hover:text-white transition-colors">
+                        {usr.nombre_completo}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-x-4 text-[10px] text-slate-400 mt-1 font-mono">
+                        <div>
+                          Usuario: <span className="text-yellow-400/90 font-bold">{usr.username}</span>
+                        </div>
+                        <div>
+                          Clave: <span className="text-yellow-400/90 font-bold">{usr.contrasena}</span>
+                        </div>
+                      </div>
+                      <span className="text-[9px] text-slate-500 block mt-0.5 italic group-hover:text-slate-400">
+                        ⚡ Haz clic para rellenar
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#F1F5F9] flex flex-col font-sans text-slate-800 antialiased overflow-x-hidden max-w-full w-full">
       
@@ -549,12 +910,31 @@ export default function App() {
             {/* Quick user avatar visual identifier */}
             <div id="header-user-badge" className="flex items-center gap-3">
               <div className="hidden md:flex flex-col items-end text-right">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Administrador</span>
-                <span className="text-sm font-semibold text-white leading-tight">Gerencia Surtiantojo</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                  {currentUser?.rol || 'Administrador'}
+                </span>
+                <span className="text-sm font-semibold text-white leading-tight">
+                  {currentUser?.nombre_completo || 'Usuario'}
+                </span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-white/15 border-2 border-white/20 flex items-center justify-center text-white font-bold shadow-sm">
-                GS
+              <div className="w-10 h-10 rounded-full bg-white/15 border-2 border-white/20 flex items-center justify-center text-white font-bold shadow-sm font-mono text-sm">
+                {(currentUser?.nombre_completo || 'GS')
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .join('')
+                  .substring(0, 2)
+                  .toUpperCase()}
               </div>
+              {currentUser && (
+                <button
+                  onClick={handleLogout}
+                  className="p-2 ml-1 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition-colors focus:outline-none cursor-pointer flex items-center gap-1.5"
+                  title="Cerrar sesión"
+                >
+                  <LogOut className="w-5 h-5 shrink-0 text-red-400" />
+                  <span className="hidden sm:inline text-xs text-blue-200 hover:text-white">Salir</span>
+                </button>
+              )}
             </div>
 
           </div>
@@ -585,7 +965,7 @@ export default function App() {
 
               {/* Sidebar Menu Buttons */}
               <nav className="flex flex-col gap-1">
-                {APP_MODULES.map((mod) => {
+                {visibleModules.map((mod) => {
                   const IconComponent = mod.icon;
                   const isActive = mod.id === activeModule;
                   return (
@@ -699,7 +1079,7 @@ export default function App() {
 
                   {/* Modules Nav for mobile */}
                   <nav className="flex flex-col gap-1">
-                    {APP_MODULES.map((mod) => {
+                    {visibleModules.map((mod) => {
                       const IconComponent = mod.icon;
                       const isActive = mod.id === activeModule;
                       return (
@@ -741,7 +1121,7 @@ export default function App() {
                 </div>
 
                 <div className="border-t border-white/10 pt-5 text-center space-y-1">
-                  <span className="text-[10px] text-slate-400 font-mono block">Módulos habilitados: 7</span>
+                  <span className="text-[10px] text-slate-400 font-mono block">Módulos habilitados: {visibleModules.length}</span>
                   <span className="text-[11px] font-bold text-blue-200 bg-blue-500/20 px-3 py-1 rounded-full inline-block font-mono">
                     Sistema Activo
                   </span>
@@ -765,6 +1145,8 @@ export default function App() {
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
               onUpdateProductStatusBulk={handleUpdateProductStatusBulk}
+              currentUser={currentUser}
+              usersList={usersList}
             />
           </div>
 
