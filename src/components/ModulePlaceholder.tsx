@@ -948,6 +948,164 @@ export default function ModulePlaceholder({
     return String(maxVal + 2); // Standard dual vending machine slot selection increment
   };
 
+  const getAssignedSeleccionForProduct = (prodCode: string, prodNombre: string): string => {
+    if (!prodCode && !prodNombre) return '';
+    const allSubmenuRows: any[] = [];
+    if (cerBBData) allSubmenuRows.push(...cerBBData);
+    if (artAltData) allSubmenuRows.push(...artAltData);
+    if (artCtData) allSubmenuRows.push(...artCtData);
+    if (genericSubmenuData) {
+      Object.values(genericSubmenuData).forEach((rows: any) => {
+        if (Array.isArray(rows)) {
+          allSubmenuRows.push(...rows);
+        }
+      });
+    }
+
+    // 1. Try to match by product code (exact, case-insensitive)
+    if (prodCode) {
+      const codeStr = prodCode.trim().toLowerCase();
+      const match = allSubmenuRows.find(r => {
+        if (String(r.codigo || '').trim().toLowerCase() === codeStr) return true;
+        if (r.values) {
+          return Object.entries(r.values).some(([k, v]) => {
+            const ck = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            return (ck === 'codigo' || ck === 'sku' || ck === 'code') && String(v).trim().toLowerCase() === codeStr;
+          });
+        }
+        return false;
+      });
+
+      if (match) {
+        let selVal = '';
+        if (match.values) {
+          const selKey = Object.keys(match.values).find(k => {
+            const ck = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            return ck === 'sel' || ck === 'seleccion' || ck === 'slot' || ck === 'seleccionnum';
+          });
+          if (selKey) selVal = String(match.values[selKey] || '').trim();
+        }
+        if (!selVal) {
+          selVal = String(match.sel || match.seleccion || '').trim();
+        }
+        if (selVal) return selVal;
+      }
+    }
+
+    // 2. Try to match by product name (case-insensitive loose or partial match)
+    if (prodNombre) {
+      const nameStr = prodNombre.trim().toLowerCase();
+      const match = allSubmenuRows.find(r => {
+        const rName = String(r.nombre_producto || '').trim().toLowerCase();
+        if (rName === nameStr || rName.includes(nameStr) || nameStr.includes(rName)) return true;
+        
+        if (r.values) {
+          return Object.entries(r.values).some(([k, v]) => {
+            const ck = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            if (ck === 'producto' || ck === 'nombre' || ck === 'articulo') {
+              const rvStr = String(v).trim().toLowerCase();
+              return rvStr === nameStr || rvStr.includes(nameStr) || nameStr.includes(rvStr);
+            }
+            return false;
+          });
+        }
+        return false;
+      });
+
+      if (match) {
+        let selVal = '';
+        if (match.values) {
+          const selKey = Object.keys(match.values).find(k => {
+            const ck = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            return ck === 'sel' || ck === 'seleccion' || ck === 'slot' || ck === 'seleccionnum';
+          });
+          if (selKey) selVal = String(match.values[selKey] || '').trim();
+        }
+        if (!selVal) {
+          selVal = String(match.sel || match.seleccion || '').trim();
+        }
+        if (selVal) return selVal;
+      }
+    }
+
+    // 3. Fallback to catalog products `resorte_usa`
+    const catalogProd = products.find(p => 
+      (prodCode && String(p.codigo || '').toLowerCase() === prodCode.toLowerCase()) ||
+      (prodNombre && String(p.nombre || '').toLowerCase() === prodNombre.toLowerCase())
+    );
+    if (catalogProd && catalogProd.resorte_usa) {
+      const resValue = String(catalogProd.resorte_usa).trim();
+      if (resValue) {
+        return resValue;
+      }
+    }
+
+    return '';
+  };
+
+  const getSelAssociations = (): any[] => {
+    const associations: Record<string, any> = {};
+
+    const allRows: any[] = [];
+    if (cerBBData) allRows.push(...cerBBData);
+    if (artAltData) allRows.push(...artAltData);
+    if (artCtData) allRows.push(...artCtData);
+    if (genericSubmenuData) {
+      Object.values(genericSubmenuData).forEach((rows: any) => {
+        if (Array.isArray(rows)) {
+          allRows.push(...rows);
+        }
+      });
+    }
+
+    allRows.forEach(r => {
+      let selVal = '';
+      if (r.values) {
+        const selKey = Object.keys(r.values).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim() === 'sel');
+        if (selKey) {
+          selVal = String(r.values[selKey] || '').trim();
+        }
+      }
+      if (!selVal) {
+        selVal = String(r.sel || r.seleccion || '').trim();
+      }
+
+      if (selVal && (r.codigo || r.nombre_producto)) {
+        const catProd = products.find(p => 
+          (r.codigo && String(p.codigo || '').toLowerCase() === r.codigo.toLowerCase()) ||
+          (r.nombre_producto && String(p.nombre || '').toLowerCase() === r.nombre_producto.toLowerCase())
+        );
+
+        if (!associations[selVal]) {
+          associations[selVal] = {
+            sel: selVal,
+            codigo: r.codigo || (catProd ? catProd.codigo : ''),
+            nombre: r.nombre_producto || (catProd ? catProd.nombre : ''),
+            productRef: catProd
+          };
+        }
+      }
+    });
+
+    products.forEach(p => {
+      if (p.resorte_usa) {
+        const resVal = String(p.resorte_usa).trim();
+        if (resVal && resVal.length < 10) {
+          if (!associations[resVal]) {
+            associations[resVal] = {
+              sel: resVal,
+              codigo: p.codigo || '',
+              nombre: p.nombre || '',
+              productRef: p
+            };
+          }
+        }
+      }
+    });
+
+    return Object.values(associations);
+  };
+
   // Intelligent search suggestion states for adding items
   const [codigoSuggestions, setCodigoSuggestions] = useState<any[]>([]);
   const [nombreSuggestions, setNombreSuggestions] = useState<any[]>([]);
@@ -1000,6 +1158,16 @@ export default function ModulePlaceholder({
       setRowSeleccion(getNextSeleccion(data));
     }
   }, [addSupplyRowOpen, activeSupplySubmenu, cerBBData, artAltData, artCtData, genericSubmenuData]);
+
+  // Auto-fill Selección (SEL) field dynamically when the user types or selects a product code/name
+  useEffect(() => {
+    if (addSupplyRowOpen && (rowCodigo.trim() || rowNombre.trim())) {
+      const foundSel = getAssignedSeleccionForProduct(rowCodigo, rowNombre);
+      if (foundSel) {
+        setRowSeleccion(foundSel);
+      }
+    }
+  }, [rowCodigo, rowNombre, addSupplyRowOpen]);
 
   // Form states for creating custom submenus
   const [addSubmenuOpen, setAddSubmenuOpen] = useState(false);
@@ -4019,113 +4187,6 @@ export default function ModulePlaceholder({
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-        };
-
-        const getAssignedSeleccionForProduct = (prodCode: string, prodNombre: string): string => {
-          if (!prodCode && !prodNombre) return '';
-          const allSubmenuRows: any[] = [];
-          if (cerBBData) allSubmenuRows.push(...cerBBData);
-          if (artAltData) allSubmenuRows.push(...artAltData);
-          if (artCtData) allSubmenuRows.push(...artCtData);
-          if (genericSubmenuData) {
-            Object.values(genericSubmenuData).forEach((rows: any) => {
-              if (Array.isArray(rows)) {
-                allSubmenuRows.push(...rows);
-              }
-            });
-          }
-
-          if (prodCode) {
-            const match = allSubmenuRows.find(r => String(r.codigo || '').trim().toLowerCase() === prodCode.trim().toLowerCase());
-            if (match) {
-              const sel = match.sel || match.seleccion || (match.values && (match.values['Selección (SEL)'] || match.values['sel'] || match.values['seleccion']));
-              if (sel) return String(sel).trim();
-            }
-          }
-
-          if (prodNombre) {
-            const match = allSubmenuRows.find(r => String(r.nombre_producto || '').trim().toLowerCase() === prodNombre.trim().toLowerCase());
-            if (match) {
-              const sel = match.sel || match.seleccion || (match.values && (match.values['Selección (SEL)'] || match.values['sel'] || match.values['seleccion']));
-              if (sel) return String(sel).trim();
-            }
-          }
-
-          const catalogProd = products.find(p => 
-            (prodCode && String(p.codigo || '').toLowerCase() === prodCode.toLowerCase()) ||
-            (prodNombre && String(p.nombre || '').toLowerCase() === prodNombre.toLowerCase())
-          );
-          if (catalogProd && catalogProd.resorte_usa) {
-            const resValue = String(catalogProd.resorte_usa).trim();
-            if (resValue && !isNaN(parseInt(resValue))) {
-              return resValue;
-            }
-          }
-
-          return '';
-        };
-
-        const getSelAssociations = (): any[] => {
-          const associations: Record<string, any> = {};
-
-          const allRows: any[] = [];
-          if (cerBBData) allRows.push(...cerBBData);
-          if (artAltData) allRows.push(...artAltData);
-          if (artCtData) allRows.push(...artCtData);
-          if (genericSubmenuData) {
-            Object.values(genericSubmenuData).forEach((rows: any) => {
-              if (Array.isArray(rows)) {
-                allRows.push(...rows);
-              }
-            });
-          }
-
-          allRows.forEach(r => {
-            let selVal = '';
-            if (r.values) {
-              const selKey = Object.keys(r.values).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim() === 'sel');
-              if (selKey) {
-                selVal = String(r.values[selKey] || '').trim();
-              }
-            }
-            if (!selVal) {
-              selVal = String(r.sel || r.seleccion || '').trim();
-            }
-
-            if (selVal && (r.codigo || r.nombre_producto)) {
-              const catProd = products.find(p => 
-                (r.codigo && String(p.codigo || '').toLowerCase() === r.codigo.toLowerCase()) ||
-                (r.nombre_producto && String(p.nombre || '').toLowerCase() === r.nombre_producto.toLowerCase())
-              );
-
-              if (!associations[selVal]) {
-                associations[selVal] = {
-                  sel: selVal,
-                  codigo: r.codigo || (catProd ? catProd.codigo : ''),
-                  nombre: r.nombre_producto || (catProd ? catProd.nombre : ''),
-                  productRef: catProd
-                };
-              }
-            }
-          });
-
-          products.forEach(p => {
-            if (p.resorte_usa) {
-              const resVal = String(p.resorte_usa).trim();
-              if (resVal && resVal.length < 10) {
-                if (!associations[resVal]) {
-                  associations[resVal] = {
-                    sel: resVal,
-                    codigo: p.codigo || '',
-                    nombre: p.nombre || '',
-                    productRef: p
-                  };
-                }
-              }
-            }
-          });
-
-          return Object.values(associations);
         };
 
         const handleSelectSelAssociation = (assoc: any) => {
