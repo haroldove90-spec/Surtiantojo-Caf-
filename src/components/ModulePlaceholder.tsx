@@ -951,8 +951,10 @@ export default function ModulePlaceholder({
   // Intelligent search suggestion states for adding items
   const [codigoSuggestions, setCodigoSuggestions] = useState<any[]>([]);
   const [nombreSuggestions, setNombreSuggestions] = useState<any[]>([]);
+  const [selSuggestions, setSelSuggestions] = useState<any[]>([]);
   const [showCodigoSuggestions, setShowCodigoSuggestions] = useState(false);
   const [showNombreSuggestions, setShowNombreSuggestions] = useState(false);
+  const [showSelSuggestions, setShowSelSuggestions] = useState(false);
 
   // Inline Row Editing states for spreadsheet table rows
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
@@ -970,6 +972,7 @@ export default function ModulePlaceholder({
     setSelectedRowIds([]);
     setShowCodigoSuggestions(false);
     setShowNombreSuggestions(false);
+    setShowSelSuggestions(false);
   }, [activeSupplySubmenu]);
 
   // Click away listener to close intelligent search suggestions
@@ -977,6 +980,7 @@ export default function ModulePlaceholder({
     const handleClickAway = () => {
       setShowCodigoSuggestions(false);
       setShowNombreSuggestions(false);
+      setShowSelSuggestions(false);
     };
     document.addEventListener('click', handleClickAway);
     return () => {
@@ -4017,6 +4021,125 @@ export default function ModulePlaceholder({
           document.body.removeChild(link);
         };
 
+        const getAssignedSeleccionForProduct = (prodCode: string, prodNombre: string): string => {
+          if (!prodCode && !prodNombre) return '';
+          const allSubmenuRows: any[] = [];
+          if (cerBBData) allSubmenuRows.push(...cerBBData);
+          if (artAltData) allSubmenuRows.push(...artAltData);
+          if (artCtData) allSubmenuRows.push(...artCtData);
+          if (genericSubmenuData) {
+            Object.values(genericSubmenuData).forEach((rows: any) => {
+              if (Array.isArray(rows)) {
+                allSubmenuRows.push(...rows);
+              }
+            });
+          }
+
+          if (prodCode) {
+            const match = allSubmenuRows.find(r => String(r.codigo || '').trim().toLowerCase() === prodCode.trim().toLowerCase());
+            if (match) {
+              const sel = match.sel || match.seleccion || (match.values && (match.values['Selección (SEL)'] || match.values['sel'] || match.values['seleccion']));
+              if (sel) return String(sel).trim();
+            }
+          }
+
+          if (prodNombre) {
+            const match = allSubmenuRows.find(r => String(r.nombre_producto || '').trim().toLowerCase() === prodNombre.trim().toLowerCase());
+            if (match) {
+              const sel = match.sel || match.seleccion || (match.values && (match.values['Selección (SEL)'] || match.values['sel'] || match.values['seleccion']));
+              if (sel) return String(sel).trim();
+            }
+          }
+
+          const catalogProd = products.find(p => 
+            (prodCode && String(p.codigo || '').toLowerCase() === prodCode.toLowerCase()) ||
+            (prodNombre && String(p.nombre || '').toLowerCase() === prodNombre.toLowerCase())
+          );
+          if (catalogProd && catalogProd.resorte_usa) {
+            const resValue = String(catalogProd.resorte_usa).trim();
+            if (resValue && !isNaN(parseInt(resValue))) {
+              return resValue;
+            }
+          }
+
+          return '';
+        };
+
+        const getSelAssociations = (): any[] => {
+          const associations: Record<string, any> = {};
+
+          const allRows: any[] = [];
+          if (cerBBData) allRows.push(...cerBBData);
+          if (artAltData) allRows.push(...artAltData);
+          if (artCtData) allRows.push(...artCtData);
+          if (genericSubmenuData) {
+            Object.values(genericSubmenuData).forEach((rows: any) => {
+              if (Array.isArray(rows)) {
+                allRows.push(...rows);
+              }
+            });
+          }
+
+          allRows.forEach(r => {
+            let selVal = '';
+            if (r.values) {
+              const selKey = Object.keys(r.values).find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim() === 'sel');
+              if (selKey) {
+                selVal = String(r.values[selKey] || '').trim();
+              }
+            }
+            if (!selVal) {
+              selVal = String(r.sel || r.seleccion || '').trim();
+            }
+
+            if (selVal && (r.codigo || r.nombre_producto)) {
+              const catProd = products.find(p => 
+                (r.codigo && String(p.codigo || '').toLowerCase() === r.codigo.toLowerCase()) ||
+                (r.nombre_producto && String(p.nombre || '').toLowerCase() === r.nombre_producto.toLowerCase())
+              );
+
+              if (!associations[selVal]) {
+                associations[selVal] = {
+                  sel: selVal,
+                  codigo: r.codigo || (catProd ? catProd.codigo : ''),
+                  nombre: r.nombre_producto || (catProd ? catProd.nombre : ''),
+                  productRef: catProd
+                };
+              }
+            }
+          });
+
+          products.forEach(p => {
+            if (p.resorte_usa) {
+              const resVal = String(p.resorte_usa).trim();
+              if (resVal && resVal.length < 10) {
+                if (!associations[resVal]) {
+                  associations[resVal] = {
+                    sel: resVal,
+                    codigo: p.codigo || '',
+                    nombre: p.nombre || '',
+                    productRef: p
+                  };
+                }
+              }
+            }
+          });
+
+          return Object.values(associations);
+        };
+
+        const handleSelectSelAssociation = (assoc: any) => {
+          setRowSeleccion(assoc.sel);
+          if (assoc.productRef) {
+            handleSelectProduct(assoc.productRef);
+          } else {
+            if (assoc.codigo) setRowCodigo(assoc.codigo);
+            if (assoc.nombre) setRowNombre(assoc.nombre);
+          }
+          setSelSuggestions([]);
+          setShowSelSuggestions(false);
+        };
+
         const handleSelectProduct = (prod: any) => {
           setRowCodigo(prod.codigo || prod.id || '');
           setRowNombre(prod.nombre || '');
@@ -4028,10 +4151,17 @@ export default function ModulePlaceholder({
           setRowPrecio(prod.precio_venta || 0);
           setRowProveedor(prod.proveedor || 'Genérico');
           
+          const assignedSel = getAssignedSeleccionForProduct(prod.codigo, prod.nombre);
+          if (assignedSel) {
+            setRowSeleccion(assignedSel);
+          }
+          
           setCodigoSuggestions([]);
           setNombreSuggestions([]);
+          setSelSuggestions([]);
           setShowCodigoSuggestions(false);
           setShowNombreSuggestions(false);
+          setShowSelSuggestions(false);
         };
 
         const handleAddRow = () => {
@@ -5316,15 +5446,83 @@ export default function ModulePlaceholder({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 relative">
                         <label className="text-[10px] text-[#043077] font-extrabold block">Selección (SEL)</label>
                         <input
                           type="text"
                           placeholder="p. ej: 15"
                           value={rowSeleccion}
-                          onChange={(e) => setRowSeleccion(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRowSeleccion(val);
+                            if (val.trim()) {
+                              const assocs = getSelAssociations();
+                              const filtered = assocs.filter(a => 
+                                String(a.sel).toLowerCase().includes(val.toLowerCase()) ||
+                                String(a.codigo).toLowerCase().includes(val.toLowerCase()) ||
+                                String(a.nombre).toLowerCase().includes(val.toLowerCase())
+                              );
+                              setSelSuggestions(filtered.slice(0, 8));
+                              setShowSelSuggestions(true);
+                            } else {
+                              const assocs = getSelAssociations();
+                              setSelSuggestions(assocs.slice(0, 8));
+                              setShowSelSuggestions(true);
+                            }
+                          }}
+                          onFocus={() => {
+                            const assocs = getSelAssociations();
+                            if (rowSeleccion.trim()) {
+                              const filtered = assocs.filter(a => 
+                                String(a.sel).toLowerCase().includes(rowSeleccion.toLowerCase()) ||
+                                String(a.codigo).toLowerCase().includes(rowSeleccion.toLowerCase()) ||
+                                String(a.nombre).toLowerCase().includes(rowSeleccion.toLowerCase())
+                              );
+                              setSelSuggestions(filtered.slice(0, 8));
+                            } else {
+                              setSelSuggestions(assocs.slice(0, 8));
+                            }
+                            setShowSelSuggestions(true);
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-black text-slate-800 focus:ring-1 focus:ring-[#043077]"
                         />
+                        {showSelSuggestions && selSuggestions.length > 0 && (
+                          <div 
+                            className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto w-72 sm:w-80"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            {selSuggestions.map((assoc) => (
+                              <button
+                                key={assoc.sel}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectSelAssociation(assoc);
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 flex flex-col gap-0.5 cursor-pointer"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="font-mono font-black text-xs text-[#043077] bg-blue-50 px-1.5 py-0.5 rounded">
+                                    SEL: {assoc.sel}
+                                  </span>
+                                  {assoc.codigo && (
+                                    <span className="text-[9px] text-slate-400 font-bold font-mono">
+                                      {assoc.codigo}
+                                    </span>
+                                  )}
+                                </div>
+                                {assoc.nombre && (
+                                  <span className="text-[11px] font-extrabold text-slate-700 truncate block mt-1">
+                                    {assoc.nombre}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-1 relative">
                         <label className="text-[10px] text-slate-500 font-bold block">Código Producto</label>

@@ -805,65 +805,6 @@ export default function App() {
               )}
             </button>
           </form>
-
-          {/* Collapsible credentials manual helper guide */}
-          <div className="px-8 pb-8 border-t border-slate-700/40 pt-5 bg-slate-900/30">
-            <button 
-              type="button"
-              onClick={() => setShowCredsGuide(!showCredsGuide)}
-              className="w-full flex items-center justify-between text-xs font-bold text-slate-400 hover:text-slate-200 transition-colors focus:outline-none"
-            >
-              <span>🔑 CREDENCIALES DE ACCESO RÁPIDAS</span>
-              <span className="font-mono text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">
-                {showCredsGuide ? 'Ocultar' : 'Mostrar'}
-              </span>
-            </button>
-
-            {showCredsGuide && (
-              <div className="mt-4 space-y-3.5">
-                <p className="text-[11px] text-slate-500 leading-normal">
-                  Estas son las credenciales autorizadas del sistema. Los administradores ven todos los módulos; los operadores solo ven el módulo <strong className="text-blue-400">Surtido</strong>.
-                </p>
-                <div className="grid grid-cols-1 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
-                  {usersList.map((usr, idx) => (
-                    <div 
-                      key={idx}
-                      onClick={() => {
-                        setLoginUsername(usr.username);
-                        setLoginPassword(usr.contrasena);
-                        setAuthError(null);
-                      }}
-                      className="p-3 bg-slate-800/80 border border-slate-700/60 rounded-xl hover:bg-slate-700/60 transition-all cursor-pointer group flex flex-col gap-1 text-left relative overflow-hidden"
-                    >
-                      {/* Role sticker badge */}
-                      <span className={`absolute right-2.5 top-2.5 text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                        usr.rol === 'Administrador' 
-                          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' 
-                          : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
-                      }`}>
-                        {usr.rol}
-                      </span>
-
-                      <span className="font-bold text-slate-200 text-xs group-hover:text-white transition-colors">
-                        {usr.nombre_completo}
-                      </span>
-                      <div className="flex flex-wrap items-center gap-x-4 text-[10px] text-slate-400 mt-1 font-mono">
-                        <div>
-                          Usuario: <span className="text-yellow-400/90 font-bold">{usr.username}</span>
-                        </div>
-                        <div>
-                          Clave: <span className="text-yellow-400/90 font-bold">{usr.contrasena}</span>
-                        </div>
-                      </div>
-                      <span className="text-[9px] text-slate-500 block mt-0.5 italic group-hover:text-slate-400">
-                        ⚡ Haz clic para rellenar
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     );
