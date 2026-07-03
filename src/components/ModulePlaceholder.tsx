@@ -3986,6 +3986,18 @@ export default function ModulePlaceholder({
         // Dynamic Comparable Value Helper for Surtido records table sorting
         const getSupplyRowCompareValue = (row: any, field: string): any => {
           if (!row) return '';
+
+          // 1. Prioritize dynamic values (case-insensitive & trimmed matching of the field name in values map)
+          if (row.values) {
+            if (row.values[field] !== undefined) {
+              return row.values[field];
+            }
+            const foundKey = Object.keys(row.values).find(k => k.toLowerCase().trim() === field.toLowerCase().trim());
+            if (foundKey && row.values[foundKey] !== undefined) {
+              return row.values[foundKey];
+            }
+          }
+
           if (field === 'codigo') return row.codigo || '';
           if (field === 'nombre_producto') return row.nombre_producto || '';
           if (field === 'unidad_surtida') return safeVal(row.unidad_surtida);
@@ -3996,10 +4008,6 @@ export default function ModulePlaceholder({
           if (field === 'fecha_registro') return row.fecha_registro || '';
           if (field.toUpperCase() === 'SEL' || field.toLowerCase() === 'seleccion') {
             return row.sel || row.seleccion || '';
-          }
-
-          if (row.values && row.values[field] !== undefined) {
-            return row.values[field];
           }
 
           const cleanField = field.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
