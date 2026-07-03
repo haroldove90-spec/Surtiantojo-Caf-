@@ -111,6 +111,48 @@ const cleanHeaders = (headersList: string[]): string[] => {
   return filtered;
 };
 
+const filterEmptyColumnaHeaders = (headersList: string[], rows: any[]): string[] => {
+  if (!headersList) return [];
+  if (!rows || rows.length === 0) return headersList;
+
+  return headersList.filter(header => {
+    const isColumnaRegex = /^(columna|column)[\s_]*\d+$/i;
+    if (isColumnaRegex.test(header.trim())) {
+      // Check if any row has a non-empty value for this header.
+      const hasValue = rows.some(row => {
+        if (!row) return false;
+        let val = undefined;
+        if (row.values && row.values[header] !== undefined) {
+          val = row.values[header];
+        } else if (row[header] !== undefined) {
+          val = row[header];
+        } else {
+          // Fallback case-insensitive look up
+          const keys = Object.keys(row);
+          const foundKey = keys.find(k => k.toLowerCase() === header.toLowerCase());
+          if (foundKey) {
+            val = row[foundKey];
+          } else if (row.values) {
+            const valKeys = Object.keys(row.values);
+            const foundValKey = valKeys.find(k => k.toLowerCase() === header.toLowerCase());
+            if (foundValKey) {
+              val = row.values[foundValKey];
+            }
+          }
+        }
+        
+        if (val === null || val === undefined) return false;
+        return String(val).trim() !== '';
+      });
+
+      if (!hasValue) {
+        return false;
+      }
+    }
+    return true;
+  });
+};
+
 interface ModulePlaceholderProps {
   moduleId: string;
   products?: any[];
@@ -4406,7 +4448,7 @@ export default function ModulePlaceholder({
             return compareVals(aVal, bVal);
           });
 
-          const activeSubHeaders = cleanHeaders(submenuHeaders[tabId] || []);
+          const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[tabId] || []), sortedDataToExport);
           const hasDynamicHeaders = activeSubHeaders.length > 0;
           const colLabels = hasDynamicHeaders 
             ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
@@ -6248,7 +6290,7 @@ export default function ModulePlaceholder({
                             />
                           </th>
                           {(() => {
-                            const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+                            const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
                             return activeSubHeaders.length > 0 ? (
                               activeSubHeaders.map((header, idx) => (
                                 renderSupplySortableHeader(header, header)
@@ -6280,7 +6322,7 @@ export default function ModulePlaceholder({
                         ) : (
                           sortedSubmenuRows.map((row) => {
                             const isEditing = row.id === editingRowId;
-                            const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+                            const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
                             const hasDynamicHeaders = activeSubHeaders.length > 0;
                             const totalVal = isEditing 
                               ? safeVal(editRowUnidades) * safeVal(editRowPrecio)
