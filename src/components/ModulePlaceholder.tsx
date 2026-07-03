@@ -74,6 +74,43 @@ const cleanHeader = (h: string) => {
     .trim();
 };
 
+const cleanHeaders = (headersList: string[]): string[] => {
+  if (!headersList) return [];
+  
+  // 1. Filter out unwanted "columna 1", "columna 10" columns (case-insensitive, space/underscore removed)
+  let filtered = headersList.filter(h => {
+    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
+    return norm !== 'columna 1' && norm !== 'columna 10' && norm !== 'columna_1' && norm !== 'columna_10' && norm !== 'columna1' && norm !== 'columna10';
+  });
+
+  // 2. Ensure "Notas" is present and placed after "POR CANAL LLEVA" (or at the end if not found)
+  const canalIdx = filtered.findIndex(h => {
+    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
+    return norm === 'por canal lleva' || norm.includes('canal lleva') || norm === 'por canal';
+  });
+
+  const notasIdx = filtered.findIndex(h => h.toLowerCase().trim() === 'notas');
+
+  if (notasIdx !== -1) {
+    const notasHeader = filtered[notasIdx];
+    filtered.splice(notasIdx, 1);
+  }
+
+  const targetHeaderName = 'Notas';
+  const newCanalIdx = filtered.findIndex(h => {
+    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
+    return norm === 'por canal lleva' || norm.includes('canal lleva') || norm === 'por canal';
+  });
+
+  if (newCanalIdx !== -1) {
+    filtered.splice(newCanalIdx + 1, 0, targetHeaderName);
+  } else {
+    filtered.push(targetHeaderName);
+  }
+
+  return filtered;
+};
+
 interface ModulePlaceholderProps {
   moduleId: string;
   products?: any[];
@@ -409,11 +446,12 @@ export default function ModulePlaceholder({
         if (parsed && typeof parsed === 'object') {
           Object.keys(parsed).forEach(tabId => {
             if (Array.isArray(parsed[tabId])) {
-              parsed[tabId] = parsed[tabId].map((h: string) => {
+              const mapped = parsed[tabId].map((h: string) => {
                 const norm = h.toLowerCase().trim();
                 if (norm === 'resor' || norm === 'resort') return 'Resorte';
                 return h;
               });
+              parsed[tabId] = cleanHeaders(mapped);
             }
           });
         }
@@ -466,7 +504,7 @@ export default function ModulePlaceholder({
   const saveToSupabase = async (tabId: string, rows: any[], customHeaders?: string[]) => {
     try {
       const tableName = `surtido_${tabId}`;
-      let headers = customHeaders || submenuHeaders[tabId] || [];
+      let headers = cleanHeaders(customHeaders || submenuHeaders[tabId] || []);
       
       // If there are no custom headers yet, let's use the default ones
       if (headers.length === 0) {
@@ -534,6 +572,8 @@ export default function ModulePlaceholder({
               propKeys.push('proveedor', 'prov', 'brand', 'marca');
             } else if (cleanH === 'resor' || cleanH === 'resort' || cleanH === 'resorte') {
               propKeys.push('resorte', 'resor', 'resort');
+            } else if (cleanH === 'notas') {
+              propKeys.push('notas', 'nota', 'detalles');
             }
 
             const foundKey = propKeys.find(k => row[k] !== undefined);
@@ -988,7 +1028,7 @@ export default function ModulePlaceholder({
               };
             });
 
-            setSubmenuHeaders(prev => ({ ...prev, [tabId]: headers }));
+            setSubmenuHeaders(prev => ({ ...prev, [tabId]: cleanHeaders(headers) }));
             if (tabId === 'cer_bb') setCerBBData(rows);
             else if (tabId === 'art_alt') setArtAltData(rows);
             else if (tabId === 'art_ct') setArtCtData(rows);
@@ -1027,6 +1067,7 @@ export default function ModulePlaceholder({
   const [rowPrecio, setRowPrecio] = useState(0);
   const [rowProveedor, setRowProveedor] = useState('');
   const [rowResorte, setRowResorte] = useState('');
+  const [rowNotas, setRowNotas] = useState('');
   const [rowSeleccion, setRowSeleccion] = useState('');
 
   const dbColumnNamesRef = useRef<Record<string, string[]>>({});
@@ -1243,6 +1284,7 @@ export default function ModulePlaceholder({
   const [editRowPrecio, setEditRowPrecio] = useState(0);
   const [editRowProveedor, setEditRowProveedor] = useState('');
   const [editRowResorte, setEditRowResorte] = useState('');
+  const [editRowNotas, setEditRowNotas] = useState('');
 
   // Bulk deletion selection state
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
@@ -1932,59 +1974,60 @@ export default function ModulePlaceholder({
         }
 
         // Apply headers first
+        const cleanedOriginalHeaders = cleanHeaders(originalHeaders);
         setSubmenuHeaders(prev => ({
           ...prev,
-          [tabId]: originalHeaders
+          [tabId]: cleanedOriginalHeaders
         }));
 
         if (confirm(`Se detectaron ${parsedRows.length} registros en el archivo.\n\n¿Quieres REEMPLAZAR todos los registros actuales de esta sección con la nueva importación?\n(Aceptar = Reemplazar por completo, Cancelar = Agregar al final del listado)`)) {
           clearTableInSupabase(tabId).then(() => {
             if (tabId === 'cer_bb') {
               setCerBBData(parsedRows);
-              setTimeout(() => saveToSupabase('cer_bb', parsedRows, originalHeaders), 10);
+              setTimeout(() => saveToSupabase('cer_bb', parsedRows, cleanedOriginalHeaders), 10);
             }
             else if (tabId === 'art_alt') {
               setArtAltData(parsedRows);
-              setTimeout(() => saveToSupabase('art_alt', parsedRows, originalHeaders), 10);
+              setTimeout(() => saveToSupabase('art_alt', parsedRows, cleanedOriginalHeaders), 10);
             }
             else if (tabId === 'art_ct') {
               setArtCtData(parsedRows);
-              setTimeout(() => saveToSupabase('art_ct', parsedRows, originalHeaders), 10);
+              setTimeout(() => saveToSupabase('art_ct', parsedRows, cleanedOriginalHeaders), 10);
             }
             else {
               setGenericSubmenuData(prev => ({
                 ...prev,
                 [tabId]: parsedRows
               }));
-              setTimeout(() => saveToSupabase(tabId, parsedRows, originalHeaders), 10);
+              setTimeout(() => saveToSupabase(tabId, parsedRows, cleanedOriginalHeaders), 10);
             }
           });
         } else {
           if (tabId === 'cer_bb') {
             setCerBBData(prev => {
               const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('cer_bb', res, originalHeaders), 10);
+              setTimeout(() => saveToSupabase('cer_bb', res, cleanedOriginalHeaders), 10);
               return res;
             });
           }
           else if (tabId === 'art_alt') {
             setArtAltData(prev => {
               const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('art_alt', res, originalHeaders), 10);
+              setTimeout(() => saveToSupabase('art_alt', res, cleanedOriginalHeaders), 10);
               return res;
             });
           }
           else if (tabId === 'art_ct') {
             setArtCtData(prev => {
               const res = [...prev, ...parsedRows];
-              setTimeout(() => saveToSupabase('art_ct', res, originalHeaders), 10);
+              setTimeout(() => saveToSupabase('art_ct', res, cleanedOriginalHeaders), 10);
               return res;
             });
           }
           else {
             setGenericSubmenuData(prev => {
               const res = [...(prev[tabId] || []), ...parsedRows];
-              setTimeout(() => saveToSupabase(tabId, res, originalHeaders), 10);
+              setTimeout(() => saveToSupabase(tabId, res, cleanedOriginalHeaders), 10);
               return {
                 ...prev,
                 [tabId]: res
@@ -3949,6 +3992,7 @@ export default function ModulePlaceholder({
           if (field === 'costo_surtido') return safeVal(row.costo_surtido);
           if (field === 'precio_venta') return safeVal(row.precio_venta);
           if (field === 'resorte') return row.resorte || '';
+          if (field === 'notas') return row.notas || '';
           if (field === 'fecha_registro') return row.fecha_registro || '';
           if (field.toUpperCase() === 'SEL' || field.toLowerCase() === 'seleccion') {
             return row.sel || row.seleccion || '';
@@ -3979,6 +4023,9 @@ export default function ModulePlaceholder({
           }
           if (cleanField === 'resor' || cleanField === 'resort' || cleanField === 'resorte') {
             return row.resorte || '';
+          }
+          if (cleanField === 'notas') {
+            return row.notas || '';
           }
 
           const keys = Object.keys(row);
@@ -4351,10 +4398,11 @@ export default function ModulePlaceholder({
             return compareVals(aVal, bVal);
           });
 
-          const hasDynamicHeaders = submenuHeaders[tabId] && submenuHeaders[tabId].length > 0;
+          const activeSubHeaders = cleanHeaders(submenuHeaders[tabId] || []);
+          const hasDynamicHeaders = activeSubHeaders.length > 0;
           const colLabels = hasDynamicHeaders 
-            ? [...submenuHeaders[tabId], 'Importe Total ($)', 'Fecha Registro'] 
-            : ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Fecha Registro'];
+            ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
+            : ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
 
           const headers = colLabels.join(';');
           const rows = sortedDataToExport.map(item => {
@@ -4362,7 +4410,7 @@ export default function ModulePlaceholder({
             
             if (hasDynamicHeaders) {
               const rowValues: string[] = [];
-              submenuHeaders[tabId].forEach(h => {
+              activeSubHeaders.forEach(h => {
                 const val = item.values && item.values[h] !== undefined ? item.values[h] : getSupplyRowCompareValue(item, h);
                 let valStr = String(val === null || val === undefined ? '' : val).replace(/"/g, '""');
                 if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
@@ -4375,7 +4423,7 @@ export default function ModulePlaceholder({
               rowValues.push(item.fecha_registro || '');
               return rowValues.join(';');
             } else {
-              const colKeys = ['id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'fecha_registro'];
+              const colKeys = ['id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'notas', 'fecha_registro'];
               const rowCopy = {
                 ...item,
                 importe_total: totalImport,
@@ -4439,8 +4487,8 @@ export default function ModulePlaceholder({
             return;
           }
 
-          const colKeys = ['seccion_origen', 'id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'fecha_registro'];
-          const colLabels = ['Sección', 'ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Fecha Registro'];
+          const colKeys = ['seccion_origen', 'id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'notas', 'fecha_registro'];
+          const colLabels = ['Sección', 'ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
 
           const headers = colLabels.join(';');
           const rows = allRows.map(item => {
@@ -4448,7 +4496,8 @@ export default function ModulePlaceholder({
             const rowCopy = {
               ...item,
               importe_total: totalImport,
-              sel: item.sel || item.seleccion || item.resorte || ''
+              sel: item.sel || item.seleccion || item.resorte || '',
+              notas: item.notas || ''
             };
             return colKeys.map(key => {
               const val = rowCopy[key];
@@ -4520,15 +4569,15 @@ export default function ModulePlaceholder({
             return;
           }
 
-          const hasDynamicHeaders = submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0;
+          const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+          const hasDynamicHeaders = activeSubHeaders.length > 0;
           let newRowValues: Record<string, string> = {};
           
           if (hasDynamicHeaders) {
-            const headers = submenuHeaders[activeSupplySubmenu] || [];
-            const headersCleaned = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim());
+            const headersCleaned = activeSubHeaders.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim());
             
             headersCleaned.forEach((h, idx) => {
-              const originalHeader = headers[idx];
+              const originalHeader = activeSubHeaders[idx];
               if (h === 'sel' || h === 'seleccion' || h === 'slot' || h === 'seleccionnum') {
                 newRowValues[originalHeader] = rowSeleccion.trim();
               } else if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') {
@@ -4545,6 +4594,8 @@ export default function ModulePlaceholder({
                 newRowValues[originalHeader] = rowProveedor.trim() || 'Proveedor General';
               } else if (h === 'resor' || h === 'resort' || h === 'resorte') {
                 newRowValues[originalHeader] = rowResorte.trim();
+              } else if (h === 'notas') {
+                newRowValues[originalHeader] = rowNotas.trim();
               } else {
                 newRowValues[originalHeader] = '';
               }
@@ -4563,6 +4614,7 @@ export default function ModulePlaceholder({
             seleccion: rowSeleccion.trim(),
             proveedor: rowProveedor.trim() || 'Proveedor General',
             resorte: rowResorte.trim(),
+            notas: rowNotas.trim(),
             fecha_registro: new Date().toISOString().split('T')[0],
             values: hasDynamicHeaders ? newRowValues : undefined
           };
@@ -4577,6 +4629,7 @@ export default function ModulePlaceholder({
           setRowPrecio(0);
           setRowProveedor('');
           setRowResorte('');
+          setRowNotas('');
           setRowSeleccion('');
           setAddSupplyRowOpen(false);
           setCodigoSuggestions([]);
@@ -4624,13 +4677,15 @@ export default function ModulePlaceholder({
           setEditRowPrecio(safeVal(row.precio_venta));
           setEditRowProveedor(row.proveedor || '');
           setEditRowResorte(row.resorte || '');
+          setEditRowNotas(row.notas || '');
           setEditRowValues(row.values || {});
         };
 
         const handleSaveRow = (rowId: number) => {
           handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
             if (r.id === rowId) {
-              const hasDynamicHeaders = submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0;
+              const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+              const hasDynamicHeaders = activeSubHeaders.length > 0;
               if (hasDynamicHeaders) {
                 const updatedValues = { ...(r.values || {}), ...editRowValues };
                 
@@ -4642,7 +4697,8 @@ export default function ModulePlaceholder({
                 let colPrecio = -1;
                 let colProveedor = -1;
                 let colResorte = -1;
-                const headers = submenuHeaders[activeSupplySubmenu] || [];
+                let colNotas = -1;
+                const headers = activeSubHeaders;
                 const headersCleaned = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim());
                 
                 headersCleaned.forEach((h, idx) => {
@@ -4653,6 +4709,7 @@ export default function ModulePlaceholder({
                   else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
                   else if (h === 'proveedor') colProveedor = idx;
                   else if (h === 'resor' || h === 'resort' || h === 'resorte') colResorte = idx;
+                  else if (h === 'notas') colNotas = idx;
                 });
                 
                 headersCleaned.forEach((h, idx) => {
@@ -4663,6 +4720,7 @@ export default function ModulePlaceholder({
                   if (colPrecio === -1 && (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta' || h.includes('vta'))) colPrecio = idx;
                   if (colProveedor === -1 && (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor'))) colProveedor = idx;
                   if (colResorte === -1 && (h.includes('resor') || h.includes('resort') || h.includes('resorte'))) colResorte = idx;
+                  if (colNotas === -1 && h.includes('nota')) colNotas = idx;
                 });
 
                 const codeHeader = colCodigo !== -1 ? headers[colCodigo] : '';
@@ -4672,6 +4730,7 @@ export default function ModulePlaceholder({
                 const precioHeader = colPrecio !== -1 ? headers[colPrecio] : '';
                 const provHeader = colProveedor !== -1 ? headers[colProveedor] : '';
                 const resorteHeader = colResorte !== -1 ? headers[colResorte] : '';
+                const notasHeader = colNotas !== -1 ? headers[colNotas] : '';
 
                 const cleanNumVal = (str: any): number => {
                   if (str === undefined || str === null) return 0;
@@ -4691,6 +4750,7 @@ export default function ModulePlaceholder({
                   precio_venta: precioHeader ? cleanNumVal(updatedValues[precioHeader]) : r.precio_venta,
                   proveedor: provHeader ? String(updatedValues[provHeader] || '').trim() : r.proveedor,
                   resorte: resorteHeader ? String(updatedValues[resorteHeader] || '').trim() : r.resorte,
+                  notas: notasHeader ? String(updatedValues[notasHeader] || '').trim() : r.notas,
                   values: updatedValues
                 };
               } else {
@@ -4702,7 +4762,8 @@ export default function ModulePlaceholder({
                   costo_surtido: safeVal(editRowCosto),
                   precio_venta: safeVal(editRowPrecio),
                   proveedor: editRowProveedor.trim() || 'Proveedor General',
-                  resorte: editRowResorte.trim()
+                  resorte: editRowResorte.trim(),
+                  notas: editRowNotas.trim()
                 };
               }
             }
@@ -6067,22 +6128,33 @@ export default function ModulePlaceholder({
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
                         />
                       </div>
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setAddSupplyRowOpen(false)}
-                          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-all cursor-pointer"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleAddRow}
-                          className="px-4 py-2 bg-[#043077] hover:bg-blue-800 rounded-lg text-xs font-black text-white uppercase transition-all cursor-pointer shadow-3xs"
-                        >
-                          Guardar Registro
-                        </button>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-500 font-bold block">Notas</label>
+                        <input
+                          type="text"
+                          placeholder="Escribe notas o detalles aquí..."
+                          value={rowNotas}
+                          onChange={(e) => setRowNotas(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
+                        />
                       </div>
+                    </div>
+
+                    <div className="flex gap-2 justify-end mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setAddSupplyRowOpen(false)}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddRow}
+                        className="px-4 py-2 bg-[#043077] hover:bg-blue-800 rounded-lg text-xs font-black text-white uppercase transition-all cursor-pointer shadow-3xs"
+                      >
+                        Guardar Registro
+                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -6167,22 +6239,26 @@ export default function ModulePlaceholder({
                               }}
                             />
                           </th>
-                          {submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0 ? (
-                            submenuHeaders[activeSupplySubmenu].map((header, idx) => (
-                              renderSupplySortableHeader(header, header)
-                            ))
-                          ) : (
-                            <>
-                              {renderSupplySortableHeader("Código / SKU", "codigo")}
-                              {renderSupplySortableHeader("Producto o Artículo", "nombre_producto")}
-                              {renderSupplySortableHeader("Unidades", "unidad_surtida")}
-                              {renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
-                              {renderSupplySortableHeader("Precio Venta", "precio_venta")}
-                              <th className="py-3 px-4 text-right">Importe Total</th>
-                              {renderSupplySortableHeader("Resorte", "resorte")}
-                              {renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
-                            </>
-                          )}
+                          {(() => {
+                            const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+                            return activeSubHeaders.length > 0 ? (
+                              activeSubHeaders.map((header, idx) => (
+                                renderSupplySortableHeader(header, header)
+                              ))
+                            ) : (
+                              <>
+                                {renderSupplySortableHeader("Código / SKU", "codigo")}
+                                {renderSupplySortableHeader("Producto o Artículo", "nombre_producto")}
+                                {renderSupplySortableHeader("Unidades", "unidad_surtida")}
+                                {renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
+                                {renderSupplySortableHeader("Precio Venta", "precio_venta")}
+                                <th className="py-3 px-4 text-right">Importe Total</th>
+                                {renderSupplySortableHeader("Resorte", "resorte")}
+                                {renderSupplySortableHeader("Notas", "notas")}
+                                {renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
+                              </>
+                            );
+                          })()}
                           <th className="py-3 px-4 text-center">Controles</th>
                         </tr>
                       </thead>
@@ -6196,7 +6272,8 @@ export default function ModulePlaceholder({
                         ) : (
                           sortedSubmenuRows.map((row) => {
                             const isEditing = row.id === editingRowId;
-                            const hasDynamicHeaders = submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0;
+                            const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+                            const hasDynamicHeaders = activeSubHeaders.length > 0;
                             const totalVal = isEditing 
                               ? safeVal(editRowUnidades) * safeVal(editRowPrecio)
                               : safeVal(row.unidad_surtida) * safeVal(row.precio_venta);
@@ -6216,11 +6293,11 @@ export default function ModulePlaceholder({
                                       />
                                     </td>
                                     {hasDynamicHeaders ? (
-                                      submenuHeaders[activeSupplySubmenu].map((header, idx) => (
+                                      activeSubHeaders.map((header, idx) => (
                                         <td key={idx} className="py-2 px-3">
                                           <input
                                             type="text"
-                                            value={editRowValues[header] !== undefined ? editRowValues[header] : ''}
+                                            value={editRowValues[header] !== undefined ? editRowValues[header] : (row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header))}
                                             onChange={(e) => setEditRowValues(prev => ({ ...prev, [header]: e.target.value }))}
                                             className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold text-slate-800"
                                           />
@@ -6282,6 +6359,14 @@ export default function ModulePlaceholder({
                                             className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold"
                                           />
                                         </td>
+                                        <td className="py-2 px-3">
+                                          <input
+                                            type="text"
+                                            value={editRowNotas}
+                                            onChange={(e) => setEditRowNotas(e.target.value)}
+                                            className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold text-slate-800"
+                                          />
+                                        </td>
                                         <td className="py-2 px-3 text-slate-400 font-medium font-mono select-none">
                                           {row.fecha_registro}
                                         </td>
@@ -6323,8 +6408,8 @@ export default function ModulePlaceholder({
                                       />
                                     </td>
                                     {hasDynamicHeaders ? (
-                                      submenuHeaders[activeSupplySubmenu].map((header, idx) => {
-                                        const cellVal = row.values && row.values[header] !== undefined ? row.values[header] : '';
+                                      activeSubHeaders.map((header, idx) => {
+                                        const cellVal = row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header);
                                         const cleanH = cleanHeader(header);
                                         const isCode = cleanH.includes('codigo') || cleanH.includes('sku') || cleanH.includes('codig');
                                         return (
@@ -6358,6 +6443,9 @@ export default function ModulePlaceholder({
                                         </td>
                                         <td className="py-3 px-4 text-slate-500 font-semibold">
                                           {row.resorte}
+                                        </td>
+                                        <td className="py-3 px-4 text-slate-700 font-medium">
+                                          {row.notas || ''}
                                         </td>
                                         <td className="py-3 px-4 text-slate-400 font-medium">
                                           {row.fecha_registro}
