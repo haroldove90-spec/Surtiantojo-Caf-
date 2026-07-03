@@ -182,6 +182,10 @@ export default function ModulePlaceholder({
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Sorting state for supply/surtido table
+  const [supplySortField, setSupplySortField] = useState<string>('SEL');
+  const [supplySortDirection, setSupplySortDirection] = useState<'asc' | 'desc'>('asc');
+
   // Multi-selection state
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
 
@@ -3936,6 +3940,107 @@ export default function ModulePlaceholder({
                  (p.codigo || p.id || '').toLowerCase().includes(term);
         });
 
+        // Dynamic Comparable Value Helper for Surtido records table sorting
+        const getSupplyRowCompareValue = (row: any, field: string): any => {
+          if (!row) return '';
+          if (field === 'codigo') return row.codigo || '';
+          if (field === 'nombre_producto') return row.nombre_producto || '';
+          if (field === 'unidad_surtida') return safeVal(row.unidad_surtida);
+          if (field === 'costo_surtido') return safeVal(row.costo_surtido);
+          if (field === 'precio_venta') return safeVal(row.precio_venta);
+          if (field === 'resorte') return row.resorte || '';
+          if (field === 'fecha_registro') return row.fecha_registro || '';
+          if (field.toUpperCase() === 'SEL' || field.toLowerCase() === 'seleccion') {
+            return row.sel || row.seleccion || '';
+          }
+
+          if (row.values && row.values[field] !== undefined) {
+            return row.values[field];
+          }
+
+          const cleanField = field.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+          if (cleanField === 'sel' || cleanField === 'seleccion' || cleanField === 'slot' || cleanField === 'seleccionnum') {
+            return row.sel || row.seleccion || '';
+          }
+          if (cleanField.includes('codigo') || cleanField.includes('sku') || cleanField.includes('codig')) {
+            return row.codigo || '';
+          }
+          if (cleanField.includes('nombre') || cleanField.includes('producto') || cleanField.includes('articulo')) {
+            return row.nombre_producto || '';
+          }
+          if (cleanField.includes('unidad') || cleanField.includes('surtir') || cleanField.includes('cantidad') || cleanField.includes('unidades')) {
+            return safeVal(row.unidad_surtida);
+          }
+          if (cleanField.includes('costo')) {
+            return safeVal(row.costo_surtido);
+          }
+          if (cleanField.includes('precio') || cleanField.includes('venta') || cleanField.includes('vta') || cleanField.includes('price')) {
+            return safeVal(row.precio_venta);
+          }
+          if (cleanField === 'resor' || cleanField === 'resort' || cleanField === 'resorte') {
+            return row.resorte || '';
+          }
+
+          const keys = Object.keys(row);
+          const foundKey = keys.find(k => k.toLowerCase() === field.toLowerCase());
+          if (foundKey) return row[foundKey];
+
+          return '';
+        };
+
+        // Numerical & string comparison helper
+        const compareVals = (aVal: any, bVal: any): number => {
+          if (typeof aVal === 'number' && typeof bVal === 'number') {
+            return aVal - bVal;
+          }
+          const numA = Number(String(aVal).trim());
+          const numB = Number(String(bVal).trim());
+          if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB;
+          }
+          return String(aVal).toLowerCase().localeCompare(String(bVal).toLowerCase(), 'es', { numeric: true, sensitivity: 'base' });
+        };
+
+        // Interactive sort controller
+        const handleSupplySort = (field: string) => {
+          if (supplySortField === field) {
+            setSupplySortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+          } else {
+            setSupplySortField(field);
+            setSupplySortDirection('asc');
+          }
+        };
+
+        // Render sortable header helper for supply table
+        const renderSupplySortableHeader = (label: string, field: string) => {
+          const isSorted = supplySortField === field;
+          return (
+            <th key={field} className="py-3 px-4 select-none">
+              <button
+                type="button"
+                onClick={() => handleSupplySort(field)}
+                className={`flex items-center gap-1 hover:text-[#043077] transition-colors focus:outline-none cursor-pointer uppercase text-[10px] sm:text-[11px] text-slate-500 font-extrabold ${
+                  isSorted ? 'text-[#043077] font-black' : ''
+                }`}
+                title={`Click para ordenar por ${label}`}
+              >
+                <span className="tracking-wider">{label}</span>
+                <span className="inline-flex items-center justify-center">
+                  {isSorted ? (
+                    supplySortDirection === 'asc' ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-[#043077]" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-[#043077]" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-slate-300 hover:text-slate-400" />
+                  )}
+                </span>
+              </button>
+            </th>
+          );
+        };
+
         // Submenu state helpers
         const getActiveSubmenuData = (): any[] => {
           switch (activeSupplySubmenu) {
@@ -3970,20 +4075,35 @@ export default function ModulePlaceholder({
           if (activeSupplySubmenu === 'cer_bb') {
             setCerBBData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
-              setTimeout(() => saveToSupabase('cer_bb', res), 10);
-              return res;
+              const sorted = [...res].sort((a, b) => {
+                const aVal = getSupplyRowCompareValue(a, 'sel');
+                const bVal = getSupplyRowCompareValue(b, 'sel');
+                return compareVals(aVal, bVal);
+              });
+              setTimeout(() => saveToSupabase('cer_bb', sorted), 10);
+              return sorted;
             });
           } else if (activeSupplySubmenu === 'art_alt') {
             setArtAltData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
-              setTimeout(() => saveToSupabase('art_alt', res), 10);
-              return res;
+              const sorted = [...res].sort((a, b) => {
+                const aVal = getSupplyRowCompareValue(a, 'sel');
+                const bVal = getSupplyRowCompareValue(b, 'sel');
+                return compareVals(aVal, bVal);
+              });
+              setTimeout(() => saveToSupabase('art_alt', sorted), 10);
+              return sorted;
             });
           } else if (activeSupplySubmenu === 'art_ct') {
             setArtCtData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
-              setTimeout(() => saveToSupabase('art_ct', res), 10);
-              return res;
+              const sorted = [...res].sort((a, b) => {
+                const aVal = getSupplyRowCompareValue(a, 'sel');
+                const bVal = getSupplyRowCompareValue(b, 'sel');
+                return compareVals(aVal, bVal);
+              });
+              setTimeout(() => saveToSupabase('art_ct', sorted), 10);
+              return sorted;
             });
           } else {
             setGenericSubmenuData(prev => {
@@ -4006,10 +4126,15 @@ export default function ModulePlaceholder({
                 ];
               })();
               const res = typeof updater === 'function' ? updater(actualList) : updater;
-              setTimeout(() => saveToSupabase(activeSupplySubmenu, res), 10);
+              const sorted = [...res].sort((a, b) => {
+                const aVal = getSupplyRowCompareValue(a, 'sel');
+                const bVal = getSupplyRowCompareValue(b, 'sel');
+                return compareVals(aVal, bVal);
+              });
+              setTimeout(() => saveToSupabase(activeSupplySubmenu, sorted), 10);
               return {
                 ...prev,
-                [activeSupplySubmenu]: res
+                [activeSupplySubmenu]: sorted
               };
             });
           }
@@ -4026,6 +4151,15 @@ export default function ModulePlaceholder({
             (item.nombre_producto || '').toLowerCase().includes(query) ||
             (item.proveedor || '').toLowerCase().includes(query)
           );
+        });
+
+        // Sorted submenu rows ready for table presentation
+        const sortedSubmenuRows = [...filteredSubmenuRows].sort((a, b) => {
+          if (!supplySortField) return 0;
+          const aVal = getSupplyRowCompareValue(a, supplySortField);
+          const bVal = getSupplyRowCompareValue(b, supplySortField);
+          const comp = compareVals(aVal, bVal);
+          return supplySortDirection === 'asc' ? comp : -comp;
         });
 
         // Dynamic Calculations for KPIs
@@ -4210,30 +4344,56 @@ export default function ModulePlaceholder({
             return;
           }
 
-          const colKeys = ['id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'proveedor', 'fecha_registro'];
-          const colLabels = ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'Proveedor', 'Fecha Registro'];
+          // Sort numerically by SEL/seleccion
+          const sortedDataToExport = [...dataToExport].sort((a, b) => {
+            const aVal = getSupplyRowCompareValue(a, 'sel');
+            const bVal = getSupplyRowCompareValue(b, 'sel');
+            return compareVals(aVal, bVal);
+          });
 
-          // Generate semicolon separated row content with Excel specific Byte Order Mark (BOM)
+          const hasDynamicHeaders = submenuHeaders[tabId] && submenuHeaders[tabId].length > 0;
+          const colLabels = hasDynamicHeaders 
+            ? [...submenuHeaders[tabId], 'Importe Total ($)', 'Fecha Registro'] 
+            : ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Fecha Registro'];
+
           const headers = colLabels.join(';');
-          const rows = dataToExport.map(item => {
+          const rows = sortedDataToExport.map(item => {
             const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
-            const rowCopy = {
-              ...item,
-              importe_total: totalImport
-            };
-            return colKeys.map(key => {
-              const val = rowCopy[key];
-              if (val === undefined || val === null) return '';
-              // Format numbers nicely or escape string values
-              if (typeof val === 'number') {
-                return val.toFixed(2).replace('.', ',');
-              }
-              let valStr = String(val).replace(/"/g, '""');
-              if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
-                valStr = `"${valStr}"`;
-              }
-              return valStr;
-            }).join(';');
+            
+            if (hasDynamicHeaders) {
+              const rowValues: string[] = [];
+              submenuHeaders[tabId].forEach(h => {
+                const val = item.values && item.values[h] !== undefined ? item.values[h] : getSupplyRowCompareValue(item, h);
+                let valStr = String(val === null || val === undefined ? '' : val).replace(/"/g, '""');
+                if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
+                  valStr = `"${valStr}"`;
+                }
+                rowValues.push(valStr);
+              });
+              // Append totalImport and date
+              rowValues.push(totalImport.toFixed(2).replace('.', ','));
+              rowValues.push(item.fecha_registro || '');
+              return rowValues.join(';');
+            } else {
+              const colKeys = ['id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'fecha_registro'];
+              const rowCopy = {
+                ...item,
+                importe_total: totalImport,
+                sel: item.sel || item.seleccion || item.resorte || ''
+              };
+              return colKeys.map(key => {
+                const val = rowCopy[key];
+                if (val === undefined || val === null) return '';
+                if (typeof val === 'number') {
+                  return val.toFixed(2).replace('.', ',');
+                }
+                let valStr = String(val).replace(/"/g, '""');
+                if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
+                  valStr = `"${valStr}"`;
+                }
+                return valStr;
+              }).join(';');
+            }
           });
 
           const csvContent = "\uFEFF" + "sep=;\n" + [headers, ...rows].join('\n');
@@ -4259,7 +4419,14 @@ export default function ModulePlaceholder({
             else if (submenu.id === 'art_ct') data = artCtData;
             else data = genericSubmenuData[submenu.id] || [];
             
-            data.forEach(item => {
+            // Sort each submenu's data numerically by SEL/seleccion
+            const sortedData = [...data].sort((a, b) => {
+              const aVal = getSupplyRowCompareValue(a, 'sel');
+              const bVal = getSupplyRowCompareValue(b, 'sel');
+              return compareVals(aVal, bVal);
+            });
+
+            sortedData.forEach(item => {
               allRows.push({
                 ...item,
                 seccion_origen: submenu.name
@@ -4272,15 +4439,16 @@ export default function ModulePlaceholder({
             return;
           }
 
-          const colKeys = ['seccion_origen', 'id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'proveedor', 'fecha_registro'];
-          const colLabels = ['Sección', 'ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'Proveedor', 'Fecha Registro'];
+          const colKeys = ['seccion_origen', 'id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'fecha_registro'];
+          const colLabels = ['Sección', 'ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Fecha Registro'];
 
           const headers = colLabels.join(';');
           const rows = allRows.map(item => {
             const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
             const rowCopy = {
               ...item,
-              importe_total: totalImport
+              importe_total: totalImport,
+              sel: item.sel || item.seleccion || item.resorte || ''
             };
             return colKeys.map(key => {
               const val = rowCopy[key];
@@ -6001,32 +6169,32 @@ export default function ModulePlaceholder({
                           </th>
                           {submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0 ? (
                             submenuHeaders[activeSupplySubmenu].map((header, idx) => (
-                              <th key={idx} className="py-3 px-4">{header}</th>
+                              renderSupplySortableHeader(header, header)
                             ))
                           ) : (
                             <>
-                              <th className="py-3 px-4">Código / SKU</th>
-                              <th className="py-3 px-4">Producto o Artículo</th>
-                              <th className="py-3 px-4 text-center">Unidades</th>
-                              <th className="py-3 px-4 text-right">Costo Unit.</th>
-                              <th className="py-3 px-4 text-right">Precio Venta</th>
+                              {renderSupplySortableHeader("Código / SKU", "codigo")}
+                              {renderSupplySortableHeader("Producto o Artículo", "nombre_producto")}
+                              {renderSupplySortableHeader("Unidades", "unidad_surtida")}
+                              {renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
+                              {renderSupplySortableHeader("Precio Venta", "precio_venta")}
                               <th className="py-3 px-4 text-right">Importe Total</th>
-                              <th className="py-3 px-4">Resorte</th>
-                              <th className="py-3 px-4">Fecha Surtido</th>
+                              {renderSupplySortableHeader("Resorte", "resorte")}
+                              {renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
                             </>
                           )}
                           <th className="py-3 px-4 text-center">Controles</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
-                        {filteredSubmenuRows.length === 0 ? (
+                        {sortedSubmenuRows.length === 0 ? (
                           <tr>
                             <td colSpan={15} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
                               No hay registros cargados para {activeMeta.name} que coincidan con la búsqueda.
                             </td>
                           </tr>
                         ) : (
-                          filteredSubmenuRows.map((row) => {
+                          sortedSubmenuRows.map((row) => {
                             const isEditing = row.id === editingRowId;
                             const hasDynamicHeaders = submenuHeaders[activeSupplySubmenu] && submenuHeaders[activeSupplySubmenu].length > 0;
                             const totalVal = isEditing 
