@@ -326,10 +326,43 @@ export default function ModulePlaceholder({
     } catch (e) {}
   }, [supplySubmenuList]);
 
+  const normalizeRowListWithResorte = (list: any[]) => {
+    if (!Array.isArray(list)) return [];
+    return list.map(item => {
+      if (item && item.values && typeof item.values === 'object') {
+        const updatedValues = { ...item.values };
+        let changed = false;
+        Object.keys(updatedValues).forEach(k => {
+          const lowerK = k.toLowerCase().trim();
+          if (lowerK === 'resor' || lowerK === 'resort') {
+            updatedValues['Resorte'] = updatedValues[k];
+            delete updatedValues[k];
+            changed = true;
+          }
+        });
+        if (changed) {
+          return { ...item, values: updatedValues };
+        }
+      }
+      return item;
+    });
+  };
+
+  const normalizeGenericSubmenuWithResorte = (obj: Record<string, any[]>) => {
+    if (!obj || typeof obj !== 'object') return {};
+    const updatedObj = { ...obj };
+    Object.keys(updatedObj).forEach(k => {
+      if (Array.isArray(updatedObj[k])) {
+        updatedObj[k] = normalizeRowListWithResorte(updatedObj[k]);
+      }
+    });
+    return updatedObj;
+  };
+
   const [cerBBData, setCerBBData] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_cer_bb');
-      return stored ? JSON.parse(stored) : [];
+      return stored ? normalizeRowListWithResorte(JSON.parse(stored)) : [];
     } catch (e) {
       return [];
     }
@@ -338,7 +371,7 @@ export default function ModulePlaceholder({
   const [artAltData, setArtAltData] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_art_alt');
-      return stored ? JSON.parse(stored) : [];
+      return stored ? normalizeRowListWithResorte(JSON.parse(stored)) : [];
     } catch (e) {
       return [];
     }
@@ -347,7 +380,7 @@ export default function ModulePlaceholder({
   const [artCtData, setArtCtData] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_art_ct');
-      return stored ? JSON.parse(stored) : [];
+      return stored ? normalizeRowListWithResorte(JSON.parse(stored)) : [];
     } catch (e) {
       return [];
     }
@@ -357,7 +390,7 @@ export default function ModulePlaceholder({
   const [genericSubmenuData, setGenericSubmenuData] = useState<Record<string, Array<any>>>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_generic_submenu');
-      return stored ? JSON.parse(stored) : {};
+      return stored ? normalizeGenericSubmenuWithResorte(JSON.parse(stored)) : {};
     } catch (e) {
       return {};
     }
@@ -367,7 +400,22 @@ export default function ModulePlaceholder({
   const [submenuHeaders, setSubmenuHeaders] = useState<Record<string, string[]>>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_submenu_headers');
-      return stored ? JSON.parse(stored) : {};
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          Object.keys(parsed).forEach(tabId => {
+            if (Array.isArray(parsed[tabId])) {
+              parsed[tabId] = parsed[tabId].map((h: string) => {
+                const norm = h.toLowerCase().trim();
+                if (norm === 'resor' || norm === 'resort') return 'Resorte';
+                return h;
+              });
+            }
+          });
+        }
+        return parsed;
+      }
+      return {};
     } catch (e) {
       return {};
     }
@@ -435,8 +483,19 @@ export default function ModulePlaceholder({
           hasValidId = true;
         }
 
+        const originalCols = dbColumnNamesRef.current[tabId] || [];
+
         headers.forEach(header => {
-          const sqlColName = header.toLowerCase()
+          const matchedDbColName = originalCols.find(col => {
+            const cleanCol = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            const cleanH = header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            if ((cleanH === 'resorte' || cleanH === 'resor' || cleanH === 'resort') && (cleanCol === 'resorte' || cleanCol === 'resor' || cleanCol === 'resort')) {
+              return true;
+            }
+            return cleanCol === cleanH || col.replace(/_/g, '') === cleanH;
+          });
+
+          const sqlColName = matchedDbColName || header.toLowerCase()
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
             .replace(/[^a-z0-9]/g, "_")
@@ -469,6 +528,8 @@ export default function ModulePlaceholder({
               propKeys.push('precio_venta', 'precio', 'vta', 'venta', 'price');
             } else if (cleanH.includes('proveedor') || cleanH.includes('prov') || cleanH.includes('brand') || cleanH.includes('marca')) {
               propKeys.push('proveedor', 'prov', 'brand', 'marca');
+            } else if (cleanH === 'resor' || cleanH === 'resort' || cleanH === 'resorte') {
+              propKeys.push('resorte', 'resor', 'resort');
             }
 
             const foundKey = propKeys.find(k => row[k] !== undefined);
@@ -643,6 +704,7 @@ export default function ModulePlaceholder({
         let colCosto = -1;
         let colPrecio = -1;
         let colProveedor = -1;
+        let colResorte = -1;
 
         headersCleaned.forEach((h, idx) => {
           if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') colCodigo = idx;
@@ -651,6 +713,7 @@ export default function ModulePlaceholder({
           else if (h === 'costo') colCosto = idx;
           else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
           else if (h === 'proveedor') colProveedor = idx;
+          else if (h === 'resor' || h === 'resort' || h === 'resorte') colResorte = idx;
         });
 
         headersCleaned.forEach((h, idx) => {
@@ -672,12 +735,26 @@ export default function ModulePlaceholder({
           if (colProveedor === -1 && (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor'))) {
             colProveedor = idx;
           }
+          if (colResorte === -1 && (h.includes('resor') || h.includes('resort') || h.includes('resorte'))) {
+            colResorte = idx;
+          }
         });
+
+        const originalCols = dbColumnNamesRef.current[tabId] || [];
 
         const updatedRows = combinedData.map((item: any) => {
           const rowValues: Record<string, string> = {};
           headers.forEach(h => {
-            const sqlColName = h.toLowerCase()
+            const matchedDbColName = originalCols.find(col => {
+              const cleanCol = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+              const cleanH = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+              if ((cleanH === 'resorte' || cleanH === 'resor' || cleanH === 'resort') && (cleanCol === 'resorte' || cleanCol === 'resor' || cleanCol === 'resort')) {
+                return true;
+              }
+              return cleanCol === cleanH || col.replace(/_/g, '') === cleanH;
+            });
+
+            const sqlColName = matchedDbColName || h.toLowerCase()
               .normalize("NFD")
               .replace(/[\u0300-\u036f]/g, "")
               .replace(/[^a-z0-9]/g, "_")
@@ -689,7 +766,17 @@ export default function ModulePlaceholder({
           const getColVal = (idx: number, fallback: any = '') => {
             if (idx === -1) return fallback;
             const h = headers[idx];
-            const sqlColName = h.toLowerCase()
+            
+            const matchedDbColName = originalCols.find(col => {
+              const cleanCol = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+              const cleanH = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+              if ((cleanH === 'resorte' || cleanH === 'resor' || cleanH === 'resort') && (cleanCol === 'resorte' || cleanCol === 'resor' || cleanCol === 'resort')) {
+                return true;
+              }
+              return cleanCol === cleanH || col.replace(/_/g, '') === cleanH;
+            });
+
+            const sqlColName = matchedDbColName || h.toLowerCase()
               .normalize("NFD")
               .replace(/[\u0300-\u036f]/g, "")
               .replace(/[^a-z0-9]/g, "_")
@@ -704,6 +791,7 @@ export default function ModulePlaceholder({
           const costoVal = parseFloat(getColVal(colCosto, 0)) || 0;
           const precioVal = parseFloat(getColVal(colPrecio, 0)) || 0;
           const provVal = String(getColVal(colProveedor, 'Proveedor General')).trim();
+          const resorteVal = String(getColVal(colResorte, '')).trim();
 
           return {
             id: item.id,
@@ -713,6 +801,7 @@ export default function ModulePlaceholder({
             costo_surtido: costoVal,
             precio_venta: precioVal,
             proveedor: provVal,
+            resorte: resorteVal,
             fecha_registro: item.fecha_registro || new Date().toISOString().split('T')[0],
             values: rowValues
           };
@@ -822,9 +911,16 @@ export default function ModulePlaceholder({
           } else if (data && data.length > 0) {
             // Find columns excluding standard auto IDs
             const cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'fecha_registro');
-            // Reconstruct original-looking headers
+            dbColumnNamesRef.current[tabId] = cols;
+            
+            // Reconstruct original-looking headers and correct "resor" or "resort" to "Resorte"
             const headers = cols.map(c => {
-              return c.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              let name = c.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              const lowerName = name.toLowerCase().trim();
+              if (lowerName === 'resor' || lowerName === 'resort') {
+                return 'Resorte';
+              }
+              return name;
             });
             
             const rows = data.map((item: any, rIndex: number) => {
@@ -840,6 +936,7 @@ export default function ModulePlaceholder({
               let matchedCosto = item.costo_surtido !== undefined ? parseFloat(item.costo_surtido) || 0 : 0;
               let matchedPrecio = item.precio_venta !== undefined ? parseFloat(item.precio_venta) || 0 : 0;
               let matchedProveedor = item.proveedor !== undefined ? String(item.proveedor) : '';
+              let matchedResorte = item.resorte !== undefined ? String(item.resorte) : '';
 
               // If any of them are missing, try to parse via headers
               headers.forEach(h => {
@@ -864,6 +961,9 @@ export default function ModulePlaceholder({
                 if (!matchedProveedor && (cleanH.includes('proveedor') || cleanH.includes('prov') || cleanH.includes('brand'))) {
                   matchedProveedor = val;
                 }
+                if (!matchedResorte && (cleanH === 'resor' || cleanH === 'resort' || cleanH === 'resorte')) {
+                  matchedResorte = val;
+                }
               });
 
               if (!matchedProveedor) {
@@ -878,6 +978,7 @@ export default function ModulePlaceholder({
                 costo_surtido: matchedCosto,
                 precio_venta: matchedPrecio,
                 proveedor: matchedProveedor,
+                resorte: matchedResorte,
                 fecha_registro: item.fecha_registro || new Date().toISOString().split('T')[0],
                 values: rowValues
               };
@@ -921,7 +1022,11 @@ export default function ModulePlaceholder({
   const [rowCosto, setRowCosto] = useState(0);
   const [rowPrecio, setRowPrecio] = useState(0);
   const [rowProveedor, setRowProveedor] = useState('');
+  const [rowResorte, setRowResorte] = useState('');
   const [rowSeleccion, setRowSeleccion] = useState('');
+
+  const dbColumnNamesRef = useRef<Record<string, string[]>>({});
+  const isManualSelRef = useRef(false);
 
   // Helper to get next vending slot/selection automatically
   const getNextSeleccion = (rows: any[]): string => {
@@ -1028,13 +1133,24 @@ export default function ModulePlaceholder({
       }
     }
 
-    // 3. Fallback to catalog products `resorte_usa`
-    const catalogProd = products.find(p => 
-      (prodCode && String(p.codigo || '').toLowerCase() === prodCode.toLowerCase()) ||
-      (prodNombre && String(p.nombre || '').toLowerCase() === prodNombre.toLowerCase())
-    );
-    if (catalogProd && catalogProd.resorte_usa) {
-      const resValue = String(catalogProd.resorte_usa).trim();
+    // 3. Fallback to catalog products `resorte_usa` or other selection fields
+    const catalogProd = products.find(p => {
+      const pCode = String(p.codigo || '').toLowerCase().trim();
+      const pNombre = String(p.nombre || '').toLowerCase().trim();
+      const searchCode = prodCode.toLowerCase().trim();
+      const searchNombre = prodNombre.toLowerCase().trim();
+
+      if (searchCode && (pCode === searchCode || pCode.includes(searchCode) || searchCode.includes(pCode))) {
+        return true;
+      }
+      if (searchNombre && (pNombre === searchNombre || pNombre.includes(searchNombre) || searchNombre.includes(pNombre))) {
+        return true;
+      }
+      return false;
+    });
+
+    if (catalogProd) {
+      const resValue = String(catalogProd.sel || catalogProd.seleccion || catalogProd.slot || catalogProd.resorte_usa || '').trim();
       if (resValue) {
         return resValue;
       }
@@ -1122,6 +1238,7 @@ export default function ModulePlaceholder({
   const [editRowCosto, setEditRowCosto] = useState(0);
   const [editRowPrecio, setEditRowPrecio] = useState(0);
   const [editRowProveedor, setEditRowProveedor] = useState('');
+  const [editRowResorte, setEditRowResorte] = useState('');
 
   // Bulk deletion selection state
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
@@ -1149,6 +1266,7 @@ export default function ModulePlaceholder({
   // Sync / Auto-calculate selection when form opens or active submenu/data changes
   useEffect(() => {
     if (addSupplyRowOpen) {
+      isManualSelRef.current = false; // Reset manual flag on form open
       let data: any[] = [];
       if (activeSupplySubmenu === 'cer_bb') data = cerBBData;
       else if (activeSupplySubmenu === 'art_alt') data = artAltData;
@@ -1161,7 +1279,7 @@ export default function ModulePlaceholder({
 
   // Auto-fill Selección (SEL) field dynamically when the user types or selects a product code/name
   useEffect(() => {
-    if (addSupplyRowOpen && (rowCodigo.trim() || rowNombre.trim())) {
+    if (addSupplyRowOpen && !isManualSelRef.current && (rowCodigo.trim() || rowNombre.trim())) {
       const foundSel = getAssignedSeleccionForProduct(rowCodigo, rowNombre);
       if (foundSel) {
         setRowSeleccion(foundSel);
@@ -4190,6 +4308,7 @@ export default function ModulePlaceholder({
         };
 
         const handleSelectSelAssociation = (assoc: any) => {
+          isManualSelRef.current = false;
           setRowSeleccion(assoc.sel);
           if (assoc.productRef) {
             handleSelectProduct(assoc.productRef);
@@ -4202,6 +4321,7 @@ export default function ModulePlaceholder({
         };
 
         const handleSelectProduct = (prod: any) => {
+          isManualSelRef.current = false;
           setRowCodigo(prod.codigo || prod.id || '');
           setRowNombre(prod.nombre || '');
           let cost = prod.precio_unidad || 0;
@@ -4211,6 +4331,7 @@ export default function ModulePlaceholder({
           setRowCosto(cost || prod.precio_venta || 0);
           setRowPrecio(prod.precio_venta || 0);
           setRowProveedor(prod.proveedor || 'Genérico');
+          setRowResorte(prod.resorte_usa || '');
           
           const assignedSel = getAssignedSeleccionForProduct(prod.codigo, prod.nombre);
           if (assignedSel) {
@@ -4254,6 +4375,8 @@ export default function ModulePlaceholder({
                 newRowValues[originalHeader] = String(safeVal(rowPrecio));
               } else if (h === 'proveedor') {
                 newRowValues[originalHeader] = rowProveedor.trim() || 'Proveedor General';
+              } else if (h === 'resor' || h === 'resort' || h === 'resorte') {
+                newRowValues[originalHeader] = rowResorte.trim();
               } else {
                 newRowValues[originalHeader] = '';
               }
@@ -4271,6 +4394,7 @@ export default function ModulePlaceholder({
             sel: rowSeleccion.trim(),
             seleccion: rowSeleccion.trim(),
             proveedor: rowProveedor.trim() || 'Proveedor General',
+            resorte: rowResorte.trim(),
             fecha_registro: new Date().toISOString().split('T')[0],
             values: hasDynamicHeaders ? newRowValues : undefined
           };
@@ -4284,6 +4408,7 @@ export default function ModulePlaceholder({
           setRowCosto(0);
           setRowPrecio(0);
           setRowProveedor('');
+          setRowResorte('');
           setRowSeleccion('');
           setAddSupplyRowOpen(false);
           setCodigoSuggestions([]);
@@ -4330,6 +4455,7 @@ export default function ModulePlaceholder({
           setEditRowCosto(safeVal(row.costo_surtido));
           setEditRowPrecio(safeVal(row.precio_venta));
           setEditRowProveedor(row.proveedor || '');
+          setEditRowResorte(row.resorte || '');
           setEditRowValues(row.values || {});
         };
 
@@ -4347,6 +4473,7 @@ export default function ModulePlaceholder({
                 let colCosto = -1;
                 let colPrecio = -1;
                 let colProveedor = -1;
+                let colResorte = -1;
                 const headers = submenuHeaders[activeSupplySubmenu] || [];
                 const headersCleaned = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim());
                 
@@ -4357,6 +4484,7 @@ export default function ModulePlaceholder({
                   else if (h === 'costo') colCosto = idx;
                   else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
                   else if (h === 'proveedor') colProveedor = idx;
+                  else if (h === 'resor' || h === 'resort' || h === 'resorte') colResorte = idx;
                 });
                 
                 headersCleaned.forEach((h, idx) => {
@@ -4366,6 +4494,7 @@ export default function ModulePlaceholder({
                   if (colCosto === -1 && (h.includes('costo') || h.includes('compra') || h.includes('adquisicion'))) colCosto = idx;
                   if (colPrecio === -1 && (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta' || h.includes('vta'))) colPrecio = idx;
                   if (colProveedor === -1 && (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor'))) colProveedor = idx;
+                  if (colResorte === -1 && (h.includes('resor') || h.includes('resort') || h.includes('resorte'))) colResorte = idx;
                 });
 
                 const codeHeader = colCodigo !== -1 ? headers[colCodigo] : '';
@@ -4374,6 +4503,7 @@ export default function ModulePlaceholder({
                 const costoHeader = colCosto !== -1 ? headers[colCosto] : '';
                 const precioHeader = colPrecio !== -1 ? headers[colPrecio] : '';
                 const provHeader = colProveedor !== -1 ? headers[colProveedor] : '';
+                const resorteHeader = colResorte !== -1 ? headers[colResorte] : '';
 
                 const cleanNumVal = (str: any): number => {
                   if (str === undefined || str === null) return 0;
@@ -4392,6 +4522,7 @@ export default function ModulePlaceholder({
                   costo_surtido: costoHeader ? cleanNumVal(updatedValues[costoHeader]) : r.costo_surtido,
                   precio_venta: precioHeader ? cleanNumVal(updatedValues[precioHeader]) : r.precio_venta,
                   proveedor: provHeader ? String(updatedValues[provHeader] || '').trim() : r.proveedor,
+                  resorte: resorteHeader ? String(updatedValues[resorteHeader] || '').trim() : r.resorte,
                   values: updatedValues
                 };
               } else {
@@ -4402,7 +4533,8 @@ export default function ModulePlaceholder({
                   unidad_surtida: safeVal(editRowUnidades),
                   costo_surtido: safeVal(editRowCosto),
                   precio_venta: safeVal(editRowPrecio),
-                  proveedor: editRowProveedor.trim() || 'Proveedor General'
+                  proveedor: editRowProveedor.trim() || 'Proveedor General',
+                  resorte: editRowResorte.trim()
                 };
               }
             }
@@ -5514,6 +5646,7 @@ export default function ModulePlaceholder({
                           placeholder="p. ej: 15"
                           value={rowSeleccion}
                           onChange={(e) => {
+                            isManualSelRef.current = true;
                             const val = e.target.value;
                             setRowSeleccion(val);
                             if (val.trim()) {
@@ -5757,12 +5890,12 @@ export default function ModulePlaceholder({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-500 font-bold block">Proveedor / Marca comercial</label>
+                        <label className="text-[10px] text-slate-500 font-bold block">Resorte</label>
                         <input
                           type="text"
-                          placeholder="Nombre de la distribuidora"
-                          value={rowProveedor}
-                          onChange={(e) => setRowProveedor(e.target.value)}
+                          placeholder="Tamaño de resorte (p. ej: 12)"
+                          value={rowResorte}
+                          onChange={(e) => setRowResorte(e.target.value)}
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
                         />
                       </div>
@@ -5878,7 +6011,7 @@ export default function ModulePlaceholder({
                               <th className="py-3 px-4 text-right">Costo Unit.</th>
                               <th className="py-3 px-4 text-right">Precio Venta</th>
                               <th className="py-3 px-4 text-right">Importe Total</th>
-                              <th className="py-3 px-4">Proveedor</th>
+                              <th className="py-3 px-4">Resorte</th>
                               <th className="py-3 px-4">Fecha Surtido</th>
                             </>
                           )}
@@ -5976,8 +6109,8 @@ export default function ModulePlaceholder({
                                         <td className="py-2 px-3">
                                           <input
                                             type="text"
-                                            value={editRowProveedor}
-                                            onChange={(e) => setEditRowProveedor(e.target.value)}
+                                            value={editRowResorte}
+                                            onChange={(e) => setEditRowResorte(e.target.value)}
                                             className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold"
                                           />
                                         </td>
@@ -6056,7 +6189,7 @@ export default function ModulePlaceholder({
                                           {formatMXN(totalVal)}
                                         </td>
                                         <td className="py-3 px-4 text-slate-500 font-semibold">
-                                          {row.proveedor}
+                                          {row.resorte}
                                         </td>
                                         <td className="py-3 px-4 text-slate-400 font-medium">
                                           {row.fecha_registro}
