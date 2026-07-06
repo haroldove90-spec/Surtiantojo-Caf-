@@ -77,13 +77,24 @@ const cleanHeader = (h: string) => {
 const cleanHeaders = (headersList: string[]): string[] => {
   if (!headersList) return [];
   
-  // 1. Filter out unwanted "columna 1", "columna 10" columns (case-insensitive, space/underscore removed)
-  let filtered = headersList.filter(h => {
-    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
-    return norm !== 'columna 1' && norm !== 'columna 10' && norm !== 'columna_1' && norm !== 'columna_10' && norm !== 'columna1' && norm !== 'columna10';
+  // 1. Map headers: "Precio sin acuerdo" -> "Precio regular", remove other special/unwanted ones
+  let mapped = headersList.map(h => {
+    const norm = h.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
+    if (norm === 'precio sin acuerdo' || norm === 'precios sin acuerdo') {
+      return 'Precio regular';
+    }
+    return h;
   });
 
-  // 2. Ensure "Notas" is present and placed after "POR CANAL LLEVA" (or at the end if not found)
+  // 2. Filter out unwanted "columna 1", "columna 10", "Busc", "Busc.", "Buscar" columns
+  let filtered = mapped.filter(h => {
+    const norm = h.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
+    if (norm === 'columna 1' || norm === 'columna 10' || norm === 'columna_1' || norm === 'columna_10' || norm === 'columna1' || norm === 'columna10') return false;
+    if (norm === 'busc' || norm === 'buscar' || norm === 'busc.') return false;
+    return true;
+  });
+
+  // 3. Ensure "Notas" is present and placed after "POR CANAL LLEVA" (or at the end if not found)
   const canalIdx = filtered.findIndex(h => {
     const norm = h.toLowerCase().trim().replace(/_/g, ' ');
     return norm === 'por canal lleva' || norm.includes('canal lleva') || norm === 'por canal';
@@ -92,7 +103,6 @@ const cleanHeaders = (headersList: string[]): string[] => {
   const notasIdx = filtered.findIndex(h => h.toLowerCase().trim() === 'notas');
 
   if (notasIdx !== -1) {
-    const notasHeader = filtered[notasIdx];
     filtered.splice(notasIdx, 1);
   }
 
@@ -1380,6 +1390,7 @@ export default function ModulePlaceholder({
   const [newSubmenuName, setNewSubmenuName] = useState('');
   const [newSubmenuTitle, setNewSubmenuTitle] = useState('');
   const [newSubmenuDesc, setNewSubmenuDesc] = useState('');
+  const [newSubmenuGroup, setNewSubmenuGroup] = useState('botana');
 
   // Excel/CSV Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -4031,12 +4042,20 @@ export default function ModulePlaceholder({
 
           // 1. Prioritize dynamic values (case-insensitive & trimmed matching of the field name in values map)
           if (row.values) {
-            if (row.values[field] !== undefined) {
-              return row.values[field];
+            let lookupFields = [field];
+            const cleanField = field.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
+            if (cleanField === 'precio regular' || cleanField === 'precio_regular' || cleanField === 'regular') {
+              lookupFields.push('Precio sin acuerdo', 'precio sin acuerdo', 'precios sin acuerdo', 'Precio regular', 'precio_regular');
             }
-            const foundKey = Object.keys(row.values).find(k => k.toLowerCase().trim() === field.toLowerCase().trim());
-            if (foundKey && row.values[foundKey] !== undefined) {
-              return row.values[foundKey];
+
+            for (const f of lookupFields) {
+              if (row.values[f] !== undefined) {
+                return row.values[f];
+              }
+              const foundKey = Object.keys(row.values).find(k => k.toLowerCase().trim() === f.toLowerCase().trim());
+              if (foundKey && row.values[foundKey] !== undefined) {
+                return row.values[foundKey];
+              }
             }
           }
 
@@ -4826,30 +4845,44 @@ export default function ModulePlaceholder({
           setEditingRowId(null);
         };
 
-        const handleRegisterNewSubmenu = () => {
-          if (!newSubmenuName.trim()) {
-            alert("Por favor escribe el nombre de acceso para el submenú.");
+         const handleRegisterNewSubmenu = () => {
+          if (!newSubmenuTitle.trim()) {
+            alert("Por favor escribe el Título de registro de máquina.");
             return;
           }
-          const generatedId = 'custom_' + newSubmenuName.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+          
+          const cleanTitle = newSubmenuTitle.trim();
+          let displayName = cleanTitle;
+          
+          // Generate key/id and display label ensuring proper categorization
+          let generatedId = 'custom_' + cleanTitle.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+          if (newSubmenuGroup === 'bebidas') {
+            if (!generatedId.includes('bb') && !generatedId.includes('bebida')) {
+              generatedId += '_bb';
+            }
+            if (!displayName.toLowerCase().includes('bb') && !displayName.toLowerCase().includes('bebida')) {
+              displayName += ' (BB)';
+            }
+          }
+
           if (supplySubmenuList.some(s => s.id === generatedId)) {
-            alert("Ya existe un acceso registrado bajo este mismo nombre de menú.");
+            alert("Ya existe un acceso registrado bajo este mismo título de registro.");
             return;
           }
           
           const newTabItem = {
             id: generatedId,
-            name: newSubmenuName.trim(),
-            title: newSubmenuTitle.trim() || `Reporte Surtido ${newSubmenuName}`,
-            desc: newSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${newSubmenuName}.`
+            name: displayName,
+            title: cleanTitle,
+            desc: newSubmenuDesc.trim() || `Surtido para ${cleanTitle}.`
           };
 
           setSupplySubmenuList(prev => sortSubmenus([...prev, newTabItem]));
           
           const initialRow = { 
             id: 1, 
-            codigo: `${newSubmenuName.substring(0,3).toUpperCase()}-1`, 
-            nombre_producto: `Insumo Inicial ${newSubmenuName}`, 
+            codigo: `${cleanTitle.substring(0,3).toUpperCase()}-1`, 
+            nombre_producto: `Insumo Inicial ${cleanTitle}`, 
             unidad_surtida: 40, 
             costo_surtido: 35.00, 
             precio_venta: 70.00, 
@@ -4866,8 +4899,8 @@ export default function ModulePlaceholder({
           // Persist custom submenu definition in Supabase metadata table
           supabase.from('surtido_submenus').upsert({
             id: generatedId,
-            name: newSubmenuName.trim(),
-            title: newTabItem.title,
+            name: displayName,
+            title: cleanTitle,
             description: newTabItem.desc
           }).then(({ error }) => {
             if (error) {
@@ -4879,10 +4912,12 @@ export default function ModulePlaceholder({
             }
           });
 
+          setActiveCategory(newSubmenuGroup as any);
           setActiveSupplySubmenu(generatedId);
           setNewSubmenuName('');
           setNewSubmenuTitle('');
           setNewSubmenuDesc('');
+          setNewSubmenuGroup('botana');
           setAddSubmenuOpen(false);
         };
 
@@ -5768,44 +5803,7 @@ export default function ModulePlaceholder({
                   );
                 })()}
 
-                {/* KPI Metrics Dashboard based on live filters of the report */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Piezas Surtidas</span>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-xl font-mono font-black text-slate-800">{totalUnits}</span>
-                      <span className="text-[10px] text-slate-500 font-semibold uppercase">u.</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Costo de Inversión</span>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-xl font-mono font-black text-slate-800">{formatMXN(totalCostIncurred)}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Venta Proyectada</span>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-xl font-mono font-black text-[#043077]">{formatMXN(projectedSalesValue)}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Ganancia Bruta</span>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-xl font-mono font-black text-emerald-600">+{formatMXN(grossProfit)}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-3xs flex flex-col justify-between">
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide block">Margen Promedio</span>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-xl font-mono font-black text-indigo-600">{avgMarginPct.toFixed(1)}%</span>
-                    </div>
-                  </div>
-                </div>
+                {/* KPI Metrics Dashboard has been removed as requested */}
 
                 {/* Submenu filters & rows manipulation bar */}
                 <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
@@ -6462,12 +6460,18 @@ export default function ModulePlaceholder({
                                         const cellVal = row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header);
                                         const cleanH = cleanHeader(header);
                                         const isCode = cleanH.includes('codigo') || cleanH.includes('sku') || cleanH.includes('codig');
+                                        
+                                        // Format with dollar sign if the header represents a price/cost
+                                        const normHeader = header.toLowerCase().trim();
+                                        const isPrice = normHeader.includes('precio') || normHeader.includes('costo') || normHeader.includes('importe') || normHeader.includes('regular') || normHeader.includes('vta') || normHeader.includes('venta') || normHeader === 'sin acuerdo' || normHeader.includes('precio sin acuerdo');
+                                        const formattedVal = isPrice ? (typeof cellVal === 'number' ? formatMXN(cellVal) : (isNaN(Number(cellVal)) || cellVal === '' ? cellVal : formatMXN(Number(cellVal)))) : cellVal;
+
                                         return (
                                           <td 
                                             key={idx} 
-                                            className={`py-3 px-4 ${isCode ? 'font-mono font-black text-[#043077]' : 'font-medium text-slate-700'}`}
+                                            className={`py-3 px-4 ${isCode ? 'font-mono font-black text-[#043077]' : 'font-medium text-slate-700'} ${isPrice ? 'text-right font-mono font-extrabold' : ''}`}
                                           >
-                                            {cellVal}
+                                            {formattedVal}
                                           </td>
                                         );
                                       })
@@ -6567,21 +6571,22 @@ export default function ModulePlaceholder({
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Nombre Corto de Acceso (Menú)</label>
-                      <input
-                        type="text"
-                        placeholder="p. ej: Cervezas BB, Refrescos"
-                        value={newSubmenuName}
-                        onChange={(e) => setNewSubmenuName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
-                      />
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Grupo de máquina</label>
+                      <select
+                        value={newSubmenuGroup}
+                        onChange={(e) => setNewSubmenuGroup(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077] cursor-pointer"
+                      >
+                        <option value="botana">Máquina botanas</option>
+                        <option value="bebidas">Máquinas bebidas</option>
+                      </select>
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título del Reporte / Hoja</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título de registro de máquina</label>
                       <input
                         type="text"
-                        placeholder="p. ej: Reporte Consolidado de Cervezas BB"
+                        placeholder="p. ej: Máquina de refrescos pasillo central"
                         value={newSubmenuTitle}
                         onChange={(e) => setNewSubmenuTitle(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
@@ -6589,10 +6594,10 @@ export default function ModulePlaceholder({
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Descripción / Notas</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">NOTAS</label>
                       <textarea
                         rows={3}
-                        placeholder="Propósito u observaciones de este lote de surtido comercial..."
+                        placeholder="Propósito u observaciones de esta máquina..."
                         value={newSubmenuDesc}
                         onChange={(e) => setNewSubmenuDesc(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
