@@ -5421,8 +5421,8 @@ export default function ModulePlaceholder({
                       <Plus className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-indigo-600 font-extrabold block uppercase tracking-wider">Menu 4</span>
-                      <h4 className="text-xs font-black text-[#043077] uppercase tracking-wider">Registrar acceso</h4>
+                      <span className="text-[10px] text-indigo-600 font-extrabold block uppercase tracking-wider">Registrar</span>
+                      <h4 className="text-xs font-black text-[#043077] uppercase tracking-wider">Nueva máquina</h4>
                     </div>
                   </div>
                   <div className="mt-4 text-left">

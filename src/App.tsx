@@ -24,7 +24,9 @@ import {
   LogOut,
   ShieldCheck,
   Lock,
-  UserCheck
+  UserCheck,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ModulePlaceholder from './components/ModulePlaceholder';
@@ -90,6 +92,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [loginUsername, setLoginUsername] = useState<string>('');
   const [loginPassword, setLoginPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loginLoading, setLoginLoading] = useState<boolean>(false);
   const [showCredsGuide, setShowCredsGuide] = useState<boolean>(true);
 
@@ -228,7 +231,7 @@ export default function App() {
           setDbStatus('error');
         }
       } catch (err) {
-        console.warn('Supabase query validation warning (offline/local fallback):', err);
+        console.log('Supabase query validation notice (offline/local fallback):', err);
         setDbStatus('error');
       }
     }
@@ -246,7 +249,7 @@ export default function App() {
           .order('username', { ascending: true });
 
         if (error) {
-          console.warn("Supabase usuarios fetch warning: Table 'usuarios' might not exist yet. Using offline-first default credentials.", error);
+          console.log("Supabase 'usuarios' table is not available yet (using offline-first default credentials). Code:", error.code || error.message);
           return;
         }
 
@@ -276,13 +279,13 @@ export default function App() {
             .from('usuarios')
             .insert(DEFAULT_USERS);
           if (seedError) {
-            console.warn("Could not seed default users in Supabase:", seedError);
+            console.log("Could not seed default users in Supabase:", seedError);
           } else {
             console.log("Seeded default users in Supabase successfully.");
           }
         }
       } catch (err) {
-        console.warn("Error syncing users with Supabase:", err);
+        console.log("Error syncing users with Supabase:", err);
       }
     }
     syncUsers();
@@ -309,7 +312,7 @@ export default function App() {
           matchedUser = data;
         }
       } catch (e) {
-        console.warn("Real-time login query warning:", e);
+        console.log("Real-time login query notice:", e);
       }
     }
 
@@ -766,7 +769,7 @@ export default function App() {
                   required
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="ej. karla_padilla"
+                  placeholder="Nombre de usuario"
                   className="w-full pl-10 pr-4 py-3 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors text-sm"
                 />
                 <UserCheck className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
@@ -779,14 +782,25 @@ export default function App() {
               </label>
               <div className="relative">
                 <input 
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                  className="w-full pl-10 pr-10 py-3 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors text-sm"
                 />
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  className="absolute right-3.5 top-3.5 text-slate-500 hover:text-slate-300 focus:outline-none transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
               </div>
             </div>
 
