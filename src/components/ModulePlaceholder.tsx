@@ -256,6 +256,7 @@ export default function ModulePlaceholder({
 
   // Pagination state (only 5 products per page)
   const [currentPage, setCurrentPage] = useState(1);
+  const [supplyPage, setSupplyPage] = useState(1);
 
   // Scroll synchronizer refs
   const topScrollRef = useRef<HTMLDivElement>(null);
@@ -2314,6 +2315,11 @@ export default function ModulePlaceholder({
     setCurrentPage(1);
   }, [searchQuery, statusFilter, pagoFilter, sortField, sortDirection]);
 
+  // Reset supplyPage to 1 on submenu, search or sort change
+  useEffect(() => {
+    setSupplyPage(1);
+  }, [activeSupplySubmenu, submenuSearchQuery, supplySortField, supplySortDirection]);
+
   // Measure and synchronize widths on content/pagination shift
   useEffect(() => {
     const updateWidth = () => {
@@ -2481,7 +2487,7 @@ export default function ModulePlaceholder({
   const renderSortableHeader = (label: string, field: string, textClass = "text-slate-500 font-extrabold") => {
     const isSorted = sortField === field;
     return (
-      <th className="py-4 px-4 select-none">
+      <th className="py-4 px-3 select-none whitespace-nowrap">
         <button
           type="button"
           onClick={() => handleSort(field)}
@@ -3072,10 +3078,10 @@ export default function ModulePlaceholder({
                 onScroll={handleTableScroll}
                 className="overflow-x-auto"
               >
-                <table className="w-full text-left border-collapse min-w-[1000px]">
+                <table className="w-full table-auto text-left border-collapse whitespace-nowrap">
                   <thead>
                     <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                      <th className="py-4 px-4 w-12 text-center">
+                      <th className="py-4 px-3 w-12 text-center whitespace-nowrap">
                         <button 
                           type="button"
                           onClick={toggleSelectAll} 
@@ -3100,7 +3106,7 @@ export default function ModulePlaceholder({
                       {renderSortableHeader("Métodos de Pago", "forma_pago")}
                       {renderSortableHeader("Estado", "status")}
                       {renderSortableHeader("Fecha Registro", "created_at")}
-                      <th className="py-4 px-4 text-center text-slate-500 font-extrabold uppercase text-[10px]">Acción</th>
+                      <th className="py-4 px-3 text-center text-slate-500 font-extrabold uppercase text-[10px] whitespace-nowrap">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -3124,7 +3130,7 @@ export default function ModulePlaceholder({
                               isChecked ? 'bg-blue-50/20' : ''
                             }`}
                           >
-                            <td className="py-3 px-4 text-center">
+                            <td className="py-3 px-3 text-center whitespace-nowrap">
                               <button 
                                 type="button"
                                 onClick={() => toggleSelectItem(p.id)}
@@ -3138,7 +3144,7 @@ export default function ModulePlaceholder({
                                 />
                               </button>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               {p.codigo ? (
                                 <span className="inline-block max-w-fit text-[11px] font-mono font-bold bg-[#043077]/10 text-[#043077] px-2 py-0.5 rounded uppercase select-all" title="Código de barras / SKU">
                                   {p.codigo}
@@ -3147,46 +3153,46 @@ export default function ModulePlaceholder({
                                 <span className="text-xs text-slate-400 font-bold italic block">Sin código</span>
                               )}
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="font-extrabold text-slate-800 text-sm block">{p.nombre}</span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="text-xs font-bold text-slate-600 block bg-slate-100/60 border border-slate-200/50 rounded-lg px-2.5 py-1.5 max-w-[155px] truncate" title={p.proveedor || "Genérico"}>
                                 {p.proveedor || "Genérico"}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <div className="text-xs text-slate-600 leading-tight">
                                 <div>Caja: <span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_caja)}</span></div>
                                 <div>Unitario: <span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_unidad)}</span></div>
                               </div>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="text-sm font-extrabold text-slate-900 font-mono">
                                 {formatMXN(p.precio_venta)}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-700">
                                 {safeVal(p.margen_pct).toFixed(1)}%
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="text-sm font-extrabold text-slate-900 font-mono">
                                 {formatMXN(p.precio_sugerido)}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-[#043077]/5 text-[#043077]">
                                 {safeVal(p.margen_ps_pct).toFixed(1)}%
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="text-xs text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-md">
                                 {p.forma_pago}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => onUpdateProduct && onUpdateProduct(p.id, { status: isActivoStatus(p.status) ? 'Inactivo' : 'Activo' })}
@@ -3203,12 +3209,12 @@ export default function ModulePlaceholder({
                                 </span>
                               </button>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <span className="text-xs text-slate-500 font-mono block">
                                 {formattedRegisterDate}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-center">
+                            <td className="py-3 px-3 text-center whitespace-nowrap">
                               <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
@@ -4278,6 +4284,10 @@ export default function ModulePlaceholder({
           return supplySortDirection === 'asc' ? comp : -comp;
         });
 
+        // Paginate Surtido rows (5 per page)
+        const totalSupplyPages = Math.max(Math.ceil(sortedSubmenuRows.length / 5), 1);
+        const paginatedSubmenuRows = sortedSubmenuRows.slice((supplyPage - 1) * 5, supplyPage * 5);
+
         // Dynamic Calculations for KPIs
         const totalUnits = filteredSubmenuRows.reduce((acc, row) => acc + safeVal(row.unidad_surtida), 0);
         const totalCostIncurred = filteredSubmenuRows.reduce((acc, row) => acc + (safeVal(row.unidad_surtida) * safeVal(row.costo_surtido)), 0);
@@ -4460,20 +4470,26 @@ export default function ModulePlaceholder({
             return;
           }
 
-          // Sort numerically by SEL/seleccion
+          // Export in the exact same order as visible in the system (using active sort)
           const sortedDataToExport = [...dataToExport].sort((a, b) => {
-            const aVal = getSupplyRowCompareValue(a, 'sel');
-            const bVal = getSupplyRowCompareValue(b, 'sel');
-            return compareVals(aVal, bVal);
+            if (!supplySortField) {
+              const aVal = getSupplyRowCompareValue(a, 'sel');
+              const bVal = getSupplyRowCompareValue(b, 'sel');
+              return compareVals(aVal, bVal);
+            }
+            const aVal = getSupplyRowCompareValue(a, supplySortField);
+            const bVal = getSupplyRowCompareValue(b, supplySortField);
+            const comp = compareVals(aVal, bVal);
+            return supplySortDirection === 'asc' ? comp : -comp;
           });
 
           const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[tabId] || []), sortedDataToExport);
           const hasDynamicHeaders = activeSubHeaders.length > 0;
           const colLabels = hasDynamicHeaders 
             ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
-            : ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
+            : ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
 
-          const headers = colLabels.join(';');
+          const headers = colLabels.map(label => `"${label.replace(/"/g, '""')}"`).join(';');
           const rows = sortedDataToExport.map(item => {
             const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
             
@@ -4482,14 +4498,11 @@ export default function ModulePlaceholder({
               activeSubHeaders.forEach(h => {
                 const val = item.values && item.values[h] !== undefined ? item.values[h] : getSupplyRowCompareValue(item, h);
                 let valStr = String(val === null || val === undefined ? '' : val).replace(/"/g, '""');
-                if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
-                  valStr = `"${valStr}"`;
-                }
-                rowValues.push(valStr);
+                rowValues.push(`"${valStr}"`);
               });
               // Append totalImport and date
-              rowValues.push(totalImport.toFixed(2).replace('.', ','));
-              rowValues.push(item.fecha_registro || '');
+              rowValues.push(`"${totalImport.toFixed(2).replace('.', ',')}"`);
+              rowValues.push(`"${(item.fecha_registro || '').replace(/"/g, '""')}"`);
               return rowValues.join(';');
             } else {
               const colKeys = ['id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'notas', 'fecha_registro'];
@@ -4500,15 +4513,12 @@ export default function ModulePlaceholder({
               };
               return colKeys.map(key => {
                 const val = rowCopy[key];
-                if (val === undefined || val === null) return '';
+                if (val === undefined || val === null) return '""';
                 if (typeof val === 'number') {
-                  return val.toFixed(2).replace('.', ',');
+                  return `"${val.toFixed(2).replace('.', ',')}"`;
                 }
                 let valStr = String(val).replace(/"/g, '""');
-                if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
-                  valStr = `"${valStr}"`;
-                }
-                return valStr;
+                return `"${valStr}"`;
               }).join(';');
             }
           });
@@ -4526,8 +4536,7 @@ export default function ModulePlaceholder({
         };
 
         const handleExportAllToExcel = () => {
-          // Collect records from all submenus
-          const allRows: any[] = [];
+          const exportBlocks: string[] = [];
           
           supplySubmenuList.forEach(submenu => {
             let data: any[] = [];
@@ -4535,54 +4544,86 @@ export default function ModulePlaceholder({
             else if (submenu.id === 'art_alt') data = artAltData;
             else if (submenu.id === 'art_ct') data = artCtData;
             else data = genericSubmenuData[submenu.id] || [];
-            
-            // Sort each submenu's data numerically by SEL/seleccion
+
+            if (data.length === 0) {
+              // Skip tables with no records
+              return;
+            }
+
+            // Sort each submenu's data using active system sort if available, else by SEL/seleccion
             const sortedData = [...data].sort((a, b) => {
-              const aVal = getSupplyRowCompareValue(a, 'sel');
-              const bVal = getSupplyRowCompareValue(b, 'sel');
-              return compareVals(aVal, bVal);
+              if (!supplySortField) {
+                const aVal = getSupplyRowCompareValue(a, 'sel');
+                const bVal = getSupplyRowCompareValue(b, 'sel');
+                return compareVals(aVal, bVal);
+              }
+              const aVal = getSupplyRowCompareValue(a, supplySortField);
+              const bVal = getSupplyRowCompareValue(b, supplySortField);
+              const comp = compareVals(aVal, bVal);
+              return supplySortDirection === 'asc' ? comp : -comp;
             });
+
+            const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[submenu.id] || []), sortedData);
+            const hasDynamicHeaders = activeSubHeaders.length > 0;
+
+            const colLabels = hasDynamicHeaders 
+              ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
+              : ['Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
+
+            // Title block for this submenu
+            exportBlocks.push(`"MÁQUINA / SUBMENÚ: ${submenu.name.replace(/"/g, '""')}"`);
+            exportBlocks.push(colLabels.map(label => `"${label.replace(/"/g, '""')}"`).join(';'));
 
             sortedData.forEach(item => {
-              allRows.push({
-                ...item,
-                seccion_origen: submenu.name
-              });
+              const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
+              
+              if (hasDynamicHeaders) {
+                const rowValues: string[] = [];
+                activeSubHeaders.forEach(h => {
+                  const val = item.values && item.values[h] !== undefined ? item.values[h] : getSupplyRowCompareValue(item, h);
+                  let valStr = String(val === null || val === undefined ? '' : val).replace(/"/g, '""');
+                  if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
+                    valStr = `"${valStr}"`;
+                  } else {
+                    valStr = `"${valStr}"`;
+                  }
+                  rowValues.push(valStr);
+                });
+                // Append totalImport and date
+                rowValues.push(`"${totalImport.toFixed(2).replace('.', ',')}"`);
+                rowValues.push(`"${(item.fecha_registro || '').replace(/"/g, '""')}"`);
+                exportBlocks.push(rowValues.join(';'));
+              } else {
+                const colKeys = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'notas', 'fecha_registro'];
+                const rowCopy = {
+                  ...item,
+                  importe_total: totalImport,
+                  sel: item.sel || item.seleccion || item.resorte || ''
+                };
+                const rowValues = colKeys.map(key => {
+                  const val = rowCopy[key];
+                  if (val === undefined || val === null) return '""';
+                  if (typeof val === 'number') {
+                    return `"${val.toFixed(2).replace('.', ',')}"`;
+                  }
+                  let valStr = String(val).replace(/"/g, '""');
+                  return `"${valStr}"`;
+                });
+                exportBlocks.push(rowValues.join(';'));
+              }
             });
+
+            // Add separation blank rows after each table block
+            exportBlocks.push('');
+            exportBlocks.push('');
           });
 
-          if (allRows.length === 0) {
+          if (exportBlocks.length === 0) {
             alert("No hay registros en ninguna sección para ser exportados.");
             return;
           }
 
-          const colKeys = ['seccion_origen', 'id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'notas', 'fecha_registro'];
-          const colLabels = ['Sección', 'ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio Venta Unitario ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
-
-          const headers = colLabels.join(';');
-          const rows = allRows.map(item => {
-            const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
-            const rowCopy = {
-              ...item,
-              importe_total: totalImport,
-              sel: item.sel || item.seleccion || item.resorte || '',
-              notas: item.notas || ''
-            };
-            return colKeys.map(key => {
-              const val = rowCopy[key];
-              if (val === undefined || val === null) return '';
-              if (typeof val === 'number') {
-                return val.toFixed(2).replace('.', ',');
-              }
-              let valStr = String(val).replace(/"/g, '""');
-              if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
-                valStr = `"${valStr}"`;
-              }
-              return valStr;
-            }).join(';');
-          });
-
-          const csvContent = "\uFEFF" + "sep=;\n" + [headers, ...rows].join('\n');
+          const csvContent = "\uFEFF" + "sep=;\n" + exportBlocks.join('\n');
           const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
@@ -6268,20 +6309,20 @@ export default function ModulePlaceholder({
                     onScroll={handleSubmenuTableScroll}
                     className="overflow-x-auto"
                   >
-                    <table className="w-full text-xs text-left border-collapse">
+                    <table className="w-full table-auto text-xs text-left border-collapse whitespace-nowrap">
                       <thead>
-                        <tr className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200 select-none">
-                          <th className="py-3 px-3 text-center w-10">
+                        <tr className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200 select-none whitespace-nowrap">
+                          <th className="py-3 px-3 text-center w-10 whitespace-nowrap">
                             <input
                               type="checkbox"
                               className="rounded border-slate-300 text-[#043077] focus:ring-[#043077] h-3.5 w-3.5 cursor-pointer"
-                              checked={filteredSubmenuRows.length > 0 && filteredSubmenuRows.every(r => selectedRowIds.includes(r.id))}
+                              checked={paginatedSubmenuRows.length > 0 && paginatedSubmenuRows.every(r => selectedRowIds.includes(r.id))}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  const allIds = filteredSubmenuRows.map(r => r.id);
+                                  const allIds = paginatedSubmenuRows.map(r => r.id);
                                   setSelectedRowIds(prev => Array.from(new Set([...prev, ...allIds])));
                                 } else {
-                                  const visibleIds = new Set(filteredSubmenuRows.map(r => r.id));
+                                  const visibleIds = new Set(paginatedSubmenuRows.map(r => r.id));
                                   setSelectedRowIds(prev => prev.filter(id => !visibleIds.has(id)));
                                 }
                               }}
@@ -6299,26 +6340,26 @@ export default function ModulePlaceholder({
                                 {renderSupplySortableHeader("Producto o Artículo", "nombre_producto")}
                                 {renderSupplySortableHeader("Unidades", "unidad_surtida")}
                                 {renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
-                                {renderSupplySortableHeader("Precio Venta", "precio_venta")}
-                                <th className="py-3 px-4 text-right">Importe Total</th>
+                                {renderSupplySortableHeader("Precio regular", "precio_venta")}
+                                <th className="py-3 px-3 text-right whitespace-nowrap">Importe Total</th>
                                 {renderSupplySortableHeader("Resorte", "resorte")}
                                 {renderSupplySortableHeader("Notas", "notas")}
                                 {renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
                               </>
                             );
                           })()}
-                          <th className="py-3 px-4 text-center">Controles</th>
+                          <th className="py-3 px-3 text-center whitespace-nowrap">Controles</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
-                        {sortedSubmenuRows.length === 0 ? (
+                        {paginatedSubmenuRows.length === 0 ? (
                           <tr>
                             <td colSpan={15} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
                               No hay registros cargados para {activeMeta.name} que coincidan con la búsqueda.
                             </td>
                           </tr>
                         ) : (
-                          sortedSubmenuRows.map((row) => {
+                          paginatedSubmenuRows.map((row) => {
                             const isEditing = row.id === editingRowId;
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
                             const hasDynamicHeaders = activeSubHeaders.length > 0;
@@ -6469,7 +6510,7 @@ export default function ModulePlaceholder({
                                         return (
                                           <td 
                                             key={idx} 
-                                            className={`py-3 px-4 ${isCode ? 'font-mono font-black text-[#043077]' : 'font-medium text-slate-700'} ${isPrice ? 'text-right font-mono font-extrabold' : ''}`}
+                                            className={`py-3 px-3 whitespace-nowrap ${isCode ? 'font-mono font-black text-[#043077]' : 'font-medium text-slate-700'} ${isPrice ? 'text-right font-mono font-extrabold' : ''}`}
                                           >
                                             {formattedVal}
                                           </td>
@@ -6477,36 +6518,36 @@ export default function ModulePlaceholder({
                                       })
                                     ) : (
                                       <>
-                                        <td className="py-3 px-4 font-mono font-black text-[#043077]">
+                                        <td className="py-3 px-3 font-mono font-black text-[#043077] whitespace-nowrap">
                                           {row.codigo}
                                         </td>
-                                        <td className="py-3 px-4 font-extrabold text-slate-800">
+                                        <td className="py-3 px-3 font-extrabold text-slate-800 whitespace-nowrap">
                                           {row.nombre_producto}
                                         </td>
-                                        <td className="py-3 px-4 text-center font-mono font-black text-slate-700">
+                                        <td className="py-3 px-3 text-center font-mono font-black text-slate-700 whitespace-nowrap">
                                           {row.unidad_surtida}
                                         </td>
-                                        <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                        <td className="py-3 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
                                           {formatMXN(row.costo_surtido)}
                                         </td>
-                                        <td className="py-3 px-4 text-right font-mono text-slate-600">
+                                        <td className="py-3 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
                                           {formatMXN(row.precio_venta)}
                                         </td>
-                                        <td className="py-3 px-4 text-right font-mono font-black text-[#043077]">
+                                        <td className="py-3 px-3 text-right font-mono font-black text-[#043077] whitespace-nowrap">
                                           {formatMXN(totalVal)}
                                         </td>
-                                        <td className="py-3 px-4 text-slate-500 font-semibold">
+                                        <td className="py-3 px-3 text-slate-500 font-semibold whitespace-nowrap">
                                           {row.resorte}
                                         </td>
-                                        <td className="py-3 px-4 text-slate-700 font-medium">
+                                        <td className="py-3 px-3 text-slate-700 font-medium whitespace-nowrap">
                                           {row.notas || ''}
                                         </td>
-                                        <td className="py-3 px-4 text-slate-400 font-medium">
+                                        <td className="py-3 px-3 text-slate-400 font-medium whitespace-nowrap">
                                           {row.fecha_registro}
                                         </td>
                                       </>
                                     )}
-                                    <td className="py-3 px-4 text-center">
+                                    <td className="py-3 px-3 text-center whitespace-nowrap">
                                       <div className="flex items-center justify-center gap-1">
                                         <button
                                           onClick={() => handleStartEditRow(row)}
@@ -6536,10 +6577,63 @@ export default function ModulePlaceholder({
                   
                   {/* Table footer info */}
                   <div className="bg-slate-50 px-4 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-bold">
-                    <span>Mostrando {filteredSubmenuRows.length} registros en {activeMeta.name}</span>
+                    <span>Mostrando {paginatedSubmenuRows.length} de {filteredSubmenuRows.length} registros en {activeMeta.name}</span>
                     <span className="font-mono text-[#043077] uppercase tracking-wider">Cargar en Dashboard Excel Habilitado</span>
                   </div>
                 </div>
+
+                {/* Surtido Pagination controls */}
+                {totalSupplyPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-3 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+                    <div className="text-xs font-black text-slate-500 uppercase tracking-wide">
+                      Mostrando <span className="text-[#043077] font-mono">{(supplyPage - 1) * 5 + 1}</span> a <span className="text-[#043077] font-mono">{Math.min(supplyPage * 5, filteredSubmenuRows.length)}</span> de <span className="text-slate-700 font-mono">{filteredSubmenuRows.length}</span> registros
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setSupplyPage(prev => Math.max(prev - 1, 1))}
+                        disabled={supplyPage === 1}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white text-slate-700 text-xs font-black border border-slate-200 rounded-xl cursor-pointer transition-all focus:outline-none flex items-center gap-1"
+                      >
+                        ◀️ Anterior
+                      </button>
+                      {Array.from({ length: totalSupplyPages }, (_, i) => i + 1).map(page => {
+                        const isSelected = page === supplyPage;
+                        const shouldShow = totalSupplyPages <= 6 || Math.abs(page - supplyPage) <= 1 || page === 1 || page === totalSupplyPages;
+                        
+                        if (!shouldShow) {
+                          if (page === 2 || page === totalSupplyPages - 1) {
+                            return <span key={`supply-dots-${page}`} className="text-slate-400 text-xs px-1 select-none">...</span>;
+                          }
+                          return null;
+                        }
+
+                        return (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setSupplyPage(page)}
+                            className={`w-8 h-8 flex items-center justify-center text-xs font-black rounded-xl cursor-pointer transition-all focus:outline-none ${
+                              isSelected
+                                ? 'bg-[#043077] text-white border border-[#043077]'
+                                : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => setSupplyPage(prev => Math.min(prev + 1, totalSupplyPages))}
+                        disabled={supplyPage === totalSupplyPages}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white text-slate-700 text-xs font-black border border-slate-200 rounded-xl cursor-pointer transition-all focus:outline-none flex items-center gap-1"
+                      >
+                        Siguiente ▶️
+                      </button>
+                    </div>
+                  </div>
+                )}
 
               </div>
             )}
