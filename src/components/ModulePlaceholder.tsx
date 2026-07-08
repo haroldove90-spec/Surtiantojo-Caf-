@@ -2486,8 +2486,9 @@ export default function ModulePlaceholder({
 
   const renderSortableHeader = (label: string, field: string, textClass = "text-slate-500 font-extrabold") => {
     const isSorted = sortField === field;
+    const isNameColumn = field === 'nombre';
     return (
-      <th className="py-4 px-3 select-none whitespace-nowrap">
+      <th className={`py-4 px-3 select-none whitespace-nowrap ${isNameColumn ? 'w-full min-w-[240px]' : 'w-px'}`}>
         <button
           type="button"
           onClick={() => handleSort(field)}
@@ -3081,7 +3082,7 @@ export default function ModulePlaceholder({
                 <table className="w-full table-auto text-left border-collapse whitespace-nowrap">
                   <thead>
                     <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                      <th className="py-4 px-3 w-12 text-center whitespace-nowrap">
+                      <th className="py-4 px-3 w-px text-center whitespace-nowrap">
                         <button 
                           type="button"
                           onClick={toggleSelectAll} 
@@ -3106,7 +3107,7 @@ export default function ModulePlaceholder({
                       {renderSortableHeader("Métodos de Pago", "forma_pago")}
                       {renderSortableHeader("Estado", "status")}
                       {renderSortableHeader("Fecha Registro", "created_at")}
-                      <th className="py-4 px-3 text-center text-slate-500 font-extrabold uppercase text-[10px] whitespace-nowrap">Acción</th>
+                      <th className="py-4 px-3 text-center text-slate-500 font-extrabold uppercase text-[10px] whitespace-nowrap w-px">Acción</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -4178,8 +4179,10 @@ export default function ModulePlaceholder({
         // Render sortable header helper for supply table
         const renderSupplySortableHeader = (label: string, field: string) => {
           const isSorted = supplySortField === field;
+          const cleanF = field.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+          const isNameColumn = cleanF.includes('nombre') || cleanF.includes('producto') || cleanF.includes('articulo') || cleanF.includes('description');
           return (
-            <th key={field} className="py-3 px-4 select-none">
+            <th key={field} className={`py-3 px-3 select-none ${isNameColumn ? 'w-full min-w-[240px]' : 'w-px whitespace-nowrap'}`}>
               <button
                 type="button"
                 onClick={() => handleSupplySort(field)}
@@ -6401,14 +6404,14 @@ export default function ModulePlaceholder({
                                 {renderSupplySortableHeader("Unidades", "unidad_surtida")}
                                 {renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
                                 {renderSupplySortableHeader("Precio regular", "precio_venta")}
-                                <th className="py-3 px-3 text-right whitespace-nowrap">Importe Total</th>
+                                <th className="py-3 px-3 text-right whitespace-nowrap w-px">Importe Total</th>
                                 {renderSupplySortableHeader("Resorte", "resorte")}
                                 {renderSupplySortableHeader("Notas", "notas")}
                                 {renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
                               </>
                             );
                           })()}
-                          <th className="py-3 px-3 text-center whitespace-nowrap">Controles</th>
+                          <th className="py-3 px-3 text-center whitespace-nowrap w-px">Controles</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
