@@ -965,7 +965,8 @@ export default function ModulePlaceholder({
             id: m.id,
             name: m.name,
             title: m.title || `Reporte Surtido ${m.name}`,
-            desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`
+            desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`,
+            convenio: m.convenio || 'NO'
           }));
           
           // Merge loaded submenus, updating matching ones
@@ -976,7 +977,8 @@ export default function ModulePlaceholder({
                 ...submenu,
                 name: remote.name,
                 title: remote.title,
-                desc: remote.desc
+                desc: remote.desc,
+                convenio: remote.convenio || 'NO'
               };
             }
             return submenu;
@@ -1389,6 +1391,7 @@ export default function ModulePlaceholder({
   const [newSubmenuTitle, setNewSubmenuTitle] = useState('');
   const [newSubmenuDesc, setNewSubmenuDesc] = useState('');
   const [newSubmenuGroup, setNewSubmenuGroup] = useState('botana');
+  const [newSubmenuConvenio, setNewSubmenuConvenio] = useState<'SI' | 'NO'>('NO');
 
   // Excel/CSV Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -4039,9 +4042,51 @@ export default function ModulePlaceholder({
                  (p.codigo || p.id || '').toLowerCase().includes(term);
         });
 
+        const findMatchingProduct = (r: any) => {
+          if (!r) return null;
+          let code = (r.codigo || '').trim().toLowerCase();
+          let name = (r.nombre_producto || '').trim().toLowerCase();
+          
+          if (r.values) {
+            const keys = Object.keys(r.values);
+            const foundCodeKey = keys.find(k => {
+              const cleanK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+              return cleanK.includes('codigo') || cleanK.includes('sku') || cleanK.includes('codig');
+            });
+            if (foundCodeKey) {
+              code = String(r.values[foundCodeKey] || '').trim().toLowerCase();
+            }
+            const foundNameKey = keys.find(k => {
+              const cleanK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+              return cleanK.includes('nombre') || cleanK.includes('producto') || cleanK.includes('articulo');
+            });
+            if (foundNameKey) {
+              name = String(r.values[foundNameKey] || '').trim().toLowerCase();
+            }
+          }
+          if (!code && !name) return null;
+          return (products || []).find(p => {
+            const pCode = (p.codigo || '').trim().toLowerCase();
+            const pName = (p.nombre || '').trim().toLowerCase();
+            if (code && pCode && code === pCode) return true;
+            if (name && pName && name === pName) return true;
+            return false;
+          });
+        };
+
         // Dynamic Comparable Value Helper for Surtido records table sorting
         const getSupplyRowCompareValue = (row: any, field: string): any => {
           if (!row) return '';
+
+          // If the field is a price field, dynamically look up the matching product's price from products catalog!
+          const cleanF = field.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+          const isPriceField = cleanF.includes('precio') || cleanF.includes('venta') || cleanF.includes('vta') || cleanF.includes('price') || cleanF === 'sinacuerdo' || cleanF === 'regular';
+          if (isPriceField) {
+            const matchedProd = findMatchingProduct(row);
+            if (matchedProd && matchedProd.precio_venta !== undefined) {
+              return safeVal(matchedProd.precio_venta);
+            }
+          }
 
           // 1. Prioritize dynamic values (case-insensitive & trimmed matching of the field name in values map)
           if (row.values) {
@@ -4316,8 +4361,10 @@ export default function ModulePlaceholder({
           sqlText += `    id VARCHAR(50) PRIMARY KEY,\n`;
           sqlText += `    name VARCHAR(100) NOT NULL,\n`;
           sqlText += `    title VARCHAR(150),\n`;
-          sqlText += `    description TEXT\n`;
+          sqlText += `    description TEXT,\n`;
+          sqlText += `    convenio VARCHAR(10) DEFAULT 'NO'\n`;
           sqlText += `);\n`;
+          sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS convenio VARCHAR(10) DEFAULT 'NO';\n`;
           sqlText += `ALTER TABLE IF EXISTS surtido_submenus DISABLE ROW LEVEL SECURITY;\n`;
           sqlText += `GRANT ALL ON TABLE surtido_submenus TO anon;\n`;
           sqlText += `GRANT ALL ON TABLE surtido_submenus TO authenticated;\n\n`;
@@ -4789,6 +4836,7 @@ export default function ModulePlaceholder({
         };
 
         const handleSaveRow = (rowId: number) => {
+          let updatedFields: any = null;
           handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
             if (r.id === rowId) {
               const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
@@ -4848,19 +4896,34 @@ export default function ModulePlaceholder({
                   return parseFloat(cleaned) || 0;
                 };
 
+                const finalCode = codeHeader ? String(updatedValues[codeHeader] || '').trim().toUpperCase() : r.codigo;
+                const finalName = nameHeader ? String(updatedValues[nameHeader] || '').trim() : r.nombre_producto;
+                const finalPrecio = precioHeader ? cleanNumVal(updatedValues[precioHeader]) : r.precio_venta;
+
+                updatedFields = {
+                  codigo: finalCode,
+                  nombre: finalName,
+                  precio_venta: finalPrecio
+                };
+
                 return {
                   ...r,
-                  codigo: codeHeader ? String(updatedValues[codeHeader] || '').trim().toUpperCase() : r.codigo,
-                  nombre_producto: nameHeader ? String(updatedValues[nameHeader] || '').trim() : r.nombre_producto,
+                  codigo: finalCode,
+                  nombre_producto: finalName,
                   unidad_surtida: unidadesHeader ? cleanNumVal(updatedValues[unidadesHeader]) : r.unidad_surtida,
                   costo_surtido: costoHeader ? cleanNumVal(updatedValues[costoHeader]) : r.costo_surtido,
-                  precio_venta: precioHeader ? cleanNumVal(updatedValues[precioHeader]) : r.precio_venta,
+                  precio_venta: finalPrecio,
                   proveedor: provHeader ? String(updatedValues[provHeader] || '').trim() : r.proveedor,
                   resorte: resorteHeader ? String(updatedValues[resorteHeader] || '').trim() : r.resorte,
                   notas: notasHeader ? String(updatedValues[notasHeader] || '').trim() : r.notas,
                   values: updatedValues
                 };
               } else {
+                updatedFields = {
+                  codigo: editRowCodigo.trim().toUpperCase(),
+                  nombre: editRowNombre.trim(),
+                  precio_venta: safeVal(editRowPrecio)
+                };
                 return {
                   ...r,
                   codigo: editRowCodigo.trim().toUpperCase(),
@@ -4876,6 +4939,18 @@ export default function ModulePlaceholder({
             }
             return r;
           }));
+
+          // Synchronize with Products catalog
+          if (updatedFields && onUpdateProduct && products.length > 0) {
+            const prod = products.find(p => 
+              (p.codigo && updatedFields.codigo && p.codigo.trim().toLowerCase() === updatedFields.codigo.trim().toLowerCase()) ||
+              (p.nombre && updatedFields.nombre && p.nombre.trim().toLowerCase() === updatedFields.nombre.trim().toLowerCase())
+            );
+            if (prod) {
+              onUpdateProduct(prod.id, { precio_venta: Number(updatedFields.precio_venta) });
+            }
+          }
+
           setEditingRowId(null);
         };
 
@@ -4919,7 +4994,8 @@ export default function ModulePlaceholder({
             id: generatedId,
             name: displayName,
             title: cleanTitle,
-            desc: newSubmenuDesc.trim() || `Surtido para ${cleanTitle}.`
+            desc: newSubmenuDesc.trim() || `Surtido para ${cleanTitle}.`,
+            convenio: newSubmenuConvenio
           };
 
           setSupplySubmenuList(prev => sortSubmenus([...prev, newTabItem]));
@@ -4946,7 +5022,8 @@ export default function ModulePlaceholder({
             id: generatedId,
             name: displayName,
             title: cleanTitle,
-            description: newTabItem.desc
+            description: newTabItem.desc,
+            convenio: newSubmenuConvenio
           }).then(({ error }) => {
             if (error) {
               console.log("Supabase submenus config status:", error.message);
@@ -4963,6 +5040,7 @@ export default function ModulePlaceholder({
           setNewSubmenuTitle('');
           setNewSubmenuDesc('');
           setNewSubmenuGroup('botana');
+          setNewSubmenuConvenio('NO');
           setAddSubmenuOpen(false);
         };
 
@@ -5729,9 +5807,18 @@ export default function ModulePlaceholder({
                 {/* Section Header */}
                 <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-left">
                   <div>
-                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 flex-wrap">
                       <FileSpreadsheet className="w-5 h-5 text-[#043077]" />
                       <span>{activeMeta.title}</span>
+                      {activeMeta.convenio && (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                          activeMeta.convenio === 'SI' 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                            : 'bg-slate-100 text-slate-500 border-slate-200'
+                        }`}>
+                          Convenio: {activeMeta.convenio}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -5836,29 +5923,9 @@ export default function ModulePlaceholder({
                 {/* KPI Metrics Dashboard has been removed as requested */}
 
                 {/* Submenu filters & rows manipulation bar */}
-                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                  {/* Search query input */}
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Buscar por código, nombre o proveedor..."
-                      value={submenuSearchQuery}
-                      onChange={(e) => setSubmenuSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-slate-50 hover:bg-slate-100/50 border border-slate-205 rounded-xl text-xs font-bold outline-hidden transition-all focus:ring-2 focus:ring-[#043077]/10"
-                    />
-                    {submenuSearchQuery && (
-                      <button 
-                        onClick={() => setSubmenuSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-black"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-start">
                   {/* Actions buttons */}
-                  <div className="flex flex-wrap gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-2 shrink-0 w-full">
                     {/* 1. Agregar Registro */}
                     <button
                       type="button"
@@ -6356,9 +6423,13 @@ export default function ModulePlaceholder({
                             const isEditing = row.id === editingRowId;
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
                             const hasDynamicHeaders = activeSubHeaders.length > 0;
+                            const currentPrecioVenta = (() => {
+                              const matched = findMatchingProduct(row);
+                              return (matched && matched.precio_venta !== undefined) ? matched.precio_venta : row.precio_venta;
+                            })();
                             const totalVal = isEditing 
                               ? safeVal(editRowUnidades) * safeVal(editRowPrecio)
-                              : safeVal(row.unidad_surtida) * safeVal(row.precio_venta);
+                              : safeVal(row.unidad_surtida) * safeVal(currentPrecioVenta);
 
                             return (
                               <tr 
@@ -6491,7 +6562,14 @@ export default function ModulePlaceholder({
                                     </td>
                                     {hasDynamicHeaders ? (
                                       activeSubHeaders.map((header, idx) => {
-                                        const cellVal = row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header);
+                                        let cellVal = row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header);
+                                         const isPriceVenta = header.toLowerCase().trim().includes('precio') || header.toLowerCase().trim().includes('regular') || header.toLowerCase().trim().includes('vta') || header.toLowerCase().trim().includes('venta') || header.toLowerCase().trim() === 'sin acuerdo' || header.toLowerCase().trim().includes('precio sin acuerdo');
+                                         if (isPriceVenta) {
+                                           const matchedProd = findMatchingProduct(row);
+                                           if (matchedProd && matchedProd.precio_venta !== undefined) {
+                                             cellVal = matchedProd.precio_venta;
+                                           }
+                                         }
                                         const cleanH = cleanHeader(header);
                                         const isCode = cleanH.includes('codigo') || cleanH.includes('sku') || cleanH.includes('codig');
                                         
@@ -6524,7 +6602,7 @@ export default function ModulePlaceholder({
                                           {formatMXN(row.costo_surtido)}
                                         </td>
                                         <td className="py-3 px-3 text-right font-mono text-slate-600 whitespace-nowrap">
-                                          {formatMXN(row.precio_venta)}
+                                          {formatMXN(currentPrecioVenta)}
                                         </td>
                                         <td className="py-3 px-3 text-right font-mono font-black text-[#043077] whitespace-nowrap">
                                           {formatMXN(totalVal)}
@@ -6679,6 +6757,34 @@ export default function ModulePlaceholder({
                         onChange={(e) => setNewSubmenuTitle(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
                       />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Aplicar Convenio Comercial</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNewSubmenuConvenio('SI')}
+                          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                            newSubmenuConvenio === 'SI'
+                              ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                              : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          SÍ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewSubmenuConvenio('NO')}
+                          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                            newSubmenuConvenio === 'NO'
+                              ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                              : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          NO
+                        </button>
+                      </div>
                     </div>
 
                     <div>
