@@ -409,6 +409,7 @@ export default function ModulePlaceholder({
   const [editSubmenuId, setEditSubmenuId] = useState('');
   const [editSubmenuName, setEditSubmenuName] = useState('');
   const [editSubmenuTitle, setEditSubmenuTitle] = useState('');
+  const [editSubmenuCliente, setEditSubmenuCliente] = useState('');
   const [editSubmenuDesc, setEditSubmenuDesc] = useState('');
 
   useEffect(() => {
@@ -966,7 +967,8 @@ export default function ModulePlaceholder({
             name: m.name,
             title: m.title || `Reporte Surtido ${m.name}`,
             desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`,
-            convenio: m.convenio || 'NO'
+            convenio: m.convenio || 'NO',
+            cliente: m.cliente || ''
           }));
           
           // Merge loaded submenus, updating matching ones
@@ -978,7 +980,8 @@ export default function ModulePlaceholder({
                 name: remote.name,
                 title: remote.title,
                 desc: remote.desc,
-                convenio: remote.convenio || 'NO'
+                convenio: remote.convenio || 'NO',
+                cliente: remote.cliente || ''
               };
             }
             return submenu;
@@ -1389,6 +1392,7 @@ export default function ModulePlaceholder({
   const [addSubmenuOpen, setAddSubmenuOpen] = useState(false);
   const [newSubmenuName, setNewSubmenuName] = useState('');
   const [newSubmenuTitle, setNewSubmenuTitle] = useState('');
+  const [newSubmenuCliente, setNewSubmenuCliente] = useState('');
   const [newSubmenuDesc, setNewSubmenuDesc] = useState('');
   const [newSubmenuGroup, setNewSubmenuGroup] = useState('botana');
   const [newSubmenuConvenio, setNewSubmenuConvenio] = useState<'SI' | 'NO'>('NO');
@@ -4365,9 +4369,11 @@ export default function ModulePlaceholder({
           sqlText += `    name VARCHAR(100) NOT NULL,\n`;
           sqlText += `    title VARCHAR(150),\n`;
           sqlText += `    description TEXT,\n`;
-          sqlText += `    convenio VARCHAR(10) DEFAULT 'NO'\n`;
+          sqlText += `    convenio VARCHAR(10) DEFAULT 'NO',\n`;
+          sqlText += `    cliente VARCHAR(150)\n`;
           sqlText += `);\n`;
           sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS convenio VARCHAR(10) DEFAULT 'NO';\n`;
+          sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS cliente VARCHAR(150);\n`;
           sqlText += `ALTER TABLE IF EXISTS surtido_submenus DISABLE ROW LEVEL SECURITY;\n`;
           sqlText += `GRANT ALL ON TABLE surtido_submenus TO anon;\n`;
           sqlText += `GRANT ALL ON TABLE surtido_submenus TO authenticated;\n\n`;
@@ -4998,7 +5004,8 @@ export default function ModulePlaceholder({
             name: displayName,
             title: cleanTitle,
             desc: newSubmenuDesc.trim() || `Surtido para ${cleanTitle}.`,
-            convenio: newSubmenuConvenio
+            convenio: newSubmenuConvenio,
+            cliente: newSubmenuCliente.trim()
           };
 
           setSupplySubmenuList(prev => sortSubmenus([...prev, newTabItem]));
@@ -5026,7 +5033,8 @@ export default function ModulePlaceholder({
             name: displayName,
             title: cleanTitle,
             description: newTabItem.desc,
-            convenio: newSubmenuConvenio
+            convenio: newSubmenuConvenio,
+            cliente: newSubmenuCliente.trim()
           }).then(({ error }) => {
             if (error) {
               console.log("Supabase submenus config status:", error.message);
@@ -5041,6 +5049,7 @@ export default function ModulePlaceholder({
           setActiveSupplySubmenu(generatedId);
           setNewSubmenuName('');
           setNewSubmenuTitle('');
+          setNewSubmenuCliente('');
           setNewSubmenuDesc('');
           setNewSubmenuGroup('botana');
           setNewSubmenuConvenio('NO');
@@ -5059,7 +5068,8 @@ export default function ModulePlaceholder({
                 ...s,
                 name: editSubmenuName.trim(),
                 title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
-                desc: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`
+                desc: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`,
+                cliente: editSubmenuCliente.trim()
               };
             }
             return s;
@@ -5070,7 +5080,8 @@ export default function ModulePlaceholder({
             id: editSubmenuId,
             name: editSubmenuName.trim(),
             title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
-            description: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`
+            description: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`,
+            cliente: editSubmenuCliente.trim()
           }).then(({ error }) => {
             if (error) {
               console.log("Supabase submenus update status:", error.message);
@@ -5649,6 +5660,7 @@ export default function ModulePlaceholder({
                                     setEditSubmenuName(submenu.name);
                                     setEditSubmenuTitle(submenu.title || `Reporte Surtido ${submenu.name}`);
                                     setEditSubmenuDesc(submenu.desc || submenu.description || '');
+                                    setEditSubmenuCliente(submenu.cliente || '');
                                     setIsEditSubmenuOpen(true);
                                   }}
                                   className="p-0.5 rounded-md hover:bg-white/20 transition-all ml-1 flex items-center justify-center shrink-0"
@@ -5686,6 +5698,7 @@ export default function ModulePlaceholder({
                       setEditSubmenuName(activeMeta.name);
                       setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
                       setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
+                      setEditSubmenuCliente(activeMeta.cliente || '');
                       setIsEditSubmenuOpen(true);
                     }}
                     className="px-3 py-1.5 bg-[#043077]/10 hover:bg-[#043077]/20 text-[#043077] font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 shrink-0 cursor-pointer self-stretch md:self-auto text-center justify-center"
@@ -5822,6 +5835,11 @@ export default function ModulePlaceholder({
                           Convenio: {activeMeta.convenio}
                         </span>
                       )}
+                      {activeMeta.cliente && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-indigo-50 text-indigo-700 border-indigo-200">
+                          Cliente: {activeMeta.cliente}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -5829,6 +5847,7 @@ export default function ModulePlaceholder({
                           setEditSubmenuName(activeMeta.name);
                           setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
                           setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
+                          setEditSubmenuCliente(activeMeta.cliente || '');
                           setIsEditSubmenuOpen(true);
                         }}
                         className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-[9px] uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5 cursor-pointer ml-2 shrink-0"
@@ -6763,6 +6782,17 @@ export default function ModulePlaceholder({
                     </div>
 
                     <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cliente</label>
+                      <input
+                        type="text"
+                        placeholder="p. ej: Empresa Cliente S.A."
+                        value={newSubmenuCliente}
+                        onChange={(e) => setNewSubmenuCliente(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+
+                    <div>
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Aplicar Convenio Comercial</label>
                       <div className="flex gap-2">
                         <button
@@ -6866,6 +6896,17 @@ export default function ModulePlaceholder({
                         placeholder="p. ej: Reporte Consolidado de Cervezas BB"
                         value={editSubmenuTitle}
                         onChange={(e) => setEditSubmenuTitle(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cliente</label>
+                      <input
+                        type="text"
+                        placeholder="p. ej: Empresa Cliente S.A."
+                        value={editSubmenuCliente}
+                        onChange={(e) => setEditSubmenuCliente(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
                       />
                     </div>
