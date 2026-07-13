@@ -321,18 +321,25 @@ export default function ModulePlaceholder({
 
     try {
       const stored = localStorage.getItem('surtiantojo_submenu_list');
+      const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+      const deletedIds = deletedStored ? JSON.parse(deletedStored) : [];
+
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge parsed submenus and defaults, making sure all default ones exist
+          // Merge parsed submenus and defaults, making sure all default ones exist and are not deleted
           const merged = [...parsed];
           defaultSubmenus.forEach(def => {
-            if (!merged.some(item => item.id === def.id)) {
+            if (!merged.some(item => item.id === def.id) && !deletedIds.includes(def.id)) {
               merged.push(def);
             }
           });
           return sortSubmenus(merged);
         }
+      } else if (deletedIds.length > 0) {
+        // If stored doesn't exist but we have deleted IDs, filter them from defaultSubmenus
+        const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
+        return sortSubmenus(activeDefaults);
       }
     } catch (e) {}
     return sortSubmenus(defaultSubmenus);
@@ -961,39 +968,60 @@ export default function ModulePlaceholder({
         // Try to load custom submenus list from Supabase first
         let currentMenuList = [...supplySubmenuList];
         const { data: menuData, error: menuError } = await supabase.from('surtido_submenus').select('*');
-        if (!menuError && menuData && menuData.length > 0) {
-          const loadedMenus = menuData.map((m: any) => ({
-            id: m.id,
-            name: m.name,
-            title: m.title || `Reporte Surtido ${m.name}`,
-            desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`,
-            convenio: m.convenio || 'NO',
-            cliente: m.cliente || ''
-          }));
-          
-          // Merge loaded submenus, updating matching ones
-          const merged = supplySubmenuList.map(submenu => {
-            const remote = loadedMenus.find((lm: any) => lm.id === submenu.id);
-            if (remote) {
-              return {
-                ...submenu,
-                name: remote.name,
-                title: remote.title,
-                desc: remote.desc,
-                convenio: remote.convenio || 'NO',
-                cliente: remote.cliente || ''
-              };
+        if (!menuError && menuData) {
+          if (menuData.length > 0) {
+            const loadedMenus = menuData.map((m: any) => ({
+              id: m.id,
+              name: m.name,
+              title: m.title || `Reporte Surtido ${m.name}`,
+              desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`,
+              convenio: m.convenio || 'NO',
+              cliente: m.cliente || ''
+            }));
+            const sortedMerged = sortSubmenus(loadedMenus);
+            setSupplySubmenuList(sortedMerged);
+            currentMenuList = sortedMerged;
+            localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sortedMerged));
+          } else {
+            // Supabase is empty, so let's populate it with the default submenus
+            const defaultSubmenus = [
+              { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.', convenio: 'NO', cliente: '' },
+              { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.', convenio: 'NO', cliente: '' },
+              { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', desc: 'Surtido de artículos de botanas y confitería PRK.', convenio: 'NO', cliente: '' },
+              { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', desc: 'Surtido de la máquina CER 1 para botanas.', convenio: 'NO', cliente: '' },
+              { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', desc: 'Surtido de la máquina CER 2 para botanas.', convenio: 'NO', cliente: '' },
+              { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', desc: 'Surtido de la máquina CER 3 para botanas y snacks.', convenio: 'NO', cliente: '' },
+              { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', desc: 'Surtido de la máquina CG 1 para botanas.', convenio: 'NO', cliente: '' },
+              { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', desc: 'Surtido de la máquina CG 2 para botanas.', convenio: 'NO', cliente: '' },
+              { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', desc: 'Surtido de la máquina CG 3 para botanas.', convenio: 'NO', cliente: '' },
+              { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', desc: 'Surtido de la máquina de bebidas CER BB.', convenio: 'NO', cliente: '' },
+              { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', desc: 'Surtido de la máquina de bebidas CONT. BB.', convenio: 'NO', cliente: '' },
+              { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', desc: 'Surtido de la máquina de bebidas VITRO BB.', convenio: 'NO', cliente: '' }
+            ];
+            
+            let deletedIds: string[] = [];
+            try {
+              const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+              deletedIds = deletedStored ? JSON.parse(deletedStored) : [];
+            } catch (e) {}
+            
+            const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
+            if (activeDefaults.length > 0) {
+              const toInsert = activeDefaults.map(s => ({
+                id: s.id,
+                name: s.name,
+                title: s.title,
+                description: s.desc,
+                convenio: s.convenio,
+                cliente: s.cliente
+              }));
+              await supabase.from('surtido_submenus').insert(toInsert);
+              const sortedMerged = sortSubmenus(activeDefaults);
+              setSupplySubmenuList(sortedMerged);
+              currentMenuList = sortedMerged;
+              localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sortedMerged));
             }
-            return submenu;
-          });
-          loadedMenus.forEach((lm: any) => {
-            if (!merged.some(m => m.id === lm.id)) {
-              merged.push(lm);
-            }
-          });
-          const sortedMerged = sortSubmenus(merged);
-          setSupplySubmenuList(sortedMerged);
-          currentMenuList = sortedMerged;
+          }
         }
 
         const submenus = currentMenuList.map(s => s.id).filter(id => id !== 'vending_surtido');
@@ -5119,6 +5147,13 @@ export default function ModulePlaceholder({
           // Clean up localStorage for this specific submenu data
           try {
             localStorage.removeItem(`surtiantojo_${submenuId}`);
+            
+            const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+            const deletedIds = deletedStored ? JSON.parse(deletedStored) : [];
+            if (!deletedIds.includes(submenuId)) {
+              deletedIds.push(submenuId);
+              localStorage.setItem('surtiantojo_deleted_submenu_ids', JSON.stringify(deletedIds));
+            }
           } catch (e) {}
 
           // Delete from Supabase 'surtido_submenus' metadata table if connected
