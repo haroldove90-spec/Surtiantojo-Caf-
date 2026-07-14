@@ -4521,12 +4521,27 @@ export default function ModulePlaceholder({
             let surtirCol = 'surtir';
             let precioCol = 'precio_vta';
             let costoCol = '0'; // fallback if no costo exists
+            let foundVenta = false;
+            
             headers.forEach(h => {
               const cleanH = cleanHeader(h);
-              const sqlCol = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "_").trim();
-              if (cleanH === 'surtir' || cleanH === 'cantidad' || cleanH === 'unidades') surtirCol = sqlCol;
-              else if (cleanH === 'precio' || cleanH === 'preciovta' || cleanH === 'precioventa' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'precioregular' || cleanH === 'vta') precioCol = sqlCol;
-              else if (cleanH === 'costo') costoCol = sqlCol;
+              const sqlCol = h.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "_")
+                .replace(/^_+|_+$/g, "")
+                .trim();
+                
+              if (cleanH === 'surtir' || cleanH === 'cantidad' || cleanH === 'unidades') {
+                surtirCol = sqlCol;
+              } else if (cleanH === 'costo') {
+                costoCol = sqlCol;
+              } else if (cleanH === 'precioventa' || cleanH === 'preciovta' || cleanH === 'vta') {
+                precioCol = sqlCol;
+                foundVenta = true;
+              } else if (!foundVenta && (cleanH === 'precio' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'precioregular')) {
+                precioCol = sqlCol;
+              }
             });
 
             sqlText += `    SUM(${surtirCol}) AS total_piezas_surtidas,\n`;
