@@ -5098,18 +5098,20 @@ export default function ModulePlaceholder({
         };
 
         const handleSaveEditedSubmenu = () => {
-          if (!editSubmenuName.trim()) {
-            alert("Por favor escribe el nombre de acceso para el submenú.");
+          if (!editSubmenuTitle.trim()) {
+            alert("Por favor escribe el Título de registro de máquina.");
             return;
           }
+
+          const cleanTitle = editSubmenuTitle.trim();
 
           setSupplySubmenuList(prev => sortSubmenus(prev.map(s => {
             if (s.id === editSubmenuId) {
               return {
                 ...s,
-                name: editSubmenuName.trim(),
-                title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
-                desc: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`,
+                name: cleanTitle,
+                title: cleanTitle,
+                desc: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${cleanTitle}.`,
                 cliente: editSubmenuCliente.trim(),
                 convenio: editSubmenuConvenio,
                 grupo: editSubmenuGroup
@@ -5121,9 +5123,9 @@ export default function ModulePlaceholder({
           // Persist to Supabase if connected
           supabase.from('surtido_submenus').upsert({
             id: editSubmenuId,
-            name: editSubmenuName.trim(),
-            title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
-            description: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`,
+            name: cleanTitle,
+            title: cleanTitle,
+            description: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${cleanTitle}.`,
             cliente: editSubmenuCliente.trim(),
             convenio: editSubmenuConvenio,
             grupo: editSubmenuGroup
@@ -6951,17 +6953,6 @@ export default function ModulePlaceholder({
                         value={editSubmenuTitle}
                         onChange={(e) => setEditSubmenuTitle(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Nombre Corto de Acceso (Pestaña)</label>
-                      <input
-                        type="text"
-                        placeholder="p. ej: Cervezas BB, Refrescos"
-                        value={editSubmenuName}
-                        onChange={(e) => setEditSubmenuName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
                       />
                     </div>
 
