@@ -821,7 +821,7 @@ export default function ModulePlaceholder({
           else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
           else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') colUnidades = idx;
           else if (h === 'costo') colCosto = idx;
-          else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
+          else if (h === 'precio' || h === 'preciovta' || h === 'precioventa' || h === 'preciodeventa' || h === 'precio_vta' || h === 'precioregular') colPrecio = idx;
           else if (h === 'proveedor') colProveedor = idx;
           else if (h === 'resor' || h === 'resort' || h === 'resorte') colResorte = idx;
         });
@@ -1943,7 +1943,7 @@ export default function ModulePlaceholder({
           else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
           else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') colUnidades = idx;
           else if (h === 'costo') colCosto = idx;
-          else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
+          else if (h === 'precio' || h === 'preciovta' || h === 'precioventa' || h === 'preciodeventa' || h === 'precio_vta' || h === 'precioregular') colPrecio = idx;
           else if (h === 'proveedor') colProveedor = idx;
           else if (h === 'fecha' || h === 'fechasurtido') colFecha = idx;
         });
@@ -4525,7 +4525,7 @@ export default function ModulePlaceholder({
               const cleanH = cleanHeader(h);
               const sqlCol = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "_").trim();
               if (cleanH === 'surtir' || cleanH === 'cantidad' || cleanH === 'unidades') surtirCol = sqlCol;
-              else if (cleanH === 'precio' || cleanH === 'preciovta' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'vta') precioCol = sqlCol;
+              else if (cleanH === 'precio' || cleanH === 'preciovta' || cleanH === 'precioventa' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'precioregular' || cleanH === 'vta') precioCol = sqlCol;
               else if (cleanH === 'costo') costoCol = sqlCol;
             });
 
@@ -4856,7 +4856,7 @@ export default function ModulePlaceholder({
                 newRowValues[originalHeader] = String(safeVal(rowUnidades));
               } else if (h === 'costo') {
                 newRowValues[originalHeader] = String(safeVal(rowCosto));
-              } else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') {
+              } else if (h === 'precio' || h === 'preciovta' || h === 'precioventa' || h === 'preciodeventa' || h === 'precio_vta' || h === 'precioregular') {
                 newRowValues[originalHeader] = String(safeVal(rowPrecio));
               } else if (h === 'proveedor') {
                 newRowValues[originalHeader] = rowProveedor.trim() || 'Proveedor General';
@@ -4975,7 +4975,7 @@ export default function ModulePlaceholder({
                   else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
                   else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') colUnidades = idx;
                   else if (h === 'costo') colCosto = idx;
-                  else if (h === 'precio' || h === 'preciovta' || h === 'preciodeventa' || h === 'precio_vta') colPrecio = idx;
+                  else if (h === 'precio' || h === 'preciovta' || h === 'precioventa' || h === 'preciodeventa' || h === 'precio_vta' || h === 'precioregular') colPrecio = idx;
                   else if (h === 'proveedor') colProveedor = idx;
                   else if (h === 'resor' || h === 'resort' || h === 'resorte') colResorte = idx;
                   else if (h === 'notas') colNotas = idx;
