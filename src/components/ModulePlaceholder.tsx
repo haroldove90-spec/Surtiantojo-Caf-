@@ -86,11 +86,12 @@ const cleanHeaders = (headersList: string[]): string[] => {
     return h;
   });
 
-  // 2. Filter out unwanted "columna 1", "columna 10", "Busc", "Busc.", "Buscar" columns
+  // 2. Filter out unwanted "columna 1", "columna 10", "Busc", "Busc.", "Buscar" columns, or "id", "ID", "Id"
   let filtered = mapped.filter(h => {
     const norm = h.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
     if (norm === 'columna 1' || norm === 'columna 10' || norm === 'columna_1' || norm === 'columna_10' || norm === 'columna1' || norm === 'columna10') return false;
     if (norm === 'busc' || norm === 'buscar' || norm === 'busc.') return false;
+    if (norm === 'id') return false;
     return true;
   });
 
@@ -346,6 +347,11 @@ export default function ModulePlaceholder({
   });
 
   const getSubmenuGroup = (id: string, name: string): 'botana' | 'bebidas' | 'cafe' => {
+    const found = supplySubmenuList?.find(s => s.id === id);
+    if (found && (found.group || found.grupo)) {
+      return found.group || found.grupo;
+    }
+
     const lowerId = id.toLowerCase();
     const lowerName = (name || '').toLowerCase();
     
@@ -418,6 +424,8 @@ export default function ModulePlaceholder({
   const [editSubmenuTitle, setEditSubmenuTitle] = useState('');
   const [editSubmenuCliente, setEditSubmenuCliente] = useState('');
   const [editSubmenuDesc, setEditSubmenuDesc] = useState('');
+  const [editSubmenuGroup, setEditSubmenuGroup] = useState<'botana' | 'bebidas' | 'cafe'>('botana');
+  const [editSubmenuConvenio, setEditSubmenuConvenio] = useState<'SI' | 'NO'>('NO');
 
   useEffect(() => {
     try {
@@ -976,7 +984,8 @@ export default function ModulePlaceholder({
               title: m.title || `Reporte Surtido ${m.name}`,
               desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`,
               convenio: m.convenio || 'NO',
-              cliente: m.cliente || ''
+              cliente: m.cliente || '',
+              grupo: m.grupo || ''
             }));
             const sortedMerged = sortSubmenus(loadedMenus);
             setSupplySubmenuList(sortedMerged);
@@ -3537,7 +3546,7 @@ export default function ModulePlaceholder({
                       {/* Sell price and auto margins */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Venta Público *</label>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Regular *</label>
                           <div className="relative">
                             <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
                             <input
@@ -3550,7 +3559,7 @@ export default function ModulePlaceholder({
                             />
                           </div>
                           <span className="text-[10px] text-emerald-600 font-bold mt-1.5 block">
-                            Precio al público actual
+                            Precio regular actual
                           </span>
                         </div>
 
@@ -3571,7 +3580,7 @@ export default function ModulePlaceholder({
                         </div>
 
                         <div>
-                          <label className="text-xs font-black text-slate-600 block mb-1">Precio Sugerido Venta</label>
+                          <label className="text-xs font-black text-slate-600 block mb-1">Precio de venta</label>
                           <div className="relative">
                             <span className="absolute left-3.5 top-3.5 text-slate-400 text-xs font-bold">$</span>
                             <input
@@ -4398,10 +4407,12 @@ export default function ModulePlaceholder({
           sqlText += `    title VARCHAR(150),\n`;
           sqlText += `    description TEXT,\n`;
           sqlText += `    convenio VARCHAR(10) DEFAULT 'NO',\n`;
-          sqlText += `    cliente VARCHAR(150)\n`;
+          sqlText += `    cliente VARCHAR(150),\n`;
+          sqlText += `    grupo VARCHAR(30)\n`;
           sqlText += `);\n`;
           sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS convenio VARCHAR(10) DEFAULT 'NO';\n`;
           sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS cliente VARCHAR(150);\n`;
+          sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS grupo VARCHAR(30);\n`;
           sqlText += `ALTER TABLE IF EXISTS surtido_submenus DISABLE ROW LEVEL SECURITY;\n`;
           sqlText += `GRANT ALL ON TABLE surtido_submenus TO anon;\n`;
           sqlText += `GRANT ALL ON TABLE surtido_submenus TO authenticated;\n\n`;
@@ -4995,14 +5006,14 @@ export default function ModulePlaceholder({
           setEditingRowId(null);
         };
 
-         const handleRegisterNewSubmenu = () => {
+        const handleRegisterNewSubmenu = () => {
           if (!newSubmenuTitle.trim()) {
             alert("Por favor escribe el Título de registro de máquina.");
             return;
           }
           
           const cleanTitle = newSubmenuTitle.trim();
-          let displayName = cleanTitle;
+          let displayName = newSubmenuName.trim() || cleanTitle;
           
           // Generate key/id and display label ensuring proper categorization
           let generatedId = 'custom_' + cleanTitle.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
@@ -5033,7 +5044,8 @@ export default function ModulePlaceholder({
             title: cleanTitle,
             desc: newSubmenuDesc.trim() || `Surtido para ${cleanTitle}.`,
             convenio: newSubmenuConvenio,
-            cliente: newSubmenuCliente.trim()
+            cliente: newSubmenuCliente.trim(),
+            grupo: newSubmenuGroup
           };
 
           setSupplySubmenuList(prev => sortSubmenus([...prev, newTabItem]));
@@ -5062,7 +5074,8 @@ export default function ModulePlaceholder({
             title: cleanTitle,
             description: newTabItem.desc,
             convenio: newSubmenuConvenio,
-            cliente: newSubmenuCliente.trim()
+            cliente: newSubmenuCliente.trim(),
+            grupo: newSubmenuGroup
           }).then(({ error }) => {
             if (error) {
               console.log("Supabase submenus config status:", error.message);
@@ -5097,7 +5110,9 @@ export default function ModulePlaceholder({
                 name: editSubmenuName.trim(),
                 title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
                 desc: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`,
-                cliente: editSubmenuCliente.trim()
+                cliente: editSubmenuCliente.trim(),
+                convenio: editSubmenuConvenio,
+                grupo: editSubmenuGroup
               };
             }
             return s;
@@ -5109,7 +5124,9 @@ export default function ModulePlaceholder({
             name: editSubmenuName.trim(),
             title: editSubmenuTitle.trim() || `Reporte Surtido ${editSubmenuName}`,
             description: editSubmenuDesc.trim() || `Administración, adición y exportación de surtidos para el acceso ${editSubmenuName}.`,
-            cliente: editSubmenuCliente.trim()
+            cliente: editSubmenuCliente.trim(),
+            convenio: editSubmenuConvenio,
+            grupo: editSubmenuGroup
           }).then(({ error }) => {
             if (error) {
               console.log("Supabase submenus update status:", error.message);
@@ -6897,7 +6914,7 @@ export default function ModulePlaceholder({
                 >
                   <div className="flex justify-between items-center border-b border-slate-150 pb-3">
                     <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-1.5">
-                      <Edit className="w-5 h-5 text-[#043077]" /> Editar Nombre de Acceso
+                      <Edit className="w-5 h-5 text-[#043077]" /> Registrar o Editar Acceso en Submenú
                     </h3>
                     <button 
                       type="button"
@@ -6909,10 +6926,34 @@ export default function ModulePlaceholder({
                   </div>
 
                   <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                    Modifica los campos del acceso seleccionado para ajustar su título en las pestañas del submenú, reportes y descripciones operacionales.
+                    Completa los campos del acceso seleccionado para ajustar su título en las pestañas del submenú, reportes y descripciones operacionales.
                   </p>
 
                   <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Grupo de máquina</label>
+                      <select
+                        value={editSubmenuGroup}
+                        onChange={(e) => setEditSubmenuGroup(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077] cursor-pointer"
+                      >
+                        <option value="botana">Máquina botanas</option>
+                        <option value="bebidas">Máquinas bebidas</option>
+                        <option value="cafe">Máquina de café</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título de registro de máquina</label>
+                      <input
+                        type="text"
+                        placeholder="p. ej: Máquina de refrescos pasillo central"
+                        value={editSubmenuTitle}
+                        onChange={(e) => setEditSubmenuTitle(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Nombre Corto de Acceso (Pestaña)</label>
                       <input
@@ -6925,17 +6966,6 @@ export default function ModulePlaceholder({
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título del Reporte / Hoja</label>
-                      <input
-                        type="text"
-                        placeholder="p. ej: Reporte Consolidado de Cervezas BB"
-                        value={editSubmenuTitle}
-                        onChange={(e) => setEditSubmenuTitle(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
-                      />
-                    </div>
-
-                    <div>
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cliente</label>
                       <input
                         type="text"
@@ -6944,6 +6974,34 @@ export default function ModulePlaceholder({
                         onChange={(e) => setEditSubmenuCliente(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
                       />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Aplicar Convenio Comercial</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditSubmenuConvenio('SI')}
+                          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                            editSubmenuConvenio === 'SI'
+                              ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                              : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          SÍ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditSubmenuConvenio('NO')}
+                          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                            editSubmenuConvenio === 'NO'
+                              ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                              : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          NO
+                        </button>
+                      </div>
                     </div>
 
                     <div>
