@@ -4765,6 +4765,72 @@ export default function ModulePlaceholder({
           setShowSelSuggestions(false);
         };
 
+        const handleLookupAndFillByCodigo = (codigoVal: string, isEditMode: boolean = false) => {
+          if (!codigoVal.trim()) return false;
+          const cleanCode = codigoVal.trim().toLowerCase();
+          
+          const foundProd = products.find(p => 
+            String(p.codigo || '').trim().toLowerCase() === cleanCode ||
+            String(p.id || '').trim().toLowerCase() === cleanCode
+          );
+          
+          if (foundProd) {
+            let cost = foundProd.precio_unidad || 0;
+            if (cost === 0 && foundProd.precio_caja && foundProd.piezas_por_caja) {
+              cost = Number((foundProd.precio_caja / foundProd.piezas_por_caja).toFixed(2));
+            }
+            const finalCosto = cost || foundProd.precio_venta || 0;
+            const finalPrecio = foundProd.precio_venta || 0;
+            const finalProveedor = foundProd.proveedor || 'Genérico';
+            const finalResorte = foundProd.resorte_usa || '';
+
+            if (isEditMode) {
+              setEditRowCodigo(foundProd.codigo || foundProd.id || '');
+              setEditRowNombre(foundProd.nombre || '');
+              setEditRowCosto(finalCosto);
+              setEditRowPrecio(finalPrecio);
+              setEditRowProveedor(finalProveedor);
+              setEditRowResorte(finalResorte);
+              
+              const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+              if (activeSubHeaders.length > 0) {
+                setEditRowValues(prev => {
+                  const updated = { ...prev };
+                  activeSubHeaders.forEach(header => {
+                    const norm = header.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
+                    if (norm === 'codigo' || norm === 'sku' || norm === 'code') {
+                      updated[header] = foundProd.codigo || foundProd.id || '';
+                    } else if (norm === 'producto' || norm === 'nombre' || norm === 'articulo' || norm === 'producto o articulo') {
+                      updated[header] = foundProd.nombre || '';
+                    } else if (norm === 'costo unit' || norm === 'costo' || norm === 'costo unitario') {
+                      updated[header] = finalCosto;
+                    } else if (norm === 'precio vta' || norm === 'precio' || norm === 'precio venta' || norm === 'precio regular') {
+                      updated[header] = finalPrecio;
+                    } else if (norm === 'resorte' || norm === 'sel / resorte') {
+                      updated[header] = finalResorte;
+                    }
+                  });
+                  return updated;
+                });
+              }
+            } else {
+              setRowCodigo(foundProd.codigo || foundProd.id || '');
+              setRowNombre(foundProd.nombre || '');
+              setRowCosto(finalCosto);
+              setRowPrecio(finalPrecio);
+              setRowProveedor(finalProveedor);
+              setRowResorte(finalResorte);
+              
+              const assignedSel = getAssignedSeleccionForProduct(foundProd.codigo, foundProd.nombre);
+              if (assignedSel) {
+                setRowSeleccion(assignedSel);
+              }
+            }
+            return true;
+          }
+          return false;
+        };
+
         const handleAddRow = () => {
           if (!rowCodigo.trim() || !rowNombre.trim()) {
             alert("Por favor completa el código y nombre del producto.");
@@ -6181,7 +6247,11 @@ export default function ModulePlaceholder({
                           onChange={(e) => {
                             const val = e.target.value;
                             setRowCodigo(val);
-                            if (val.trim()) {
+                            const matched = handleLookupAndFillByCodigo(val, false);
+                            if (matched) {
+                              setCodigoSuggestions([]);
+                              setShowCodigoSuggestions(false);
+                            } else if (val.trim()) {
                               const filtered = products.filter(p => 
                                 String(p.codigo || '').toLowerCase().includes(val.toLowerCase()) ||
                                 String(p.nombre || '').toLowerCase().includes(val.toLowerCase()) ||
@@ -6192,6 +6262,14 @@ export default function ModulePlaceholder({
                             } else {
                               setCodigoSuggestions([]);
                               setShowCodigoSuggestions(false);
+                            }
+                          }}
+                          onBlur={(e) => {
+                            handleLookupAndFillByCodigo(e.target.value, false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleLookupAndFillByCodigo((e.target as HTMLInputElement).value, false);
                             }
                           }}
                           onFocus={() => {
@@ -6522,23 +6600,56 @@ export default function ModulePlaceholder({
                                       />
                                     </td>
                                     {hasDynamicHeaders ? (
-                                      activeSubHeaders.map((header, idx) => (
-                                        <td key={idx} className="py-2 px-3">
-                                          <input
-                                            type="text"
-                                            value={editRowValues[header] !== undefined ? editRowValues[header] : (row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header))}
-                                            onChange={(e) => setEditRowValues(prev => ({ ...prev, [header]: e.target.value }))}
-                                            className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold text-slate-800"
-                                          />
-                                        </td>
-                                      ))
+                                      activeSubHeaders.map((header, idx) => {
+                                        const norm = header.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
+                                        const isCodeField = norm === 'codigo' || norm === 'sku' || norm === 'code';
+                                        return (
+                                          <td key={idx} className="py-2 px-3">
+                                            <input
+                                              type="text"
+                                              value={editRowValues[header] !== undefined ? editRowValues[header] : (row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header))}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                setEditRowValues(prev => ({ ...prev, [header]: val }));
+                                                if (isCodeField) {
+                                                  setEditRowCodigo(val);
+                                                  handleLookupAndFillByCodigo(val, true);
+                                                }
+                                              }}
+                                              onBlur={(e) => {
+                                                if (isCodeField) {
+                                                  handleLookupAndFillByCodigo(e.target.value, true);
+                                                }
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (isCodeField && e.key === 'Enter') {
+                                                  handleLookupAndFillByCodigo((e.target as HTMLInputElement).value, true);
+                                                }
+                                              }}
+                                              className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold text-slate-800"
+                                            />
+                                          </td>
+                                        );
+                                      })
                                     ) : (
                                       <>
                                         <td className="py-2 px-3">
                                           <input
                                             type="text"
                                             value={editRowCodigo}
-                                            onChange={(e) => setEditRowCodigo(e.target.value)}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              setEditRowCodigo(val);
+                                              handleLookupAndFillByCodigo(val, true);
+                                            }}
+                                            onBlur={(e) => {
+                                              handleLookupAndFillByCodigo(e.target.value, true);
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                handleLookupAndFillByCodigo((e.target as HTMLInputElement).value, true);
+                                              }
+                                            }}
                                             className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-[#043077]"
                                           />
                                         </td>
