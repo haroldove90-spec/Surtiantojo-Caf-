@@ -118,6 +118,12 @@ export default function App() {
           return 'supply'; // Surtidor/Operator can only see "Surtido"
         }
       }
+      if (window.location.hash) {
+        const hashModule = window.location.hash.replace('#', '').split('/')[0];
+        if (hashModule && APP_MODULES.some(m => m.id === hashModule)) {
+          return hashModule;
+        }
+      }
       const storedModule = localStorage.getItem('surtiantojo_active_module');
       if (storedModule && APP_MODULES.some(m => m.id === storedModule)) {
         return storedModule;
@@ -146,12 +152,35 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
 
-  // Sync active module to localStorage
+  // Sync active module to localStorage and window hash
   useEffect(() => {
     try {
       localStorage.setItem('surtiantojo_active_module', activeModule);
+      const activeSub = localStorage.getItem('surtiantojo_active_submenu');
+      if (activeModule === 'supply' && activeSub) {
+        window.history.replaceState(null, '', `#${activeModule}/${activeSub}`);
+      } else {
+        window.history.replaceState(null, '', `#${activeModule}`);
+      }
     } catch (e) {}
   }, [activeModule]);
+
+  // Handle browser back/forward navigation or hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      try {
+        if (window.location.hash) {
+          const parts = window.location.hash.replace('#', '').split('/');
+          const mod = parts[0];
+          if (mod && APP_MODULES.some(m => m.id === mod)) {
+            setActiveModule(mod);
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Lock Surtidor/Operator or Admin in preview mode to 'supply' module, and redirect from client_accounts
   useEffect(() => {

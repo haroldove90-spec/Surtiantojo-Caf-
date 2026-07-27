@@ -539,6 +539,12 @@ export default function ModulePlaceholder({
 
   const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>(() => {
     try {
+      if (window.location.hash) {
+        const parts = window.location.hash.replace('#', '').split('/');
+        if (parts.length > 1 && parts[1]) {
+          return parts[1];
+        }
+      }
       const storedActive = localStorage.getItem('surtiantojo_active_submenu');
       if (storedActive) {
         return storedActive;
@@ -554,8 +560,26 @@ export default function ModulePlaceholder({
   useEffect(() => {
     try {
       localStorage.setItem('surtiantojo_active_submenu', activeSupplySubmenu);
+      if (moduleId === 'supply') {
+        window.history.replaceState(null, '', `#supply/${activeSupplySubmenu}`);
+      }
     } catch (e) {}
-  }, [activeSupplySubmenu]);
+  }, [activeSupplySubmenu, moduleId]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      try {
+        if (window.location.hash) {
+          const parts = window.location.hash.replace('#', '').split('/');
+          if (parts[0] === 'supply' && parts[1]) {
+            setActiveSupplySubmenu(parts[1]);
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     if (activeSupplySubmenu) {
@@ -6642,7 +6666,7 @@ export default function ModulePlaceholder({
                       className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#043077] border border-indigo-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
                       title="Agregar otra columna de Fecha sin límite (+)"
                     >
-                      <Plus className="w-4 h-4 stroke-[3]" /> + Fecha
+                      <Plus className="w-4 h-4 stroke-[3]" /> Fecha
                     </button>
 
                     {/* 2. Exportar en Excel */}
@@ -7559,7 +7583,7 @@ export default function ModulePlaceholder({
                             onClick={() => handleAddMaintenanceVisit(activeSupplySubmenu)}
                             className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-3xs"
                           >
-                            <Plus className="w-4 h-4 stroke-[3]" /> + Agregar Visita
+                            <Plus className="w-4 h-4 stroke-[3]" /> Agregar Visita
                           </button>
                         </div>
                       </div>
