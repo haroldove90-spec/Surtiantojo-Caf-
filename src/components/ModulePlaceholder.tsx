@@ -3,6 +3,7 @@ import {
   TrendingUp, 
   Coffee, 
   ClipboardList, 
+  ClipboardCheck, 
   BarChart3, 
   Wallet, 
   Users, 
