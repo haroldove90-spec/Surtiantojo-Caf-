@@ -4981,9 +4981,11 @@ export default function ModulePlaceholder({
           sqlText += `    base_resorte VARCHAR(50) DEFAULT 'no',\n`;
           sqlText += `    otro VARCHAR(50) DEFAULT 'no',\n`;
           sqlText += `    notas TEXT DEFAULT 'no',\n`;
+          sqlText += `    nombre_repartidor VARCHAR(255) DEFAULT '',\n`;
           sqlText += `    elaboro VARCHAR(100) DEFAULT 'FC',\n`;
           sqlText += `    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n`;
           sqlText += `);\n`;
+          sqlText += `ALTER TABLE surtido_bitacora_mantenimiento ADD COLUMN IF NOT EXISTS nombre_repartidor VARCHAR(255) DEFAULT '';\n`;
           sqlText += `CREATE INDEX IF NOT EXISTS idx_bitacora_maquina_id ON surtido_bitacora_mantenimiento(maquina_id);\n`;
 
           return sqlText;
