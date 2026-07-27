@@ -119,6 +119,21 @@ const cleanHeaders = (headersList: string[]): string[] => {
     filtered.push(targetHeaderName);
   }
 
+  // 4. Ensure "Fecha" is present after "Notas" if no date header exists
+  const hasFecha = filtered.some(h => {
+    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
+    return norm.startsWith('fecha');
+  });
+
+  if (!hasFecha) {
+    const currentNotasIdx = filtered.findIndex(h => h.toLowerCase().trim() === 'notas');
+    if (currentNotasIdx !== -1) {
+      filtered.splice(currentNotasIdx + 1, 0, 'Fecha');
+    } else {
+      filtered.push('Fecha');
+    }
+  }
+
   return filtered;
 };
 
@@ -534,6 +549,82 @@ export default function ModulePlaceholder({
 
   // Values for editing dynamic row
   const [editRowValues, setEditRowValues] = useState<Record<string, string>>({});
+
+  // Dynamic Date Column Management (+)
+  const handleAddFechaColumn = (customTabId?: string) => {
+    const tabId = customTabId || activeSupplySubmenu;
+    const currentHeaders = cleanHeaders(submenuHeaders[tabId] || []);
+    
+    // Find all existing date headers
+    const dateHeaders = currentHeaders.filter(h => {
+      const norm = h.toLowerCase().trim().replace(/_/g, ' ');
+      return norm.startsWith('fecha');
+    });
+
+    let newHeaderName = 'Fecha';
+    if (dateHeaders.length > 0) {
+      let nextNum = dateHeaders.length + 1;
+      while (currentHeaders.some(h => h.toLowerCase().trim() === `fecha ${nextNum}`)) {
+        nextNum++;
+      }
+      newHeaderName = `Fecha ${nextNum}`;
+    }
+
+    // Insert newHeaderName right after the last date header, or after 'Notas'
+    const newHeaders = [...currentHeaders];
+    let lastIndex = -1;
+    for (let i = newHeaders.length - 1; i >= 0; i--) {
+      const norm = newHeaders[i].toLowerCase().trim().replace(/_/g, ' ');
+      if (norm.startsWith('fecha') || norm === 'notas') {
+        lastIndex = i;
+        break;
+      }
+    }
+
+    if (lastIndex !== -1) {
+      newHeaders.splice(lastIndex + 1, 0, newHeaderName);
+    } else {
+      newHeaders.push(newHeaderName);
+    }
+
+    const cleaned = cleanHeaders(newHeaders);
+    setSubmenuHeaders(prev => {
+      const updated = { ...prev, [tabId]: cleaned };
+      try {
+        localStorage.setItem('surtiantojo_submenu_headers', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    
+    // Auto-save to Supabase
+    let currentData: any[] = [];
+    if (tabId === 'cer_bb') currentData = cerBBData;
+    else if (tabId === 'art_alt') currentData = artAltData;
+    else if (tabId === 'art_ct') currentData = artCtData;
+    else currentData = genericSubmenuData[tabId] || [];
+    saveToSupabase(tabId, currentData, cleaned);
+  };
+
+  const handleRemoveColumn = (headerToRemove: string, customTabId?: string) => {
+    const tabId = customTabId || activeSupplySubmenu;
+    const currentHeaders = cleanHeaders(submenuHeaders[tabId] || []);
+    const filtered = currentHeaders.filter(h => h !== headerToRemove);
+    
+    setSubmenuHeaders(prev => {
+      const updated = { ...prev, [tabId]: filtered };
+      try {
+        localStorage.setItem('surtiantojo_submenu_headers', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    let currentData: any[] = [];
+    if (tabId === 'cer_bb') currentData = cerBBData;
+    else if (tabId === 'art_alt') currentData = artAltData;
+    else if (tabId === 'art_ct') currentData = artCtData;
+    else currentData = genericSubmenuData[tabId] || [];
+    saveToSupabase(tabId, currentData, filtered);
+  };
 
   // Sync state with localStorage
   useEffect(() => {
@@ -4186,6 +4277,10 @@ export default function ModulePlaceholder({
           if (cleanField === 'notas') {
             return row.notas || '';
           }
+          if (cleanField.startsWith('fecha')) {
+            if (row.values && row.values[field] !== undefined) return row.values[field];
+            return row.fecha || row.fecha_registro || row.fecha_surtido || '';
+          }
 
           const keys = Object.keys(row);
           const foundKey = keys.find(k => k.toLowerCase() === field.toLowerCase());
@@ -4222,29 +4317,62 @@ export default function ModulePlaceholder({
           const isSorted = supplySortField === field;
           const cleanF = field.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
           const isNameColumn = cleanF.includes('nombre') || cleanF.includes('producto') || cleanF.includes('articulo') || cleanF.includes('description');
+          const isFecha = cleanF.startsWith('fecha');
+          const isRemovableFecha = isFecha && label.toLowerCase().trim() !== 'fecha';
+
           return (
             <th key={field} className={`py-3 px-3 select-none ${isNameColumn ? 'w-full min-w-[240px]' : 'w-px whitespace-nowrap'}`}>
-              <button
-                type="button"
-                onClick={() => handleSupplySort(field)}
-                className={`flex items-center gap-1 hover:text-[#043077] transition-colors focus:outline-none cursor-pointer uppercase text-[10px] sm:text-[11px] text-slate-500 font-extrabold ${
-                  isSorted ? 'text-[#043077] font-black' : ''
-                }`}
-                title={`Click para ordenar por ${label}`}
-              >
-                <span className="tracking-wider">{label}</span>
-                <span className="inline-flex items-center justify-center">
-                  {isSorted ? (
-                    supplySortDirection === 'asc' ? (
-                      <ChevronUp className="w-3.5 h-3.5 text-[#043077]" />
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSupplySort(field)}
+                  className={`flex items-center gap-1 hover:text-[#043077] transition-colors focus:outline-none cursor-pointer uppercase text-[10px] sm:text-[11px] text-slate-500 font-extrabold ${
+                    isSorted ? 'text-[#043077] font-black' : ''
+                  }`}
+                  title={`Click para ordenar por ${label}`}
+                >
+                  <span className="tracking-wider">{label}</span>
+                  <span className="inline-flex items-center justify-center">
+                    {isSorted ? (
+                      supplySortDirection === 'asc' ? (
+                        <ChevronUp className="w-3.5 h-3.5 text-[#043077]" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 text-[#043077]" />
+                      )
                     ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-[#043077]" />
-                    )
-                  ) : (
-                    <ArrowUpDown className="w-3 h-3 text-slate-300 hover:text-slate-400" />
-                  )}
-                </span>
-              </button>
+                      <ArrowUpDown className="w-3 h-3 text-slate-300 hover:text-slate-400" />
+                    )}
+                  </span>
+                </button>
+
+                {isFecha && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddFechaColumn();
+                    }}
+                    className="p-1 rounded bg-indigo-50 hover:bg-indigo-100 text-[#043077] hover:text-indigo-900 border border-indigo-200 transition-all flex items-center gap-0.5 text-[9px] font-black shadow-2xs cursor-pointer"
+                    title="Añadir otra columna de Fecha sin límite (+)"
+                  >
+                    <Plus className="w-3 h-3 stroke-[3]" />
+                  </button>
+                )}
+
+                {isRemovableFecha && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveColumn(label);
+                    }}
+                    className="p-0.5 rounded hover:bg-rose-50 text-slate-300 hover:text-rose-600 transition-all cursor-pointer"
+                    title={`Eliminar columna ${label}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </th>
           );
         };
@@ -4392,7 +4520,8 @@ export default function ModulePlaceholder({
         const getDynamicSQL = () => {
           const tableName = `surtido_${activeSupplySubmenu}`;
           const currentRows = getActiveSubmenuData();
-          const headers = submenuHeaders[activeSupplySubmenu] || [];
+          const rawHeaders = submenuHeaders[activeSupplySubmenu] || [];
+          const headers = cleanHeaders(rawHeaders);
 
           let sqlText = `-- ⚡ SCRIPT DE CONFIGURACIÓN DE SUPABASE\n`;
           sqlText += `-- 💡 Pasos para sincronizar:\n`;
@@ -4556,7 +4685,26 @@ export default function ModulePlaceholder({
             sqlText += `    SUM(unidad_surtida * (precio_venta - costo_surtido)) AS ganancia_bruta_proyectada,\n`;
             sqlText += `    ROUND(AVG(NULLIF(precio_venta - costo_surtido, 0) / NULLIF(precio_venta, 0) * 100), 2) AS margen_promedio_general\n`;
           }
-          sqlText += `FROM ${tableName};`;
+          sqlText += `FROM ${tableName};\n\n`;
+
+          sqlText += `-- 🌐 3. SCRIPT GLOBAL PARA AGREGAR COLUMNAS DE FECHA A TODAS LAS MÁQUINAS EN SUPABASE\n`;
+          sqlText += `-- Copia y ejecuta este bloque en "SQL Editor" de Supabase para agregar las tablas de fecha a TODAS las máquinas existentes sin borrar datos:\n`;
+          sqlText += `DO $$\n`;
+          sqlText += `DECLARE\n`;
+          sqlText += `    t text;\n`;
+          sqlText += `BEGIN\n`;
+          sqlText += `    FOR t IN\n`;
+          sqlText += `        SELECT table_name\n`;
+          sqlText += `        FROM information_schema.tables\n`;
+          sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name != 'surtido_submenus'\n`;
+          sqlText += `    LOOP\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `    END LOOP;\n`;
+          sqlText += `END $$;\n`;
 
           return sqlText;
         };
@@ -4880,7 +5028,7 @@ export default function ModulePlaceholder({
               } else if (h === 'notas') {
                 newRowValues[originalHeader] = rowNotas.trim();
               } else {
-                newRowValues[originalHeader] = '';
+                newRowValues[originalHeader] = addRowValues[originalHeader] !== undefined ? addRowValues[originalHeader] : '';
               }
             });
           }
@@ -4914,6 +5062,7 @@ export default function ModulePlaceholder({
           setRowResorte('');
           setRowNotas('');
           setRowSeleccion('');
+          setAddRowValues({});
           setAddSupplyRowOpen(false);
           setCodigoSuggestions([]);
           setNombreSuggestions([]);
@@ -6092,6 +6241,16 @@ export default function ModulePlaceholder({
                       <Plus className="w-3.5 h-3.5" /> Agregar Registro
                     </button>
 
+                    {/* 1b. Agregar Columna de Fecha (+) */}
+                    <button
+                      type="button"
+                      onClick={() => handleAddFechaColumn()}
+                      className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#043077] border border-indigo-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                      title="Agregar otra columna de Fecha sin límite (+)"
+                    >
+                      <Plus className="w-4 h-4 stroke-[3]" /> + Fecha
+                    </button>
+
                     {/* 2. Exportar en Excel */}
                     {currentSubmenuData.length > 0 && (
                       <button
@@ -6457,6 +6616,33 @@ export default function ModulePlaceholder({
                         />
                       </div>
                     </div>
+
+                    {/* Dynamic Date & Custom Fields (e.g. Fecha, Fecha 2, Fecha 3...) */}
+                    {(() => {
+                      const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+                      const dateOrCustomHeaders = activeSubHeaders.filter(h => {
+                        const cleanH = cleanHeader(h);
+                        const isStandard = ['sel', 'seleccion', 'slot', 'codigo', 'sku', 'codig', 'code', 'producto', 'nombre', 'articulo', 'surtir', 'cantidad', 'unidades', 'cant', 'costo', 'precio', 'preciovta', 'precioventa', 'preciodeventa', 'precio_vta', 'precioregular', 'proveedor', 'resor', 'resort', 'resorte', 'notas'].includes(cleanH);
+                        return !isStandard;
+                      });
+                      if (dateOrCustomHeaders.length === 0) return null;
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2 border-t border-slate-200/60">
+                          {dateOrCustomHeaders.map((header) => (
+                            <div key={header} className="space-y-1">
+                              <label className="text-[10px] text-[#043077] font-extrabold block uppercase tracking-wider">{header}</label>
+                              <input
+                                type={header.toLowerCase().trim().startsWith('fecha') ? "text" : "text"}
+                                placeholder={`Ingrese ${header} (p. ej: ${new Date().toISOString().split('T')[0]})...`}
+                                value={addRowValues[header] || ''}
+                                onChange={(e) => setAddRowValues(prev => ({ ...prev, [header]: e.target.value }))}
+                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 focus:ring-1 focus:ring-[#043077]"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
 
                     <div className="flex gap-2 justify-end mt-2">
                       <button
