@@ -556,6 +556,89 @@ export default function ModulePlaceholder({
   // Values for editing dynamic row
   const [editRowValues, setEditRowValues] = useState<Record<string, string>>({});
 
+  // Machine Maintenance Bitácora state (1 card group per registered machine)
+  const [machineMaintenance, setMachineMaintenance] = useState<Record<string, Array<{
+    id: string;
+    visitLabel: string;
+    pruebas: string;
+    ventas_externas: string;
+    limpieza_interna: string;
+    limpieza_externa: string;
+    falla_equipo: string;
+    monedero: string;
+    billetero: string;
+    base_resorte: string;
+    otro: string;
+    notas: string;
+    elaboro: string;
+  }>>>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_machine_maintenance');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_machine_maintenance', JSON.stringify(machineMaintenance));
+    } catch (e) {}
+  }, [machineMaintenance]);
+
+  const getMachineVisits = (tabId: string) => {
+    if (machineMaintenance[tabId] && machineMaintenance[tabId].length > 0) {
+      return machineMaintenance[tabId];
+    }
+    // Default initial 4 visits per machine matching Image 2
+    return [
+      { id: 'v1', visitLabel: '$ 2,540', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
+      { id: 'v2', visitLabel: '$ 2,540', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
+      { id: 'v3', visitLabel: '$ 2,280', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
+      { id: 'v4', visitLabel: '$ 2,280', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'Fc' },
+    ];
+  };
+
+  const handleAddMaintenanceVisit = (tabId: string) => {
+    const current = getMachineVisits(tabId);
+    const newVisNum = current.length + 1;
+    const newVisit = {
+      id: `v_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      visitLabel: `Visita ${newVisNum}`,
+      pruebas: 'no',
+      ventas_externas: 'no',
+      limpieza_interna: 'si',
+      limpieza_externa: 'si',
+      falla_equipo: 'no',
+      monedero: 'no',
+      billetero: 'no',
+      base_resorte: 'no',
+      otro: 'no',
+      notas: 'no',
+      elaboro: 'FC'
+    };
+    const updated = [...current, newVisit];
+    setMachineMaintenance(prev => ({ ...prev, [tabId]: updated }));
+  };
+
+  const handleUpdateMaintenanceVisit = (tabId: string, index: number, field: string, value: string) => {
+    const current = [...getMachineVisits(tabId)];
+    if (current[index]) {
+      current[index] = { ...current[index], [field]: value };
+      setMachineMaintenance(prev => ({ ...prev, [tabId]: current }));
+    }
+  };
+
+  const handleRemoveMaintenanceVisit = (tabId: string, index: number) => {
+    const current = getMachineVisits(tabId);
+    if (current.length <= 1) {
+      alert('Debe conservar al menos una columna de visita en la bitácora.');
+      return;
+    }
+    const updated = current.filter((_, idx) => idx !== index);
+    setMachineMaintenance(prev => ({ ...prev, [tabId]: updated }));
+  };
+
   // Dynamic Date Column Management (+)
   const handleAddFechaColumn = (customTabId?: string) => {
     const tabId = customTabId || activeSupplySubmenu;
@@ -4710,7 +4793,27 @@ export default function ModulePlaceholder({
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `    END LOOP;\n`;
-          sqlText += `END $$;\n`;
+          sqlText += `END $$;\n\n`;
+
+          sqlText += `-- 🌐 4. SCRIPT GLOBAL PARA TABLA DE BITÁCORA Y CONTROL DE MANTENIMIENTO POR VISITA DE MÁQUINA\n`;
+          sqlText += `CREATE TABLE IF NOT EXISTS surtido_bitacora_mantenimiento (\n`;
+          sqlText += `    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n`;
+          sqlText += `    maquina_id VARCHAR(100) NOT NULL,\n`;
+          sqlText += `    visita_label VARCHAR(100) DEFAULT '',\n`;
+          sqlText += `    pruebas VARCHAR(100) DEFAULT 'no',\n`;
+          sqlText += `    ventas_externas VARCHAR(100) DEFAULT 'no',\n`;
+          sqlText += `    limpieza_interna VARCHAR(50) DEFAULT 'si',\n`;
+          sqlText += `    limpieza_externa VARCHAR(50) DEFAULT 'si',\n`;
+          sqlText += `    falla_equipo VARCHAR(50) DEFAULT 'no',\n`;
+          sqlText += `    monedero VARCHAR(50) DEFAULT 'no',\n`;
+          sqlText += `    billetero VARCHAR(50) DEFAULT 'no',\n`;
+          sqlText += `    base_resorte VARCHAR(50) DEFAULT 'no',\n`;
+          sqlText += `    otro VARCHAR(50) DEFAULT 'no',\n`;
+          sqlText += `    notas TEXT DEFAULT 'no',\n`;
+          sqlText += `    elaboro VARCHAR(100) DEFAULT 'FC',\n`;
+          sqlText += `    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n`;
+          sqlText += `);\n`;
+          sqlText += `CREATE INDEX IF NOT EXISTS idx_bitacora_maquina_id ON surtido_bitacora_mantenimiento(maquina_id);\n`;
 
           return sqlText;
         };
@@ -4784,7 +4887,32 @@ export default function ModulePlaceholder({
             }
           });
 
-          const csvContent = "\uFEFF" + "sep=;\n" + [headers, ...rows].join('\n');
+          const csvContent = "\uFEFF" + "sep=;\n" + [
+            headers,
+            ...rows,
+            '',
+            '"BITÁCORA DE CONTROL Y MANTENIMIENTO DE MÁQUINA"',
+            ['Concepto', 'Detalle', ...getMachineVisits(tabId).map(v => v.visitLabel || 'Visita')].map(v => `"${v.replace(/"/g, '""')}"`).join(';'),
+            ...[
+              { concept: 'Pruebas con $$', detail: 'Cuanto $?', key: 'pruebas' },
+              { concept: 'Ventas Externas', detail: 'Cuanto $?', key: 'ventas_externas' },
+              { concept: 'Limpieza interna', detail: 'Si / no', key: 'limpieza_interna' },
+              { concept: 'Limpieza externa', detail: 'Si / no', key: 'limpieza_externa' },
+              { concept: 'Falla de equipo', detail: 'Si / no', key: 'falla_equipo' },
+              { concept: 'Monedero', detail: 'X', key: 'monedero' },
+              { concept: 'Billetero', detail: 'X', key: 'billetero' },
+              { concept: 'Base de resorte', detail: 'X', key: 'base_resorte' },
+              { concept: 'Otro', detail: 'X', key: 'otro' },
+              { concept: 'Notas', detail: 'no', key: 'notas' },
+              { concept: 'Elaboro', detail: '', key: 'elaboro' }
+            ].map(rowDef => {
+              const lineVals = [rowDef.concept, rowDef.detail];
+              getMachineVisits(tabId).forEach(v => {
+                lineVals.push(String((v as any)[rowDef.key] || ''));
+              });
+              return lineVals.map(val => `"${val.replace(/"/g, '""')}"`).join(';');
+            })
+          ].join('\n');
           const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
@@ -4872,6 +5000,35 @@ export default function ModulePlaceholder({
                 });
                 exportBlocks.push(rowValues.join(';'));
               }
+            });
+
+            // Append Bitácora de Mantenimiento table for this machine
+            const currentVisits = getMachineVisits(submenu.id);
+            exportBlocks.push('');
+            exportBlocks.push(`"BITÁCORA DE CONTROL Y MANTENIMIENTO - ${submenu.name.replace(/"/g, '""').toUpperCase()}"`);
+            const visitHeaderRow = ['Concepto', 'Detalle', ...currentVisits.map(v => v.visitLabel || 'Visita')];
+            exportBlocks.push(visitHeaderRow.map(v => `"${v.replace(/"/g, '""')}"`).join(';'));
+
+            const maintenanceRowsDef = [
+              { concept: 'Pruebas con $$', detail: 'Cuanto $?', key: 'pruebas' },
+              { concept: 'Ventas Externas', detail: 'Cuanto $?', key: 'ventas_externas' },
+              { concept: 'Limpieza interna', detail: 'Si / no', key: 'limpieza_interna' },
+              { concept: 'Limpieza externa', detail: 'Si / no', key: 'limpieza_externa' },
+              { concept: 'Falla de equipo', detail: 'Si / no', key: 'falla_equipo' },
+              { concept: 'Monedero', detail: 'X', key: 'monedero' },
+              { concept: 'Billetero', detail: 'X', key: 'billetero' },
+              { concept: 'Base de resorte', detail: 'X', key: 'base_resorte' },
+              { concept: 'Otro', detail: 'X', key: 'otro' },
+              { concept: 'Notas', detail: 'no', key: 'notas' },
+              { concept: 'Elaboro', detail: '', key: 'elaboro' }
+            ];
+
+            maintenanceRowsDef.forEach(rowDef => {
+              const lineVals = [rowDef.concept, rowDef.detail];
+              currentVisits.forEach(v => {
+                lineVals.push(String((v as any)[rowDef.key] || ''));
+              });
+              exportBlocks.push(lineVals.map(val => `"${val.replace(/"/g, '""')}"`).join(';'));
             });
 
             // Add separation blank rows after each table block
@@ -7110,6 +7267,267 @@ export default function ModulePlaceholder({
                     </div>
                   </div>
                 )}
+
+                {/* Nueva Tarjeta: Bitácora de Control y Mantenimiento por Visita (1 grupo por máquina) */}
+                {(() => {
+                  const visits = getMachineVisits(activeSupplySubmenu);
+                  return (
+                    <div className="bg-white p-5 rounded-2xl border border-emerald-200/80 shadow-xs space-y-4 mt-6">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-emerald-100">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+                            <ClipboardCheck className="w-5 h-5 stroke-[2.5]" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                              <span>Bitácora de Control y Mantenimiento ({activeMeta.name})</span>
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-full uppercase border border-emerald-200">Exportable a Excel</span>
+                            </h4>
+                            <p className="text-xs text-slate-500 font-medium">Control de pruebas, ventas externas, limpieza y componentes por cada visita realizada.</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleAddMaintenanceVisit(activeSupplySubmenu)}
+                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-3xs"
+                          >
+                            <Plus className="w-4 h-4 stroke-[3]" /> + Agregar Visita
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Maintenance Table Layout matching uploaded design image */}
+                      <div className="overflow-x-auto rounded-xl border border-emerald-200/80 bg-white shadow-3xs">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-[#e2f0d9] border-b border-emerald-200 text-emerald-950 font-black">
+                              <th className="py-2.5 px-3 uppercase text-[11px] font-black border-r border-emerald-200 min-w-[160px] bg-[#d5e8c8]">
+                                Concepto
+                              </th>
+                              <th className="py-2.5 px-3 uppercase text-[11px] font-black border-r border-emerald-200 w-[110px] bg-[#d5e8c8]">
+                                Detalle
+                              </th>
+                              {visits.map((vis, vIdx) => (
+                                <th key={vis.id || vIdx} className="py-2 px-3 border-r border-emerald-200 min-w-[130px] text-center bg-[#e2f0d9]">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <input
+                                      type="text"
+                                      value={vis.visitLabel}
+                                      onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'visitLabel', e.target.value)}
+                                      className="w-full bg-white/90 border border-emerald-300 rounded px-1.5 py-1 text-center font-black text-emerald-900 text-xs focus:ring-1 focus:ring-emerald-600"
+                                      placeholder="Visita / $"
+                                    />
+                                    {visits.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveMaintenanceVisit(activeSupplySubmenu, vIdx)}
+                                        className="p-1 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded transition-all cursor-pointer"
+                                        title="Eliminar esta visita"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-emerald-100 font-bold text-slate-700">
+                            {/* Row 1: Pruebas con $$ */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Pruebas con $$</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">Cuanto $?</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.pruebas}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'pruebas', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 2: Ventas Externas */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Ventas Externas</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">Cuanto $?</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.ventas_externas}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'ventas_externas', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 3: Limpieza interna */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Limpieza interna</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">
+                                <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">Si</span> / <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">no</span>
+                              </td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <select
+                                    value={vis.limpieza_interna}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'limpieza_interna', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  >
+                                    <option value="si">si</option>
+                                    <option value="no">no</option>
+                                  </select>
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 4: Limpieza externa */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Limpieza externa</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">
+                                <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">Si</span> / <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">no</span>
+                              </td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <select
+                                    value={vis.limpieza_externa}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'limpieza_externa', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  >
+                                    <option value="si">si</option>
+                                    <option value="no">no</option>
+                                  </select>
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 5: Falla de equipo */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Falla de equipo</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">
+                                <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">Si</span> / <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">no</span>
+                              </td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <select
+                                    value={vis.falla_equipo}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'falla_equipo', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  >
+                                    <option value="no">no</option>
+                                    <option value="si">si</option>
+                                  </select>
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 6: Monedero */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Monedero</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.monedero}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'monedero', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 7: Billetero */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Billetero</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.billetero}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'billetero', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 8: Base de resorte */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Base de resorte</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.base_resorte}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'base_resorte', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 9: Otro */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Otro</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.otro}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'otro', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 10: Notas */}
+                            <tr className="hover:bg-emerald-50/40">
+                              <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Notas</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">-</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.notas}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'notas', e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 11: Elaboro (green row matching design image!) */}
+                            <tr className="bg-[#00b050] text-white font-extrabold">
+                              <td className="py-2.5 px-3 font-black text-white border-r border-emerald-600">Elaboro</td>
+                              <td className="py-2.5 px-3 text-emerald-100 font-bold border-r border-emerald-600 text-[11px]">-</td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-600 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.elaboro}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'elaboro', e.target.value)}
+                                    className="w-full bg-white/90 border border-emerald-400 rounded px-2 py-1 text-center text-xs font-black text-emerald-950 focus:ring-2 focus:ring-white"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
 
               </div>
             )}
