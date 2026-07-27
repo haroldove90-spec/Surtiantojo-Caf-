@@ -561,6 +561,8 @@ export default function ModulePlaceholder({
   const [machineMaintenance, setMachineMaintenance] = useState<Record<string, Array<{
     id: string;
     visitLabel: string;
+    mon_inicial: string;
+    mon_final: string;
     pruebas: string;
     ventas_externas: string;
     limpieza_interna: string;
@@ -591,12 +593,12 @@ export default function ModulePlaceholder({
     if (machineMaintenance[tabId] && machineMaintenance[tabId].length > 0) {
       return machineMaintenance[tabId];
     }
-    // Default initial 4 visits per machine matching Image 2
+    // Default initial 4 visits per machine matching Image
     return [
-      { id: 'v1', visitLabel: '$ 2,540', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
-      { id: 'v2', visitLabel: '$ 2,540', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
-      { id: 'v3', visitLabel: '$ 2,280', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
-      { id: 'v4', visitLabel: '$ 2,280', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'Fc' },
+      { id: 'v1', visitLabel: '$ 2,540', mon_inicial: '$ 679', mon_final: '$ 1,349', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
+      { id: 'v2', visitLabel: '$ 2,540', mon_inicial: '$ 51', mon_final: '$ 1,040', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
+      { id: 'v3', visitLabel: '$ 2,280', mon_inicial: '$ 202', mon_final: '$ 1,208', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'FC' },
+      { id: 'v4', visitLabel: '$ 2,280', mon_inicial: '$ 21', mon_final: '$ 1,260', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', elaboro: 'Fc' },
     ];
   };
 
@@ -606,6 +608,8 @@ export default function ModulePlaceholder({
     const newVisit = {
       id: `v_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       visitLabel: `Visita ${newVisNum}`,
+      mon_inicial: '$ 0',
+      mon_final: '$ 0',
       pruebas: 'no',
       ventas_externas: 'no',
       limpieza_interna: 'si',
@@ -4812,6 +4816,8 @@ export default function ModulePlaceholder({
           sqlText += `    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n`;
           sqlText += `    maquina_id VARCHAR(100) NOT NULL,\n`;
           sqlText += `    visita_label VARCHAR(100) DEFAULT '',\n`;
+          sqlText += `    mon_inicial VARCHAR(100) DEFAULT '',\n`;
+          sqlText += `    mon_final VARCHAR(100) DEFAULT '',\n`;
           sqlText += `    pruebas VARCHAR(100) DEFAULT 'no',\n`;
           sqlText += `    ventas_externas VARCHAR(100) DEFAULT 'no',\n`;
           sqlText += `    limpieza_interna VARCHAR(50) DEFAULT 'si',\n`;
@@ -4906,6 +4912,8 @@ export default function ModulePlaceholder({
             '"BITÁCORA DE CONTROL Y MANTENIMIENTO DE MÁQUINA"',
             ['Concepto', 'Detalle', ...getMachineVisits(tabId).map(v => v.visitLabel || 'Visita')].map(v => `"${v.replace(/"/g, '""')}"`).join(';'),
             ...[
+              { concept: 'Mon. Inicial', detail: '', key: 'mon_inicial' },
+              { concept: 'Mon. Final', detail: '', key: 'mon_final' },
               { concept: 'Pruebas con $$', detail: 'Cuanto $?', key: 'pruebas' },
               { concept: 'Ventas Externas', detail: 'Cuanto $?', key: 'ventas_externas' },
               { concept: 'Limpieza interna', detail: 'Si / no', key: 'limpieza_interna' },
@@ -5022,6 +5030,8 @@ export default function ModulePlaceholder({
             exportBlocks.push(visitHeaderRow.map(v => `"${v.replace(/"/g, '""')}"`).join(';'));
 
             const maintenanceRowsDef = [
+              { concept: 'Mon. Inicial', detail: '', key: 'mon_inicial' },
+              { concept: 'Mon. Final', detail: '', key: 'mon_final' },
               { concept: 'Pruebas con $$', detail: 'Cuanto $?', key: 'pruebas' },
               { concept: 'Ventas Externas', detail: 'Cuanto $?', key: 'ventas_externas' },
               { concept: 'Limpieza interna', detail: 'Si / no', key: 'limpieza_interna' },
@@ -7347,6 +7357,40 @@ export default function ModulePlaceholder({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-emerald-100 font-bold text-slate-700">
+                            {/* Row 0A: Mon. Inicial */}
+                            <tr className="bg-[#e2f0d9]/60 hover:bg-[#d5e8c8]/80 transition-colors">
+                              <td className="py-2 px-3 font-black text-slate-900 border-r border-emerald-200 bg-[#d5e8c8]">Mon. Inicial</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-200 text-[11px] bg-[#d5e8c8]"></td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-200 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.mon_inicial || ''}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'mon_inicial', e.target.value)}
+                                    className="w-full bg-white/90 border border-emerald-300 rounded px-2 py-1 text-center text-xs font-black text-emerald-950 focus:ring-1 focus:ring-emerald-600 shadow-3xs"
+                                    placeholder="$ 0"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
+                            {/* Row 0B: Mon. Final */}
+                            <tr className="bg-[#e2f0d9]/60 hover:bg-[#d5e8c8]/80 transition-colors">
+                              <td className="py-2 px-3 font-black text-slate-900 border-r border-emerald-200 bg-[#d5e8c8]">Mon. Final</td>
+                              <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-200 text-[11px] bg-[#d5e8c8]"></td>
+                              {visits.map((vis, vIdx) => (
+                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-200 text-center">
+                                  <input
+                                    type="text"
+                                    value={vis.mon_final || ''}
+                                    onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'mon_final', e.target.value)}
+                                    className="w-full bg-white/90 border border-emerald-300 rounded px-2 py-1 text-center text-xs font-black text-emerald-950 focus:ring-1 focus:ring-emerald-600 shadow-3xs"
+                                    placeholder="$ 0"
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+
                             {/* Row 1: Pruebas con $$ */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Pruebas con $$</td>
