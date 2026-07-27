@@ -527,12 +527,18 @@ export default function ModulePlaceholder({
         if (parsed && typeof parsed === 'object') {
           Object.keys(parsed).forEach(tabId => {
             if (Array.isArray(parsed[tabId])) {
-              const mapped = parsed[tabId].map((h: string) => {
+              const filteredList = parsed[tabId].filter((h: string) => {
+                if (typeof h !== 'string') return true;
+                const norm = h.toLowerCase().trim().replace(/_/g, ' ');
+                // Filter out leftover Fecha 2, Fecha 3... on initial start so initially only ONE Fecha is present
+                if (norm.startsWith('fecha') && norm !== 'fecha') return false;
+                return true;
+              }).map((h: string) => {
                 const norm = h.toLowerCase().trim();
                 if (norm === 'resor' || norm === 'resort') return 'Resorte';
                 return h;
               });
-              parsed[tabId] = cleanHeaders(mapped);
+              parsed[tabId] = cleanHeaders(filteredList);
             }
           });
         }
@@ -6628,18 +6634,26 @@ export default function ModulePlaceholder({
                       if (dateOrCustomHeaders.length === 0) return null;
                       return (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2 border-t border-slate-200/60">
-                          {dateOrCustomHeaders.map((header) => (
-                            <div key={header} className="space-y-1">
-                              <label className="text-[10px] text-[#043077] font-extrabold block uppercase tracking-wider">{header}</label>
-                              <input
-                                type={header.toLowerCase().trim().startsWith('fecha') ? "text" : "text"}
-                                placeholder={`Ingrese ${header} (p. ej: ${new Date().toISOString().split('T')[0]})...`}
-                                value={addRowValues[header] || ''}
-                                onChange={(e) => setAddRowValues(prev => ({ ...prev, [header]: e.target.value }))}
-                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 focus:ring-1 focus:ring-[#043077]"
-                              />
-                            </div>
-                          ))}
+                          {dateOrCustomHeaders.map((header) => {
+                            const isFechaHeader = header.toLowerCase().trim().replace(/_/g, ' ').startsWith('fecha');
+                            return (
+                              <div key={header} className="space-y-1">
+                                <label className="text-[10px] text-[#043077] font-extrabold block uppercase tracking-wider">{header}</label>
+                                <input
+                                  type="text"
+                                  inputMode={isFechaHeader ? "numeric" : "text"}
+                                  pattern={isFechaHeader ? "[0-9]*" : undefined}
+                                  placeholder={isFechaHeader ? `Ingrese ${header} (solo números)...` : `Ingrese ${header}...`}
+                                  value={addRowValues[header] || ''}
+                                  onChange={(e) => {
+                                    const val = isFechaHeader ? e.target.value.replace(/[^0-9]/g, '') : e.target.value;
+                                    setAddRowValues(prev => ({ ...prev, [header]: val }));
+                                  }}
+                                  className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 focus:ring-1 focus:ring-[#043077]"
+                                />
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })()}
@@ -6810,7 +6824,10 @@ export default function ModulePlaceholder({
                                               type="text"
                                               value={editRowValues[header] !== undefined ? editRowValues[header] : (row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header))}
                                               onChange={(e) => {
-                                                const val = e.target.value;
+                                                let val = e.target.value;
+                                                if (norm.startsWith('fecha')) {
+                                                  val = val.replace(/[^0-9]/g, '');
+                                                }
                                                 setEditRowValues(prev => ({ ...prev, [header]: val }));
                                                 if (isCodeField) {
                                                   setEditRowCodigo(val);
