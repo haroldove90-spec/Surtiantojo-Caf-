@@ -5446,6 +5446,21 @@ export default function ModulePlaceholder({
           }
         };
 
+        const handleUpdateDynamicCellValue = (rowId: number, header: string, value: string) => {
+          let updatedRow: any = null;
+          handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
+            if (r.id === rowId) {
+              const updatedValues = { ...(r.values || {}), [header]: value };
+              updatedRow = { ...r, values: updatedValues };
+              return updatedRow;
+            }
+            return r;
+          }));
+          if (updatedRow) {
+            saveToSupabase(activeSupplySubmenu, [updatedRow]);
+          }
+        };
+
         const handleStartEditRow = (row: any) => {
           if (isSurtidorOnly) return;
           setEditingRowId(row.id);
@@ -6585,22 +6600,22 @@ export default function ModulePlaceholder({
 
                 {/* Notice when viewing in Surtidor mode */}
                 {isSurtidorOnly && (
-                  <div className="bg-amber-50 border-2 border-amber-300/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-950 shadow-xs mb-2">
+                  <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-emerald-950 shadow-xs mb-2">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-xs shrink-0">
-                        <Lock className="w-5 h-5 stroke-[2.5]" />
+                      <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs shrink-0">
+                        <ClipboardCheck className="w-5 h-5 stroke-[2.5]" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
-                          🔒 TABLA CON CANDADO — SOLO LECTURA (ROL SURTIDOR)
+                        <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                          MODO SURTIDOR ACTIVO
                         </h4>
-                        <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                          En el rol Surtidor las tablas de registros están protegidas con candado. No es posible editar, agregar ni eliminar información. Únicamente el perfil <strong>Administrador</strong> tiene permisos para modificar.
+                        <p className="text-xs text-emerald-800 font-medium leading-relaxed">
+                          Puedes agregar columnas de fecha con el botón <strong>+ Fecha</strong>, capturar datos en las celdas de fechas de surtido y registrar visitas en la <strong>Bitácora de Control y Mantenimiento</strong>.
                         </p>
                       </div>
                     </div>
-                    <span className="px-3 py-1 bg-amber-200/80 text-amber-950 text-[10px] font-black uppercase tracking-widest rounded-lg shrink-0 border border-amber-300">
-                      Candado Activo 🔒
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-900 text-[10px] font-black uppercase tracking-wider rounded-lg shrink-0 border border-emerald-300/80">
+                      Captura Habilitada
                     </span>
                   </div>
                 )}
@@ -6621,16 +6636,14 @@ export default function ModulePlaceholder({
                     )}
 
                     {/* 1b. Agregar Columna de Fecha (+) */}
-                    {!isSurtidorOnly && (
-                      <button
-                        type="button"
-                        onClick={() => handleAddFechaColumn()}
-                        className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#043077] border border-indigo-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
-                        title="Agregar otra columna de Fecha sin límite (+)"
-                      >
-                        <Plus className="w-4 h-4 stroke-[3]" /> + Fecha
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleAddFechaColumn()}
+                      className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#043077] border border-indigo-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                      title="Agregar otra columna de Fecha sin límite (+)"
+                    >
+                      <Plus className="w-4 h-4 stroke-[3]" /> + Fecha
+                    </button>
 
                     {/* 2. Exportar en Excel */}
                     {currentSubmenuData.length > 0 && (
@@ -7362,6 +7375,22 @@ export default function ModulePlaceholder({
                                         const isPrice = normHeader.includes('precio') || normHeader.includes('costo') || normHeader.includes('importe') || normHeader.includes('regular') || normHeader.includes('vta') || normHeader.includes('venta') || normHeader === 'sin acuerdo' || normHeader.includes('precio sin acuerdo');
                                         const formattedVal = isPrice ? (typeof cellVal === 'number' ? formatMXN(cellVal) : (isNaN(Number(cellVal)) || cellVal === '' ? cellVal : formatMXN(Number(cellVal)))) : cellVal;
 
+                                        const isFechaCol = normHeader.includes('fecha') || cleanH.includes('fecha');
+
+                                        if (isFechaCol) {
+                                          return (
+                                            <td key={idx} className="py-1.5 px-2 text-center whitespace-nowrap">
+                                              <input
+                                                type="text"
+                                                value={cellVal !== undefined && cellVal !== null ? String(cellVal) : ''}
+                                                onChange={(e) => handleUpdateDynamicCellValue(row.id, header, e.target.value)}
+                                                className="w-20 sm:w-24 bg-indigo-50/80 hover:bg-white focus:bg-white border border-indigo-200 focus:border-[#043077] rounded-lg px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                                placeholder="0"
+                                              />
+                                            </td>
+                                          );
+                                        }
+
                                         return (
                                           <td 
                                             key={idx} 
@@ -7397,15 +7426,24 @@ export default function ModulePlaceholder({
                                         <td className="py-3 px-3 text-slate-700 font-medium whitespace-nowrap">
                                           {row.notas || ''}
                                         </td>
-                                        <td className="py-3 px-3 text-slate-400 font-medium whitespace-nowrap">
-                                          {row.fecha_registro}
+                                        <td className="py-1.5 px-2 text-center whitespace-nowrap">
+                                          <input
+                                            type="text"
+                                            value={row.fecha_registro || ''}
+                                            onChange={(e) => {
+                                              const newVal = e.target.value;
+                                              handleUpdateSubmenuData((prev: any[]) => prev.map(r => r.id === row.id ? { ...r, fecha_registro: newVal } : r));
+                                            }}
+                                            className="w-28 bg-indigo-50/80 hover:bg-white focus:bg-white border border-indigo-200 focus:border-[#043077] rounded-lg px-2 py-1 text-center font-mono font-bold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                            placeholder="YYYY-MM-DD"
+                                          />
                                         </td>
                                       </>
                                     )}
                                     <td className="py-3 px-3 text-center whitespace-nowrap">
                                       {isSurtidorOnly ? (
-                                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-900 bg-amber-100/90 px-2.5 py-1 rounded-lg border border-amber-300/60 select-none" title="Registro protegido con candado para el rol Surtidor">
-                                          <Lock className="w-3 h-3 text-amber-700" /> Candado
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 select-none">
+                                          Surtido
                                         </span>
                                       ) : (
                                         <div className="flex items-center justify-center gap-1">
