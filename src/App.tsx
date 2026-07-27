@@ -138,7 +138,8 @@ export default function App() {
     if (isSurtidorOnly) {
       return APP_MODULES.filter(m => m.id === 'supply');
     }
-    return APP_MODULES;
+    // Deactivate 'client_accounts' (Cuentas clientes) for Admin role as requested
+    return APP_MODULES.filter(m => m.id !== 'client_accounts');
   }, [currentUser, isSurtidorOnly]);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
@@ -152,10 +153,12 @@ export default function App() {
     } catch (e) {}
   }, [activeModule]);
 
-  // Lock Surtidor/Operator or Admin in preview mode to 'supply' module
+  // Lock Surtidor/Operator or Admin in preview mode to 'supply' module, and redirect from client_accounts
   useEffect(() => {
     if (isSurtidorOnly && activeModule !== 'supply') {
       setActiveModule('supply');
+    } else if (!isSurtidorOnly && activeModule === 'client_accounts') {
+      setActiveModule('metrics');
     }
   }, [isSurtidorOnly, activeModule]);
   
@@ -1240,6 +1243,7 @@ export default function App() {
               onDeleteProduct={handleDeleteProduct}
               onUpdateProductStatusBulk={handleUpdateProductStatusBulk}
               currentUser={currentUser}
+              isPreviewSurtidor={isPreviewSurtidor}
               usersList={usersList}
               onAddUserAccount={handleAddUserAccount}
               onUpdateUserAccount={handleUpdateUserAccount}
