@@ -40,6 +40,7 @@ const APP_MODULES = [
   { id: 'sales_by_product', name: 'Venta por producto', icon: BarChart3, desc: 'Rendimiento individual de consumibles' },
   { id: 'expenses', name: 'Gastos', icon: Wallet, desc: 'Egreso por servicios, renta e insumos' },
   { id: 'client_accounts', name: 'Cuentas clientes', icon: Users, desc: 'Premios de fidelidad y saldo VIP' },
+  { id: 'employees', name: 'Empleados', icon: UserCheck, desc: 'Gestión y alta de repartidores y personal de surtido' },
   { id: 'profile', name: 'Perfil del usuario', icon: User, desc: 'Permisos de administradores y baristas' }
 ];
 
@@ -49,30 +50,40 @@ const DEFAULT_USERS = [
   { 
     username: 'karla_padilla', 
     nombre_completo: 'Karla Padilla', 
+    correo: 'karla@surtiantojo.com.mx',
+    whatsapp: '525512345678',
     rol: 'Administrador', 
     contrasena: 'KP_Admin_2026!' 
   },
   { 
     username: 'jonathan_moreno', 
     nombre_completo: 'Jonathan Moreno', 
+    correo: 'jonathan@surtiantojo.com.mx',
+    whatsapp: '525512345679',
     rol: 'Administrador', 
     contrasena: 'JM_Admin_2026!' 
   },
   { 
     username: 'juan_cedillo', 
     nombre_completo: 'Juan Manuel Cedillo', 
-    rol: 'Operador', 
-    contrasena: 'JC_Oper_2026!' 
+    correo: 'juan.cedillo@surtiantojo.com.mx',
+    whatsapp: '525512345680',
+    rol: 'Surtidor', 
+    contrasena: 'JC_Surt_2026!' 
   },
   { 
     username: 'mario_guadalupe', 
     nombre_completo: 'Mario Guadalupe', 
-    rol: 'Operador', 
-    contrasena: 'MG_Oper_2026!' 
+    correo: 'mario.guadalupe@surtiantojo.com.mx',
+    whatsapp: '525512345681',
+    rol: 'Surtidor', 
+    contrasena: 'MG_Surt_2026!' 
   },
   { 
     username: 'harold_anguiano', 
     nombre_completo: 'Harold Anguiano', 
+    correo: 'harold@surtiantojo.com.mx',
+    whatsapp: '525512345682',
     rol: 'Administrador', 
     contrasena: 'HA_Admin_2026!' 
   }
@@ -96,13 +107,15 @@ export default function App() {
   const [loginLoading, setLoginLoading] = useState<boolean>(false);
   const [showCredsGuide, setShowCredsGuide] = useState<boolean>(true);
 
+  const [isPreviewSurtidor, setIsPreviewSurtidor] = useState<boolean>(false);
+
   const [activeModule, setActiveModule] = useState<string>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_logged_user');
       if (stored) {
         const userObj = JSON.parse(stored);
-        if (userObj.rol === 'Operador') {
-          return 'supply'; // Operator can only see "Surtido"
+        if (userObj.rol === 'Operador' || userObj.rol === 'Surtidor') {
+          return 'supply'; // Surtidor/Operator can only see "Surtido"
         }
       }
       const storedModule = localStorage.getItem('surtiantojo_active_module');
@@ -113,13 +126,20 @@ export default function App() {
     return 'metrics';
   });
 
+  const isSurtidorOnly = useMemo(() => {
+    if (!currentUser) return false;
+    if (currentUser.rol === 'Surtidor' || currentUser.rol === 'Operador') return true;
+    if (currentUser.rol === 'Administrador' && isPreviewSurtidor) return true;
+    return false;
+  }, [currentUser, isPreviewSurtidor]);
+
   const visibleModules = useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.rol === 'Operador') {
+    if (isSurtidorOnly) {
       return APP_MODULES.filter(m => m.id === 'supply');
     }
     return APP_MODULES;
-  }, [currentUser]);
+  }, [currentUser, isSurtidorOnly]);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -132,12 +152,12 @@ export default function App() {
     } catch (e) {}
   }, [activeModule]);
 
-  // Lock operator to 'supply' module
+  // Lock Surtidor/Operator or Admin in preview mode to 'supply' module
   useEffect(() => {
-    if (currentUser?.rol === 'Operador' && activeModule !== 'supply') {
+    if (isSurtidorOnly && activeModule !== 'supply') {
       setActiveModule('supply');
     }
-  }, [currentUser, activeModule]);
+  }, [isSurtidorOnly, activeModule]);
   
   // Real active catalog of products state - Purges the old sample IDs in case they are stored
   const [products, setProducts] = useState<any[]>(() => {
@@ -266,7 +286,7 @@ export default function App() {
                 console.log("Logged-in user role or details changed in Supabase. Syncing locally:", freshUser);
                 setCurrentUser(freshUser);
                 localStorage.setItem('surtiantojo_logged_user', JSON.stringify(freshUser));
-                if (freshUser.rol === 'Operador') {
+                if (freshUser.rol === 'Operador' || freshUser.rol === 'Surtidor') {
                   setActiveModule('supply');
                 }
               }
@@ -330,7 +350,7 @@ export default function App() {
     setCurrentUser(matchedUser);
     localStorage.setItem('surtiantojo_logged_user', JSON.stringify(matchedUser));
     
-    if (matchedUser.rol === 'Operador') {
+    if (matchedUser.rol === 'Operador' || matchedUser.rol === 'Surtidor') {
       setActiveModule('supply');
     } else {
       setActiveModule('metrics');
@@ -341,8 +361,76 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setIsPreviewSurtidor(false);
     localStorage.removeItem('surtiantojo_logged_user');
     setActiveModule('metrics'); // Reset module on logout
+  };
+
+  // Handlers for adding/updating/deleting employee user accounts
+  const handleAddUserAccount = async (newUser: any) => {
+    try {
+      const filtered = usersList.filter(u => u.username.toLowerCase() !== newUser.username.toLowerCase());
+      const updated = [newUser, ...filtered];
+      setUsersList(updated);
+      localStorage.setItem('surtiantojo_users', JSON.stringify(updated));
+
+      if (dbStatus === 'connected') {
+        const { error } = await supabase
+          .from('usuarios')
+          .upsert(newUser, { onConflict: 'username' });
+        if (error) {
+          console.warn("Supabase user insert notice:", error);
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error("Error adding user account:", err);
+      return false;
+    }
+  };
+
+  const handleUpdateUserAccount = async (username: string, userObj: any) => {
+    try {
+      const updated = usersList.map(u => u.username.toLowerCase() === username.toLowerCase() ? { ...u, ...userObj } : u);
+      setUsersList(updated);
+      localStorage.setItem('surtiantojo_users', JSON.stringify(updated));
+
+      if (dbStatus === 'connected') {
+        const { error } = await supabase
+          .from('usuarios')
+          .update(userObj)
+          .eq('username', username);
+        if (error) {
+          console.warn("Supabase user update notice:", error);
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error("Error updating user account:", err);
+      return false;
+    }
+  };
+
+  const handleDeleteUserAccount = async (username: string) => {
+    try {
+      const updated = usersList.filter(u => u.username.toLowerCase() !== username.toLowerCase());
+      setUsersList(updated);
+      localStorage.setItem('surtiantojo_users', JSON.stringify(updated));
+
+      if (dbStatus === 'connected') {
+        const { error } = await supabase
+          .from('usuarios')
+          .delete()
+          .eq('username', username);
+        if (error) {
+          console.warn("Supabase user delete notice:", error);
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error("Error deleting user account:", err);
+      return false;
+    }
   };
 
   // Helper to map robust product objects into the restricted Supabase 'products' table columns
@@ -862,6 +950,33 @@ export default function App() {
           {/* Quick status bar display items */}
           <div className="flex items-center gap-3 md:gap-5">
             
+            {/* Shortcut for Admin to test Surtidor view */}
+            {currentUser?.rol === 'Administrador' && (
+              <button
+                onClick={() => {
+                  const next = !isPreviewSurtidor;
+                  setIsPreviewSurtidor(next);
+                  if (next) {
+                    setActiveModule('supply');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                  isPreviewSurtidor
+                    ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 animate-pulse'
+                    : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
+                }`}
+                title={isPreviewSurtidor ? "Volver a vista Administrador" : "Probar o ver pantalla con el rol de Surtidor"}
+              >
+                <Eye className="w-4 h-4 text-amber-300 shrink-0" />
+                <span className="hidden sm:inline">
+                  {isPreviewSurtidor ? 'Salir Vista Surtidor' : 'Atajo: Vista Surtidor'}
+                </span>
+                <span className="sm:hidden">
+                  {isPreviewSurtidor ? 'Admin' : 'Surtidor'}
+                </span>
+              </button>
+            )}
+
             {/* Quick user avatar visual identifier */}
             <div id="header-user-badge" className="flex items-center gap-3">
               <div className="hidden md:flex flex-col items-end text-right">
@@ -1090,6 +1205,30 @@ export default function App() {
         {/* MAIN MODULE GRAPHIC INTERFACE */}
         <main id="main-content" className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden flex flex-col gap-6 w-full max-w-full">
           
+          {/* Banner notice when Admin is previewing Surtidor role */}
+          {currentUser?.rol === 'Administrador' && isPreviewSurtidor && (
+            <div className="bg-amber-500/15 border border-amber-500/30 text-amber-900 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500 text-white rounded-xl font-extrabold text-xs shrink-0 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  <span>Vista Surtidor</span>
+                </div>
+                <div>
+                  <p className="text-xs font-black text-amber-950">MODO VISTA PREVIA: ROL SURTIDOR / REPARTIDOR</p>
+                  <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                    Estás viendo el panel exactamente como lo ve un Surtidor. Únicamente se muestra el módulo <strong>Surtido</strong>.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPreviewSurtidor(false)}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl shadow-xs shrink-0 cursor-pointer transition-all"
+              >
+                Volver a Vista Admin ↩️
+              </button>
+            </div>
+          )}
+
           {/* DYNAMIC COMPONENT RENDERER */}
           <div className="transition-all duration-300">
             <ModulePlaceholder 
@@ -1102,6 +1241,9 @@ export default function App() {
               onUpdateProductStatusBulk={handleUpdateProductStatusBulk}
               currentUser={currentUser}
               usersList={usersList}
+              onAddUserAccount={handleAddUserAccount}
+              onUpdateUserAccount={handleUpdateUserAccount}
+              onDeleteUserAccount={handleDeleteUserAccount}
             />
           </div>
 

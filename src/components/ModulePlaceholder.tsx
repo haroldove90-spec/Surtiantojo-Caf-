@@ -46,7 +46,19 @@ import {
   GlassWater,
   Archive,
   CupSoda,
-  Milk
+  Milk,
+  UserCheck,
+  Key,
+  Share2,
+  Send,
+  Lock,
+  EyeOff,
+  MessageSquare,
+  Phone,
+  Copy,
+  ExternalLink,
+  RefreshCw,
+  Mail
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
@@ -190,6 +202,9 @@ interface ModulePlaceholderProps {
   onUpdateProductStatusBulk?: (ids: string[], status: 'Activo' | 'Inactivo') => Promise<void>;
   currentUser?: any;
   usersList?: any[];
+  onAddUserAccount?: (user: any) => Promise<boolean>;
+  onUpdateUserAccount?: (username: string, user: any) => Promise<boolean>;
+  onDeleteUserAccount?: (username: string) => Promise<boolean>;
 }
 
 export default function ModulePlaceholder({ 
@@ -201,7 +216,10 @@ export default function ModulePlaceholder({
   onDeleteProduct,
   onUpdateProductStatusBulk,
   currentUser,
-  usersList = []
+  usersList = [],
+  onAddUserAccount,
+  onUpdateUserAccount,
+  onDeleteUserAccount
 }: ModulePlaceholderProps) {
   // Safe parsing helper helper for any numeric content loaded via DB/Sync to eliminate any NaN issues
   const safeVal = (val: any): number => {
@@ -279,6 +297,128 @@ export default function ModulePlaceholder({
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [tableScrollWidth, setTableScrollWidth] = useState<number>(0);
+
+  // Employees / Repartidores Module States
+  const [empNombre, setEmpNombre] = useState('');
+  const [empUsername, setEmpUsername] = useState('');
+  const [empCorreo, setEmpCorreo] = useState('');
+  const [empContrasena, setEmpContrasena] = useState('');
+  const [empWhatsapp, setEmpWhatsapp] = useState('');
+  const [empRol, setEmpRol] = useState<'Surtidor' | 'Administrador'>('Surtidor');
+  const [editingEmpUsername, setEditingEmpUsername] = useState<string | null>(null);
+  const [showEmpPassword, setShowEmpPassword] = useState(false);
+  const [empSearch, setEmpSearch] = useState('');
+  const [showSqlGuide, setShowSqlGuide] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
+  const [empFormMessage, setEmpFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const generateSecurePassword = () => {
+    const charsUpper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const charsLower = 'abcdefghijkmnpqrstuvwxyz';
+    const charsNum = '23456789';
+    const charsSym = '!@#$%&*';
+
+    let pass = 'Surt!';
+    for (let i = 0; i < 2; i++) pass += charsUpper.charAt(Math.floor(Math.random() * charsUpper.length));
+    for (let i = 0; i < 2; i++) pass += charsLower.charAt(Math.floor(Math.random() * charsLower.length));
+    for (let i = 0; i < 2; i++) pass += charsNum.charAt(Math.floor(Math.random() * charsNum.length));
+    pass += charsSym.charAt(Math.floor(Math.random() * charsSym.length));
+
+    setEmpContrasena(pass);
+    setShowEmpPassword(true);
+  };
+
+  const handleSaveEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmpFormMessage(null);
+
+    const cleanUser = empUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!cleanUser) {
+      setEmpFormMessage({ type: 'error', text: 'Por favor ingresa un nombre de usuario válido (sólo letras, números y _).' });
+      return;
+    }
+
+    if (!empNombre.trim()) {
+      setEmpFormMessage({ type: 'error', text: 'El nombre del empleado o repartidor es obligatorio.' });
+      return;
+    }
+
+    if (!empContrasena.trim()) {
+      setEmpFormMessage({ type: 'error', text: 'Ingresa una contraseña para el usuario.' });
+      return;
+    }
+
+    const newUserObj = {
+      username: cleanUser,
+      nombre_completo: empNombre.trim(),
+      correo: empCorreo.trim(),
+      whatsapp: empWhatsapp.trim().replace(/[^0-9]/g, ''),
+      rol: empRol,
+      contrasena: empContrasena.trim(),
+      creado_en: new Date().toISOString()
+    };
+
+    let ok = false;
+    if (editingEmpUsername && onUpdateUserAccount) {
+      ok = await onUpdateUserAccount(editingEmpUsername, newUserObj);
+    } else if (onAddUserAccount) {
+      ok = await onAddUserAccount(newUserObj);
+    } else {
+      ok = true;
+    }
+
+    if (ok) {
+      setEmpFormMessage({ 
+        type: 'success', 
+        text: editingEmpUsername 
+          ? `¡Empleado @${cleanUser} actualizado con éxito!`
+          : `¡Empleado / Repartidor @${cleanUser} registrado con éxito!`
+      });
+      setEmpNombre('');
+      setEmpUsername('');
+      setEmpCorreo('');
+      setEmpContrasena('');
+      setEmpWhatsapp('');
+      setEmpRol('Surtidor');
+      setEditingEmpUsername(null);
+    } else {
+      setEmpFormMessage({ type: 'error', text: 'Ocurrió un error al guardar el empleado en el sistema.' });
+    }
+  };
+
+  const handleEditEmployee = (emp: any) => {
+    setEditingEmpUsername(emp.username);
+    setEmpNombre(emp.nombre_completo || '');
+    setEmpUsername(emp.username || '');
+    setEmpCorreo(emp.correo || '');
+    setEmpContrasena(emp.contrasena || '');
+    setEmpWhatsapp(emp.whatsapp || '');
+    setEmpRol(emp.rol === 'Administrador' ? 'Administrador' : 'Surtidor');
+    setEmpFormMessage(null);
+  };
+
+  const handleDeleteEmployee = async (username: string) => {
+    if (window.confirm(`¿Estás seguro de eliminar al empleado @${username}?`)) {
+      if (onDeleteUserAccount) {
+        await onDeleteUserAccount(username);
+      }
+    }
+  };
+
+  const handleShareWhatsApp = (emp: any) => {
+    let cleanPhone = (emp.whatsapp || emp.correo || '').replace(/[^0-9]/g, '');
+    if (cleanPhone.length === 10) {
+      cleanPhone = '52' + cleanPhone;
+    }
+
+    const textMsg = `¡Hola *${emp.nombre_completo}*! 👋\n\nTus credenciales de acceso para Surtiantojo son:\n\n👤 *Usuario:* ${emp.username}\n🔑 *Contraseña:* ${emp.contrasena}\n💼 *Rol:* ${emp.rol}\n🌐 *Enlace de acceso:* https://surtiantojo.com.mx/\n\nPor favor ingresa para gestionar tu ruta de surtido. ¡Mucho éxito en tus entregas!`;
+
+    const url = cleanPhone 
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(textMsg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(textMsg)}`;
+
+    window.open(url, '_blank');
+  };
 
   // Scroll synchronizer refs for Submenus
   const submenuTopScrollRef = useRef<HTMLDivElement>(null);
@@ -8255,10 +8395,431 @@ export default function ModulePlaceholder({
 
                 <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-[11px] text-slate-600 leading-normal flex items-center gap-2">
                   <span className="text-base">💡</span>
-                  <span><strong>Tip de Pruebas:</strong> Al ingresar con el rol <strong>Operador</strong>, la barra lateral se bloquea automáticamente mostrando únicamente el módulo <strong>Surtido</strong>.</span>
+                  <span><strong>Tip de Pruebas:</strong> Al ingresar con el rol <strong>Surtidor</strong>, la barra lateral se bloquea automáticamente mostrando únicamente el módulo <strong>Surtido</strong>.</span>
                 </div>
               </div>
             )}
+          </div>
+        );
+
+      case 'employees':
+        const filteredEmployees = usersList.filter((u: any) => {
+          if (!empSearch.trim()) return true;
+          const q = empSearch.toLowerCase().trim();
+          return (
+            (u.nombre_completo || '').toLowerCase().includes(q) ||
+            (u.username || '').toLowerCase().includes(q) ||
+            (u.correo || '').toLowerCase().includes(q) ||
+            (u.rol || '').toLowerCase().includes(q) ||
+            (u.whatsapp || '').includes(q)
+          );
+        });
+
+        const sqlScriptText = `-- 🌐 SCRIPT SQL DE TABLA EMPLEADOS / USUARIOS PARA SUPABASE
+CREATE TABLE IF NOT EXISTS usuarios (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    nombre_completo VARCHAR(200) NOT NULL,
+    correo VARCHAR(200) DEFAULT '',
+    whatsapp VARCHAR(50) DEFAULT '',
+    rol VARCHAR(50) NOT NULL DEFAULT 'Surtidor',
+    contrasena VARCHAR(200) NOT NULL,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Asegurar columnas necesarias
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS correo VARCHAR(200) DEFAULT '';
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(50) DEFAULT '';
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(50) DEFAULT 'Surtidor';
+
+-- Índices de rendimiento
+CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);
+CREATE INDEX IF NOT EXISTS idx_usuarios_rol ON usuarios(rol);
+
+-- Políticas RLS para lectura y escritura desde la app
+ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read on usuarios" ON usuarios;
+CREATE POLICY "Allow public read on usuarios" ON usuarios FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public insert on usuarios" ON usuarios;
+CREATE POLICY "Allow public insert on usuarios" ON usuarios FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow public update on usuarios" ON usuarios;
+CREATE POLICY "Allow public update on usuarios" ON usuarios FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Allow public delete on usuarios" ON usuarios;
+CREATE POLICY "Allow public delete on usuarios" ON usuarios FOR DELETE USING (true);`;
+
+        return (
+          <div className="space-y-6 text-left">
+            
+            {/* Top Info Banner */}
+            <div className="bg-gradient-to-r from-[#043077] to-blue-900 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                  Módulo de Administración de Personal
+                </span>
+                <h3 className="text-xl font-extrabold tracking-tight">Alta y Control de Empleados y Repartidores</h3>
+                <p className="text-xs text-blue-100 max-w-2xl leading-relaxed">
+                  Registra a tu equipo de surtidores, asigna su rol de acceso y comparte sus credenciales directamente a su WhatsApp personal.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowSqlGuide(!showSqlGuide)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
+              >
+                <FileText className="w-4 h-4 text-emerald-400" />
+                <span>{showSqlGuide ? 'Ocultar Código SQL' : 'Ver Script SQL Supabase'}</span>
+              </button>
+            </div>
+
+            {/* Optional SQL Script Guide Dropdown */}
+            {showSqlGuide && (
+              <div className="bg-slate-900 text-slate-100 p-5 rounded-2xl border border-slate-800 space-y-3 font-mono text-xs shadow-lg">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400 font-bold">SQL Editor (Supabase)</span>
+                    <span className="text-[10px] text-slate-400">Pega este script para configurar la tabla "usuarios"</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(sqlScriptText);
+                      setSqlCopied(true);
+                      setTimeout(() => setSqlCopied(false), 2000);
+                    }}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    {sqlCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>¡Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copiar SQL</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <pre className="p-3 bg-slate-950 rounded-xl overflow-x-auto text-[11px] text-emerald-300 leading-relaxed border border-slate-800/80">
+                  {sqlScriptText}
+                </pre>
+              </div>
+            )}
+
+            {/* Main Form + Table Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              
+              {/* Left Column: Form Registration Card (5 Cols) */}
+              <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-50 text-[#043077] rounded-xl font-bold">
+                      <UserCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-extrabold text-slate-900">
+                        {editingEmpUsername ? 'Editar Empleado' : 'Registrar Nuevo Empleado'}
+                      </h4>
+                      <p className="text-xs text-slate-500">Completa los campos para crear las credenciales</p>
+                    </div>
+                  </div>
+                  {editingEmpUsername && (
+                    <button
+                      onClick={() => {
+                        setEditingEmpUsername(null);
+                        setEmpNombre('');
+                        setEmpUsername('');
+                        setEmpCorreo('');
+                        setEmpContrasena('');
+                        setEmpWhatsapp('');
+                        setEmpRol('Surtidor');
+                        setEmpFormMessage(null);
+                      }}
+                      className="text-xs font-bold text-slate-400 hover:text-slate-600 underline cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+
+                {empFormMessage && (
+                  <div className={`p-3.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                    empFormMessage.type === 'success' 
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    <span>{empFormMessage.type === 'success' ? '✅' : '⚠️'}</span>
+                    <span>{empFormMessage.text}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveEmployee} className="space-y-4">
+                  {/* Nombre del repartidor/empleado */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Nombre del Repartidor / Empleado <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={empNombre}
+                      onChange={(e) => {
+                        setEmpNombre(e.target.value);
+                        if (!editingEmpUsername && !empUsername) {
+                          const clean = e.target.value.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                          setEmpUsername(clean);
+                        }
+                      }}
+                      placeholder="Ej. Juan Pérez"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  {/* Usuario */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Nombre de Usuario <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-2.5 text-slate-400 font-mono text-xs font-bold">@</span>
+                      <input
+                        type="text"
+                        required
+                        disabled={!!editingEmpUsername}
+                        value={empUsername}
+                        onChange={(e) => setEmpUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                        placeholder="juan_perez"
+                        className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-[#043077] focus:outline-none focus:border-blue-600 focus:bg-white disabled:opacity-60 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Correo */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Correo Electrónico
+                    </label>
+                    <input
+                      type="email"
+                      value={empCorreo}
+                      onChange={(e) => setEmpCorreo(e.target.value)}
+                      placeholder="juan@surtiantojo.com.mx"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  {/* Contraseña con opción de generar contraseña segura */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-600 block">
+                        Contraseña <span className="text-red-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={generateSecurePassword}
+                        className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Generar Contraseña Segura</span>
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type={showEmpPassword ? "text" : "password"}
+                        required
+                        value={empContrasena}
+                        onChange={(e) => setEmpContrasena(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmpPassword(!showEmpPassword)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showEmpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Teléfono WhatsApp
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-emerald-600 absolute left-3 top-2.5" />
+                      <input
+                        type="tel"
+                        value={empWhatsapp}
+                        onChange={(e) => setEmpWhatsapp(e.target.value)}
+                        placeholder="5512345678"
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400">Para enviar sus datos directamente a su celular vía WhatsApp</p>
+                  </div>
+
+                  {/* Rol */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-600 block">
+                      Rol de Acceso <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={empRol}
+                      onChange={(e) => setEmpRol(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Surtidor">🚚 Surtidor (Repartidor - Solo Módulo Surtido)</option>
+                      <option value="Administrador">👔 Administrador (Acceso Total a Módulos)</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-gradient-to-r from-[#043077] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  >
+                    <UserCheck className="w-4 h-4 text-emerald-400" />
+                    <span>{editingEmpUsername ? 'Guardar Cambios de Empleado' : 'Registrar Empleado'}</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Column: Employee List Table (7 Cols) */}
+              <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900">Plantilla de Empleados ({usersList.length})</h4>
+                    <p className="text-xs text-slate-500">Repartidores y administradores dados de alta</p>
+                  </div>
+
+                  <div className="relative w-full sm:w-52">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={empSearch}
+                      onChange={(e) => setEmpSearch(e.target.value)}
+                      placeholder="Buscar empleado..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-150 rounded-xl">
+                  <table className="w-full text-xs text-left text-slate-700">
+                    <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100">
+                      <tr>
+                        <th className="py-3 px-3">Empleado</th>
+                        <th className="py-3 px-3">Rol</th>
+                        <th className="py-3 px-3">Contacto / WhatsApp</th>
+                        <th className="py-3 px-3 text-center">Credenciales WhatsApp</th>
+                        <th className="py-3 px-3 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredEmployees.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-slate-400 font-semibold">
+                            No se encontraron empleados registrados.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredEmployees.map((emp: any, idx: number) => {
+                          const isSurt = emp.rol === 'Surtidor' || emp.rol === 'Operador';
+                          return (
+                            <tr key={emp.username || idx} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-2.5">
+                                  <div className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center shrink-0 ${
+                                    isSurt ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-[#043077]'
+                                  }`}>
+                                    {(emp.nombre_completo || 'U')
+                                      .split(' ')
+                                      .map((n: string) => n[0])
+                                      .join('')
+                                      .substring(0, 2)
+                                      .toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <span className="font-extrabold text-slate-900 block leading-tight">{emp.nombre_completo}</span>
+                                    <span className="font-mono text-[#043077] font-bold text-[11px]">@{emp.username}</span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3">
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold font-mono uppercase ${
+                                  isSurt 
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-blue-50 text-[#043077] border border-blue-200'
+                                }`}>
+                                  {isSurt ? '🚚 Surtidor' : '👔 Admin'}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-3">
+                                <div className="space-y-0.5">
+                                  {emp.whatsapp && (
+                                    <span className="text-emerald-700 font-mono font-bold flex items-center gap-1">
+                                      <Phone className="w-3 h-3" /> {emp.whatsapp}
+                                    </span>
+                                  )}
+                                  {emp.correo && (
+                                    <span className="text-slate-500 text-[11px] block truncate max-w-[140px]">
+                                      {emp.correo}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 text-center">
+                                <button
+                                  onClick={() => handleShareWhatsApp(emp)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-extrabold flex items-center gap-1.5 mx-auto transition-all shadow-2xs cursor-pointer active:scale-95"
+                                  title="Enviar credenciales y enlace por WhatsApp"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
+                                  <span>Enviar a WhatsApp</span>
+                                </button>
+                              </td>
+
+                              <td className="py-3 px-3 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    onClick={() => handleEditEmployee(emp)}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Editar empleado"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEmployee(emp.username)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Eliminar empleado"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
+                  <p className="font-bold text-slate-800">💡 Información para el repartidor:</p>
+                  <p>Al ingresar con el rol <strong>Surtidor</strong>, el sistema restringe el acceso únicamente al módulo <strong>Surtido</strong>. El enlace de acceso compartido es: <strong className="text-blue-700">https://surtiantojo.com.mx/</strong></p>
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
         );
 
@@ -8330,6 +8891,13 @@ export default function ModulePlaceholder({
         return {
           title: "Mi Perfil de Usuario",
           desc: "Configura tus datos de contacto, accesos de seguridad, roles del personal y preferencias del sistema.",
+          color: "border-[#043077] bg-white",
+          accentColor: "text-[#043077]"
+        };
+      case 'employees':
+        return {
+          title: "Gestión de Empleados & Repartidores",
+          desc: "Alta de empleados con roles de Administrador o Surtidor, generación de contraseñas seguras y envío directo de credenciales por WhatsApp.",
           color: "border-[#043077] bg-white",
           accentColor: "text-[#043077]"
         };
