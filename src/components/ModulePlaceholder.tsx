@@ -1227,7 +1227,18 @@ export default function ModulePlaceholder({
             }
           } else if (data && data.length > 0) {
             // Find columns excluding standard auto IDs
-            const cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'fecha_registro');
+            let cols = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'fecha_registro');
+            
+            // Filter out extra date columns (fecha_2, fecha_3, etc.) if they have no values in any row, so by default only 1 Fecha is displayed
+            cols = cols.filter(col => {
+              const normCol = col.toLowerCase().trim().replace(/_/g, ' ');
+              if (normCol.startsWith('fecha') && normCol !== 'fecha') {
+                const hasData = data.some((item: any) => item[col] !== null && item[col] !== undefined && String(item[col]).trim() !== '');
+                return hasData;
+              }
+              return true;
+            });
+
             dbColumnNamesRef.current[tabId] = cols;
             
             // Reconstruct original-looking headers and correct "resor" or "resort" to "Resorte"
