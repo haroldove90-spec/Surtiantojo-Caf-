@@ -4594,6 +4594,29 @@ export default function ModulePlaceholder({
           }
         };
 
+        // Helper to check if a column header is disabled for Surtidor role
+        const isHeaderDisabledForSurtidor = (headerName: string) => {
+          if (!isSurtidorOnly) return false;
+          const cleanF = headerName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+          
+          // Surtir / Unidades
+          const isSurtir = cleanF === 'surtir' || cleanF.includes('unidades') || cleanF === 'unidad' || cleanF.includes('unidadsurtida') || cleanF.includes('cantsurtir') || cleanF === 'surtida' || cleanF === 'cantidad';
+          
+          // Código / SKU
+          const isCodigo = cleanF.includes('codigo') || cleanF.includes('sku') || cleanF === 'cod' || cleanF === 'codig';
+          
+          // Precio regular / Precio
+          const isPrecio = cleanF.includes('precioregular') || cleanF === 'precio' || cleanF.includes('precioventa') || cleanF.includes('preciosinacuerdo') || cleanF === 'sinacuerdo';
+          
+          // Fecha
+          const isFecha = cleanF.startsWith('fecha') || cleanF.includes('fecha');
+          
+          // Notas
+          const isNotas = cleanF.includes('nota') || cleanF.includes('observacion');
+
+          return isSurtir || isCodigo || isPrecio || isFecha || isNotas;
+        };
+
         // Render sortable header helper for supply table
         const renderSupplySortableHeader = (label: string, field: string) => {
           const isSorted = supplySortField === field;
@@ -7173,21 +7196,25 @@ export default function ModulePlaceholder({
                           </th>
                           {(() => {
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
-                            return activeSubHeaders.length > 0 ? (
-                              activeSubHeaders.map((header, idx) => (
+                            const displaySubHeaders = isSurtidorOnly 
+                              ? activeSubHeaders.filter(h => !isHeaderDisabledForSurtidor(h)) 
+                              : activeSubHeaders;
+
+                            return displaySubHeaders.length > 0 ? (
+                              displaySubHeaders.map((header, idx) => (
                                 renderSupplySortableHeader(header, header)
                               ))
                             ) : (
                               <>
-                                {renderSupplySortableHeader("Código / SKU", "codigo")}
+                                {!isSurtidorOnly && renderSupplySortableHeader("Código / SKU", "codigo")}
                                 {renderSupplySortableHeader("Producto o Artículo", "nombre_producto")}
-                                {renderSupplySortableHeader("Unidades", "unidad_surtida")}
-                                {renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
-                                {renderSupplySortableHeader("Precio regular", "precio_venta")}
-                                <th className="py-3 px-3 text-right whitespace-nowrap w-px">Importe Total</th>
+                                {!isSurtidorOnly && renderSupplySortableHeader("Unidades", "unidad_surtida")}
+                                {!isSurtidorOnly && renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
+                                {!isSurtidorOnly && renderSupplySortableHeader("Precio regular", "precio_venta")}
+                                {!isSurtidorOnly && <th className="py-3 px-3 text-right whitespace-nowrap w-px">Importe Total</th>}
                                 {renderSupplySortableHeader("Resorte", "resorte")}
-                                {renderSupplySortableHeader("Notas", "notas")}
-                                {renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
+                                {!isSurtidorOnly && renderSupplySortableHeader("Notas", "notas")}
+                                {!isSurtidorOnly && renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
                               </>
                             );
                           })()}
@@ -7205,7 +7232,10 @@ export default function ModulePlaceholder({
                           paginatedSubmenuRows.map((row) => {
                             const isEditing = row.id === editingRowId;
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
-                            const hasDynamicHeaders = activeSubHeaders.length > 0;
+                            const displaySubHeaders = isSurtidorOnly 
+                              ? activeSubHeaders.filter(h => !isHeaderDisabledForSurtidor(h)) 
+                              : activeSubHeaders;
+                            const hasDynamicHeaders = displaySubHeaders.length > 0;
                             const currentPrecioVenta = (() => {
                               const matched = findMatchingProduct(row);
                               return (matched && matched.precio_venta !== undefined) ? matched.precio_venta : row.precio_venta;
@@ -7229,7 +7259,7 @@ export default function ModulePlaceholder({
                                       />
                                     </td>
                                     {hasDynamicHeaders ? (
-                                      activeSubHeaders.map((header, idx) => {
+                                      displaySubHeaders.map((header, idx) => {
                                         const norm = header.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
                                         const isCodeField = norm === 'codigo' || norm === 'sku' || norm === 'code';
                                         return (
@@ -7382,7 +7412,7 @@ export default function ModulePlaceholder({
                                       />
                                     </td>
                                     {hasDynamicHeaders ? (
-                                      activeSubHeaders.map((header, idx) => {
+                                      displaySubHeaders.map((header, idx) => {
                                         let cellVal = row.values && row.values[header] !== undefined ? row.values[header] : getSupplyRowCompareValue(row, header);
                                          const isPriceVenta = header.toLowerCase().trim().includes('precio') || header.toLowerCase().trim().includes('regular') || header.toLowerCase().trim().includes('vta') || header.toLowerCase().trim().includes('venta') || header.toLowerCase().trim() === 'sin acuerdo' || header.toLowerCase().trim().includes('precio sin acuerdo');
                                          if (isPriceVenta) {
