@@ -757,6 +757,35 @@ export default function ModulePlaceholder({
     } catch (e) {}
   }, [machineMaintenance]);
 
+  // Summary Metrics per date for Surtidor Mode (Unid. Vtas, $ Ventas, Inventario)
+  const [summaryMetrics, setSummaryMetrics] = useState<Record<string, Record<string, { unidVtas?: string; ventas?: string; inventario?: string }>>>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_summary_metrics');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('surtiantojo_summary_metrics', JSON.stringify(summaryMetrics));
+    } catch (e) {}
+  }, [summaryMetrics]);
+
+  const handleUpdateSummaryMetric = (tabId: string, dateHeader: string, field: 'unidVtas' | 'ventas' | 'inventario', val: string) => {
+    setSummaryMetrics(prev => ({
+      ...prev,
+      [tabId]: {
+        ...(prev[tabId] || {}),
+        [dateHeader]: {
+          ...(prev[tabId]?.[dateHeader] || {}),
+          [field]: val
+        }
+      }
+    }));
+  };
+
   const currentUserName = currentUser?.nombre_completo || currentUser?.nombre || currentUser?.username || 'Repartidor';
 
   const getMachineVisits = (tabId: string) => {
@@ -7156,6 +7185,175 @@ export default function ModulePlaceholder({
                 )}
 
                 {/* Interactive Rows spreadsheet table layout representation matches file structure */}
+                {isSurtidorOnly ? (() => {
+                  const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
+                  let dateCols = activeSubHeaders.filter(h => {
+                    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
+                    return norm.startsWith('fecha');
+                  });
+                  if (dateCols.length === 0) {
+                    dateCols = ['Fecha'];
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      {/* Table 1: Resumen de Cabecera por Fecha (Unid. Vtas, $ Ventas, Inventario) */}
+                      <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-xs">
+                        <table className="w-full text-xs text-left border-collapse border border-slate-300">
+                          <thead>
+                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-extrabold select-none">
+                              <th className="py-2.5 px-3 border-r border-slate-300 text-center w-12 font-bold bg-slate-100">Sel</th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 font-extrabold min-w-[150px] bg-slate-100">Nombre Maquina</th>
+                              {dateCols.map((dateHeader, idx) => (
+                                <th key={idx} className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100">
+                                  {dateHeader}
+                                </th>
+                              ))}
+                              <th className="py-2 px-3 text-center min-w-[140px] bg-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddFechaColumn()}
+                                  className="inline-flex items-center justify-center gap-1 text-xs font-black text-[#043077] hover:text-blue-900 bg-white hover:bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-300 shadow-3xs cursor-pointer transition-all"
+                                  title="Agregar otra columna de fecha (+)"
+                                >
+                                  <Plus className="w-3.5 h-3.5 stroke-[3]" /> Fecha (+)
+                                </button>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-300 bg-white font-medium text-slate-700">
+                            {/* Row 1: Unid.Vtas. */}
+                            <tr className="border-b border-slate-300 hover:bg-slate-50/70">
+                              <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">1</td>
+                              <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">Unid. Vtas.</td>
+                              {dateCols.map((dateHeader, idx) => (
+                                <td key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                  <input
+                                    type="text"
+                                    value={summaryMetrics[activeSupplySubmenu]?.[dateHeader]?.unidVtas || ''}
+                                    onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, dateHeader, 'unidVtas', e.target.value)}
+                                    className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
+                                    placeholder="0"
+                                  />
+                                </td>
+                              ))}
+                              <td className="py-2.5 px-3 text-center text-slate-600 font-bold bg-slate-50/40 text-xs">
+                                Formato número
+                              </td>
+                            </tr>
+
+                            {/* Row 2: $Ventas */}
+                            <tr className="border-b border-slate-300 hover:bg-slate-50/70">
+                              <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">2</td>
+                              <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">$ Ventas</td>
+                              {dateCols.map((dateHeader, idx) => (
+                                <td key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                  <input
+                                    type="text"
+                                    value={summaryMetrics[activeSupplySubmenu]?.[dateHeader]?.ventas || ''}
+                                    onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, dateHeader, 'ventas', e.target.value)}
+                                    className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
+                                    placeholder="$0.00"
+                                  />
+                                </td>
+                              ))}
+                              <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
+                            </tr>
+
+                            {/* Row 3: Inventario */}
+                            <tr className="hover:bg-slate-50/70">
+                              <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700"></td>
+                              <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">Inventario</td>
+                              {dateCols.map((dateHeader, idx) => (
+                                <td key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                  <input
+                                    type="text"
+                                    value={summaryMetrics[activeSupplySubmenu]?.[dateHeader]?.inventario || ''}
+                                    onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, dateHeader, 'inventario', e.target.value)}
+                                    className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
+                                    placeholder="0"
+                                  />
+                                </td>
+                              ))}
+                              <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Table 2: Tabla Principal de Productos / Surtido */}
+                      <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-xs">
+                        <table className="w-full text-xs text-left border-collapse border border-slate-300">
+                          <thead>
+                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-extrabold select-none">
+                              <th className="py-2.5 px-3 border-r border-slate-300 text-center w-12 font-bold bg-slate-100">Sel</th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 font-extrabold min-w-[160px] bg-slate-100">Nombre Maquina</th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[120px] bg-slate-100">Precio de venta</th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[90px] bg-slate-100">Resorte</th>
+                              {dateCols.map((dateHeader, idx) => (
+                                <th key={idx} className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100">
+                                  {dateHeader}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-300 bg-white">
+                            {paginatedSubmenuRows.length === 0 ? (
+                              <tr>
+                                <td colSpan={4 + dateCols.length} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
+                                  No hay registros cargados para {activeMeta.name}.
+                                </td>
+                              </tr>
+                            ) : (
+                              paginatedSubmenuRows.map((row, rowIdx) => {
+                                const matchedProd = findMatchingProduct(row);
+                                const precioVtaVal = (matchedProd && matchedProd.precio_venta !== undefined) ? matchedProd.precio_venta : row.precio_venta;
+                                const formattedPrice = typeof precioVtaVal === 'number' ? formatMXN(precioVtaVal) : (precioVtaVal ? `$${precioVtaVal}` : '$0.00');
+                                const slotOrSel = row.sel || row.slot || row.codigo || (rowIdx + 11);
+                                const resorteVal = row.resorte || row.resort || '-';
+
+                                return (
+                                  <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
+                                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">
+                                      {slotOrSel}
+                                    </td>
+                                    <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900 whitespace-nowrap">
+                                      {row.nombre_producto || row.producto || row.articulo || 'Sin Nombre'}
+                                    </td>
+                                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-mono font-bold text-slate-800">
+                                      {formattedPrice}
+                                    </td>
+                                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-bold text-slate-700">
+                                      {resorteVal}
+                                    </td>
+                                    {dateCols.map((dateHeader, idx) => {
+                                      const cellVal = row.values && row.values[dateHeader] !== undefined ? row.values[dateHeader] : (row[dateHeader] !== undefined ? row[dateHeader] : '');
+                                      return (
+                                        <td key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                          <input
+                                            type="text"
+                                            value={cellVal !== undefined && cellVal !== null ? String(cellVal) : ''}
+                                            onChange={(e) => handleUpdateDynamicCellValue(row.id, dateHeader, e.target.value)}
+                                            className="w-full bg-indigo-50/70 hover:bg-white focus:bg-white border border-indigo-200 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                            placeholder="0"
+                                          />
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                        <div className="bg-slate-50 px-4 py-3 border-t border-slate-300 flex items-center justify-between text-[11px] text-slate-500 font-bold">
+                          <span>Mostrando {paginatedSubmenuRows.length} de {filteredSubmenuRows.length} registros en {activeMeta.name}</span>
+                          <span className="font-mono text-[#043077] uppercase tracking-wider">MODO SURTIDOR ACTIVO</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })() : (
                 <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-3xs">
                   
                   {/* Barra de scroll superior sincronizada */}
@@ -7534,6 +7732,7 @@ export default function ModulePlaceholder({
                     <span className="font-mono text-[#043077] uppercase tracking-wider">Cargar en Dashboard Excel Habilitado</span>
                   </div>
                 </div>
+                )}
 
                 {/* Surtido Pagination controls */}
                 {totalSupplyPages > 1 && (
