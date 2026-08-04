@@ -292,6 +292,32 @@ export default function ModulePlaceholder({
   const [selectedRefillProduct, setSelectedRefillProduct] = useState<any | null>(null);
   const [refillAmount, setRefillAmount] = useState<number>(1);
 
+  // Custom Date Headers state for Surtidor table
+  const [customDateHeaders, setCustomDateHeaders] = useState<Record<string, Record<number, string>>>(() => {
+    try {
+      const saved = localStorage.getItem('surtiantojo_custom_date_headers');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const handleUpdateDateHeaderTitle = (submenuId: string, colIdx: number, newTitle: string) => {
+    setCustomDateHeaders(prev => {
+      const updated = {
+        ...prev,
+        [submenuId]: {
+          ...(prev[submenuId] || {}),
+          [colIdx]: newTitle
+        }
+      };
+      try {
+        localStorage.setItem('surtiantojo_custom_date_headers', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
   // Pagination state (only 5 products per page)
   const [currentPage, setCurrentPage] = useState(1);
   const [supplyPage, setSupplyPage] = useState(1);
@@ -7219,12 +7245,10 @@ export default function ModulePlaceholder({
                                   value={summaryMetrics[activeSupplySubmenu]?.['valor']?.unidVtas ?? summaryMetrics[activeSupplySubmenu]?.['Fecha']?.unidVtas ?? ''}
                                   onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'valor', 'unidVtas', e.target.value)}
                                   className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
-                                  placeholder="0"
+                                  placeholder=""
                                 />
                               </td>
-                              <td className="py-2.5 px-3 text-center text-slate-600 font-bold bg-slate-50/40 text-xs">
-                                Formato número
-                              </td>
+                              <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
                             </tr>
 
                             {/* Row 2: $Ventas */}
@@ -7237,7 +7261,7 @@ export default function ModulePlaceholder({
                                   value={summaryMetrics[activeSupplySubmenu]?.['valor']?.ventas ?? summaryMetrics[activeSupplySubmenu]?.['Fecha']?.ventas ?? ''}
                                   onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'valor', 'ventas', e.target.value)}
                                   className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
-                                  placeholder="$0.00"
+                                  placeholder=""
                                 />
                               </td>
                               <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
@@ -7253,7 +7277,7 @@ export default function ModulePlaceholder({
                                   value={summaryMetrics[activeSupplySubmenu]?.['valor']?.inventario ?? summaryMetrics[activeSupplySubmenu]?.['Fecha']?.inventario ?? ''}
                                   onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'valor', 'inventario', e.target.value)}
                                   className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
-                                  placeholder="0"
+                                  placeholder=""
                                 />
                               </td>
                               <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
@@ -7271,11 +7295,26 @@ export default function ModulePlaceholder({
                               <th className="py-2.5 px-3 border-r border-slate-300 font-extrabold min-w-[160px] bg-slate-100">Nombre Maquina</th>
                               <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[120px] bg-slate-100">Precio de venta</th>
                               <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[90px] bg-slate-100">Resorte</th>
-                              {dateCols.map((dateHeader, idx) => (
-                                <th key={idx} className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100">
-                                  {dateHeader}
-                                </th>
-                              ))}
+                              {dateCols.map((dateHeader, idx) => {
+                                const currentTitle = customDateHeaders[activeSupplySubmenu]?.[idx] !== undefined
+                                  ? customDateHeaders[activeSupplySubmenu][idx]
+                                  : dateHeader;
+                                return (
+                                  <th key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100 group relative">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <input
+                                        type="text"
+                                        value={currentTitle}
+                                        onChange={(e) => handleUpdateDateHeaderTitle(activeSupplySubmenu, idx, e.target.value)}
+                                        className="bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-[#043077] rounded px-1.5 py-0.5 text-center font-extrabold text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#043077] w-full transition-all cursor-text shadow-none"
+                                        placeholder="Fecha"
+                                        title="Haz clic para personalizar el título de esta columna"
+                                      />
+                                      <Edit className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
+                                    </div>
+                                  </th>
+                                );
+                              })}
                               <th className="py-2 px-3 text-center min-w-[140px] bg-slate-100">
                                 <button
                                   type="button"

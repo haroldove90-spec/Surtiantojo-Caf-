@@ -89,17 +89,88 @@ const DEFAULT_USERS = [
   }
 ];
 
+// Helper functions for durable session persistence across browser refreshes, tabs, and iframe sandbox reloads
+const SESSION_KEY = 'surtiantojo_logged_user';
+
+function getStoredUserSession(): any | null {
+  try {
+    const local = localStorage.getItem(SESSION_KEY);
+    if (local) {
+      const parsed = JSON.parse(local);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (e) {}
+
+  try {
+    const session = sessionStorage.getItem(SESSION_KEY);
+    if (session) {
+      const parsed = JSON.parse(session);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (e) {}
+
+  try {
+    const match = document.cookie.match(new RegExp('(^| )' + SESSION_KEY + '=([^;]+)'));
+    if (match && match[2]) {
+      const parsed = JSON.parse(decodeURIComponent(match[2]));
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (e) {}
+
+  return null;
+}
+
+function saveUserSession(user: any): void {
+  if (!user) return;
+  const jsonStr = JSON.stringify(user);
+
+  try {
+    localStorage.setItem(SESSION_KEY, jsonStr);
+  } catch (e) {}
+
+  try {
+    sessionStorage.setItem(SESSION_KEY, jsonStr);
+  } catch (e) {}
+
+  try {
+    const encoded = encodeURIComponent(jsonStr);
+    document.cookie = `${SESSION_KEY}=${encoded}; max-age=${365 * 86400}; path=/; SameSite=Lax`;
+  } catch (e) {}
+}
+
+function clearUserSession(): void {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+
+  try {
+    document.cookie = `${SESSION_KEY}=; max-age=0; path=/; SameSite=Lax`;
+  } catch (e) {}
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(() => {
-    try {
-      const stored = localStorage.getItem('surtiantojo_logged_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      return null;
-    }
+    return getStoredUserSession();
   });
 
-  const [usersList, setUsersList] = useState<any[]>(DEFAULT_USERS);
+  const [usersList, setUsersList] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_users');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingUsernames = new Set(parsed.map((u: any) => String(u.username || '').toLowerCase()));
+          const missingDefaults = DEFAULT_USERS.filter(d => !existingUsernames.has(d.username.toLowerCase()));
+          return [...parsed, ...missingDefaults];
+        }
+      }
+    } catch (e) {}
+    return DEFAULT_USERS;
+  });
   const [authError, setAuthError] = useState<string | null>(null);
   const [loginUsername, setLoginUsername] = useState<string>('');
   const [loginPassword, setLoginPassword] = useState<string>('');
@@ -111,9 +182,8 @@ export default function App() {
 
   const [activeModule, setActiveModule] = useState<string>(() => {
     try {
-      const stored = localStorage.getItem('surtiantojo_logged_user');
-      if (stored) {
-        const userObj = JSON.parse(stored);
+      const userObj = getStoredUserSession();
+      if (userObj) {
         if (userObj.rol === 'Operador' || userObj.rol === 'Surtidor') {
           return 'supply'; // Surtidor/Operator can only see "Surtido"
         }
@@ -311,13 +381,13 @@ export default function App() {
           
           // If logged in, update currentUser's role and details in case they changed in Supabase!
           if (currentUser) {
-            const freshUser = data.find((u: any) => u.username === currentUser.username);
+            const freshUser = data.find((u: any) => u.username.toLowerCase() === currentUser.username.toLowerCase());
             if (freshUser) {
               const hasChanged = freshUser.rol !== currentUser.rol || freshUser.nombre_completo !== currentUser.nombre_completo || freshUser.contrasena !== currentUser.contrasena;
               if (hasChanged) {
                 console.log("Logged-in user role or details changed in Supabase. Syncing locally:", freshUser);
                 setCurrentUser(freshUser);
-                localStorage.setItem('surtiantojo_logged_user', JSON.stringify(freshUser));
+                saveUserSession(freshUser);
                 if (freshUser.rol === 'Operador' || freshUser.rol === 'Surtidor') {
                   setActiveModule('supply');
                 }
@@ -380,7 +450,7 @@ export default function App() {
 
     // Login successful!
     setCurrentUser(matchedUser);
-    localStorage.setItem('surtiantojo_logged_user', JSON.stringify(matchedUser));
+    saveUserSession(matchedUser);
     
     if (matchedUser.rol === 'Operador' || matchedUser.rol === 'Surtidor') {
       setActiveModule('supply');
@@ -394,7 +464,7 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     setIsPreviewSurtidor(false);
-    localStorage.removeItem('surtiantojo_logged_user');
+    clearUserSession();
     setActiveModule('metrics'); // Reset module on logout
   };
 
