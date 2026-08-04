@@ -7204,7 +7204,7 @@ export default function ModulePlaceholder({
                             <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-extrabold select-none">
                               <th className="py-2.5 px-3 border-r border-slate-300 text-center w-12 font-bold bg-slate-100">Sel</th>
                               <th className="py-2.5 px-3 border-r border-slate-300 font-extrabold min-w-[150px] bg-slate-100">Nombre Maquina</th>
-                              <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100">Fecha</th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100">Valor</th>
                               <th className="py-2.5 px-3 text-center min-w-[140px] bg-slate-100 font-extrabold">Formato</th>
                             </tr>
                           </thead>
@@ -7216,8 +7216,8 @@ export default function ModulePlaceholder({
                               <td className="py-1.5 px-2 border-r border-slate-300 text-center">
                                 <input
                                   type="text"
-                                  value={summaryMetrics[activeSupplySubmenu]?.['Fecha']?.unidVtas || ''}
-                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'Fecha', 'unidVtas', e.target.value)}
+                                  value={summaryMetrics[activeSupplySubmenu]?.['valor']?.unidVtas ?? summaryMetrics[activeSupplySubmenu]?.['Fecha']?.unidVtas ?? ''}
+                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'valor', 'unidVtas', e.target.value)}
                                   className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
                                   placeholder="0"
                                 />
@@ -7234,8 +7234,8 @@ export default function ModulePlaceholder({
                               <td className="py-1.5 px-2 border-r border-slate-300 text-center">
                                 <input
                                   type="text"
-                                  value={summaryMetrics[activeSupplySubmenu]?.['Fecha']?.ventas || ''}
-                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'Fecha', 'ventas', e.target.value)}
+                                  value={summaryMetrics[activeSupplySubmenu]?.['valor']?.ventas ?? summaryMetrics[activeSupplySubmenu]?.['Fecha']?.ventas ?? ''}
+                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'valor', 'ventas', e.target.value)}
                                   className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
                                   placeholder="$0.00"
                                 />
@@ -7250,8 +7250,8 @@ export default function ModulePlaceholder({
                               <td className="py-1.5 px-2 border-r border-slate-300 text-center">
                                 <input
                                   type="text"
-                                  value={summaryMetrics[activeSupplySubmenu]?.['Fecha']?.inventario || ''}
-                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'Fecha', 'inventario', e.target.value)}
+                                  value={summaryMetrics[activeSupplySubmenu]?.['valor']?.inventario ?? summaryMetrics[activeSupplySubmenu]?.['Fecha']?.inventario ?? ''}
+                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'valor', 'inventario', e.target.value)}
                                   className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
                                   placeholder="0"
                                 />
