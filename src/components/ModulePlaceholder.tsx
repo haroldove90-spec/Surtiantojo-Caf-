@@ -1075,6 +1075,15 @@ export default function ModulePlaceholder({
           }
         });
 
+        if (row.sel !== undefined && row.sel !== null) obj.sel = String(row.sel);
+        if (row.codigo !== undefined && row.codigo !== null) obj.codigo = String(row.codigo);
+        if (row.nombre_producto !== undefined && row.nombre_producto !== null) obj.nombre_producto = String(row.nombre_producto);
+        if (row.precio_venta !== undefined && row.precio_venta !== null) {
+          const pNum = parseFloat(String(row.precio_venta).replace(/[^0-9.-]/g, ''));
+          obj.precio_venta = isNaN(pNum) ? 0 : pNum;
+        }
+        if (row.resorte !== undefined && row.resorte !== null) obj.resorte = String(row.resorte);
+
         obj.fecha_registro = row.fecha_registro || new Date().toISOString().split('T')[0];
         
         if (hasValidId) {
@@ -5047,8 +5056,8 @@ export default function ModulePlaceholder({
           }
           sqlText += `FROM ${tableName};\n\n`;
 
-          sqlText += `-- 🌐 3. SCRIPT GLOBAL PARA AGREGAR COLUMNAS DE FECHA A TODAS LAS MÁQUINAS EN SUPABASE\n`;
-          sqlText += `-- Copia y ejecuta este bloque en "SQL Editor" de Supabase para agregar las tablas de fecha a TODAS las máquinas existentes sin borrar datos:\n`;
+          sqlText += `-- 🌐 3. SCRIPT GLOBAL PARA AGREGAR COLUMNAS DE SEL, PRODUCTO, PRECIO, RESORTE Y FECHAS A TODAS LAS MÁQUINAS EN SUPABASE\n`;
+          sqlText += `-- Copia y ejecuta este bloque en "SQL Editor" de Supabase para actualizar la estructura de TODAS las máquinas existentes sin borrar datos:\n`;
           sqlText += `DO $$\n`;
           sqlText += `DECLARE\n`;
           sqlText += `    t text;\n`;
@@ -5056,8 +5065,13 @@ export default function ModulePlaceholder({
           sqlText += `    FOR t IN\n`;
           sqlText += `        SELECT table_name\n`;
           sqlText += `        FROM information_schema.tables\n`;
-          sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name != 'surtido_submenus'\n`;
+          sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name != 'surtido_submenus' AND table_name != 'surtido_bitacora_mantenimiento'\n`;
           sqlText += `    LOOP\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS sel VARCHAR(50) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS precio_venta DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT '''';', t);\n`;
@@ -5561,6 +5575,106 @@ export default function ModulePlaceholder({
           if (updatedRow) {
             saveToSupabase(activeSupplySubmenu, [updatedRow]);
           }
+        };
+
+        // Smart cell helper to update fields and persist
+        const handleUpdateSmartRowFields = (rowId: number, fieldUpdates: Record<string, any>) => {
+          let updatedRow: any = null;
+          handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
+            if (r.id === rowId) {
+              const updatedValues = { ...(r.values || {}), ...fieldUpdates };
+              updatedRow = { ...r, ...fieldUpdates, values: updatedValues };
+              return updatedRow;
+            }
+            return r;
+          }));
+          if (updatedRow) {
+            saveToSupabase(activeSupplySubmenu, [updatedRow]);
+          }
+        };
+
+        // Smart handler when user types or changes SEL (e.g. 11, S024)
+        const handleSmartSelChange = (row: any, val: string) => {
+          const normSel = val.trim().toLowerCase();
+          const updates: Record<string, any> = {
+            sel: val,
+            codigo: val
+          };
+
+          if (normSel) {
+            const match = availableProducts.find((p: any) => {
+              const pCode = (p.codigo || p.code || p.id || '').trim().toLowerCase();
+              const pSel = (p.sel || p.slot || '').trim().toLowerCase();
+              const pName = (p.nombre || p.name || p.nombre_producto || '').trim().toLowerCase();
+              return pCode === normSel || pSel === normSel || pName === normSel;
+            });
+
+            if (match) {
+              updates.nombre_producto = match.nombre || match.nombre_producto || match.name || row.nombre_producto;
+              if (match.precio_venta !== undefined || match.precio !== undefined) {
+                updates.precio_venta = match.precio_venta !== undefined ? match.precio_venta : match.precio;
+              }
+              if (match.resorte || match.resort || match.capacidad) {
+                updates.resorte = match.resorte || match.resort || match.capacidad;
+              }
+              if (match.proveedor) {
+                updates.proveedor = match.proveedor;
+              }
+            }
+          }
+
+          handleUpdateSmartRowFields(row.id, updates);
+        };
+
+        // Smart handler when user types or selects product name
+        const handleSmartNombreChange = (row: any, val: string) => {
+          const normName = val.trim().toLowerCase();
+          const updates: Record<string, any> = {
+            nombre_producto: val,
+            producto: val
+          };
+
+          if (normName) {
+            const match = availableProducts.find((p: any) => {
+              const pName = (p.nombre || p.name || p.nombre_producto || '').trim().toLowerCase();
+              const pCode = (p.codigo || p.code || p.id || '').trim().toLowerCase();
+              return pName === normName || pCode === normName;
+            });
+
+            if (match) {
+              if (match.precio_venta !== undefined || match.precio !== undefined) {
+                updates.precio_venta = match.precio_venta !== undefined ? match.precio_venta : match.precio;
+              }
+              if (match.resorte || match.resort || match.capacidad) {
+                updates.resorte = match.resorte || match.resort || match.capacidad;
+              }
+              if (match.codigo || match.sel || match.slot) {
+                updates.sel = match.codigo || match.sel || match.slot;
+                updates.codigo = match.codigo || match.sel || match.slot;
+              }
+              if (match.proveedor) {
+                updates.proveedor = match.proveedor;
+              }
+            }
+          }
+
+          handleUpdateSmartRowFields(row.id, updates);
+        };
+
+        // Smart handler when user edits sale price
+        const handleSmartPrecioChange = (row: any, val: string) => {
+          const numVal = parseFloat(val.replace(/[^0-9.-]/g, ''));
+          const finalVal = isNaN(numVal) ? val : numVal;
+          handleUpdateSmartRowFields(row.id, {
+            precio_venta: finalVal
+          });
+        };
+
+        // Smart handler when user edits resorte
+        const handleSmartResorteChange = (row: any, val: string) => {
+          handleUpdateSmartRowFields(row.id, {
+            resorte: val
+          });
         };
 
         const handleStartEditRow = (row: any) => {
@@ -7291,8 +7405,8 @@ export default function ModulePlaceholder({
                         <table className="w-full text-xs text-left border-collapse border border-slate-300">
                           <thead>
                             <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-extrabold select-none">
-                              <th className="py-2.5 px-3 border-r border-slate-300 text-center w-12 font-bold bg-slate-100">Sel</th>
-                              <th className="py-2.5 px-3 border-r border-slate-300 font-extrabold min-w-[160px] bg-slate-100">Nombre Maquina</th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 text-center w-16 font-bold bg-slate-100">Sel</th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 font-extrabold min-w-[180px] bg-slate-100">Nombre del Producto</th>
                               <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[120px] bg-slate-100">Precio de venta</th>
                               <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[90px] bg-slate-100">Resorte</th>
                               {dateCols.map((dateHeader, idx) => {
@@ -7337,25 +7451,74 @@ export default function ModulePlaceholder({
                             ) : (
                               paginatedSubmenuRows.map((row, rowIdx) => {
                                 const matchedProd = findMatchingProduct(row);
-                                const precioVtaVal = (matchedProd && matchedProd.precio_venta !== undefined) ? matchedProd.precio_venta : row.precio_venta;
-                                const formattedPrice = typeof precioVtaVal === 'number' ? formatMXN(precioVtaVal) : (precioVtaVal ? `$${precioVtaVal}` : '$0.00');
-                                const slotOrSel = row.sel || row.slot || row.codigo || (rowIdx + 11);
-                                const resorteVal = row.resorte || row.resort || '-';
+                                const currentSelVal = row.sel !== undefined && row.sel !== null && String(row.sel) !== '' ? String(row.sel) : (row.slot || row.codigo || String(rowIdx + 11));
+                                const currentNameVal = row.nombre_producto || row.producto || row.articulo || '';
+                                const currentPriceVal = row.precio_venta !== undefined && row.precio_venta !== null && row.precio_venta !== ''
+                                  ? (typeof row.precio_venta === 'number' ? `$${row.precio_venta.toFixed(2)}` : String(row.precio_venta))
+                                  : (matchedProd && matchedProd.precio_venta !== undefined ? `$${matchedProd.precio_venta}` : '$0.00');
+                                const currentResorteVal = row.resorte !== undefined && row.resorte !== null && String(row.resorte) !== '' ? String(row.resorte) : (row.resort || (matchedProd && matchedProd.resorte ? String(matchedProd.resorte) : '12'));
 
                                 return (
                                   <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
-                                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">
-                                      {slotOrSel}
+                                    {/* 1. SEL (Código / Selección smart cell) */}
+                                    <td className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                      <input
+                                        type="text"
+                                        value={currentSelVal}
+                                        onChange={(e) => handleSmartSelChange(row, e.target.value)}
+                                        className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-black text-xs text-slate-800 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                        placeholder="Sel"
+                                        title="Código de selección (ej. 11, S024). Escribe un código para extraer los datos de producto automáticamente."
+                                      />
                                     </td>
-                                    <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900 whitespace-nowrap">
-                                      {row.nombre_producto || row.producto || row.articulo || 'Sin Nombre'}
+
+                                    {/* 2. Nombre del Producto (Smart cell with auto-complete datalist) */}
+                                    <td className="py-1.5 px-2 border-r border-slate-300 font-extrabold text-slate-900">
+                                      <div className="relative w-full">
+                                        <input
+                                          type="text"
+                                          list={`prods-datalist-${row.id}`}
+                                          value={currentNameVal}
+                                          onChange={(e) => handleSmartNombreChange(row, e.target.value)}
+                                          className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-left font-bold text-xs text-slate-900 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                          placeholder="Nombre del Producto"
+                                          title="Nombre del producto registrado por el Administrador"
+                                        />
+                                        <datalist id={`prods-datalist-${row.id}`}>
+                                          {availableProducts.map((p: any, pIdx: number) => (
+                                            <option key={p.id || pIdx} value={p.nombre || p.nombre_producto || p.name}>
+                                              {p.codigo ? `[${p.codigo}] ` : ''}{p.nombre || p.nombre_producto || p.name}
+                                            </option>
+                                          ))}
+                                        </datalist>
+                                      </div>
                                     </td>
-                                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-mono font-bold text-slate-800">
-                                      {formattedPrice}
+
+                                    {/* 3. Precio de venta (Smart cell) */}
+                                    <td className="py-1.5 px-2 border-r border-slate-300 text-center font-mono font-bold text-slate-800">
+                                      <input
+                                        type="text"
+                                        value={currentPriceVal}
+                                        onChange={(e) => handleSmartPrecioChange(row, e.target.value)}
+                                        className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-bold text-xs text-slate-800 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                        placeholder="$0.00"
+                                        title="Precio de venta asignado"
+                                      />
                                     </td>
-                                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-bold text-slate-700">
-                                      {resorteVal}
+
+                                    {/* 4. Resorte (Smart cell) */}
+                                    <td className="py-1.5 px-2 border-r border-slate-300 text-center font-bold text-slate-700">
+                                      <input
+                                        type="text"
+                                        value={currentResorteVal}
+                                        onChange={(e) => handleSmartResorteChange(row, e.target.value)}
+                                        className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-bold text-xs text-slate-700 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                        placeholder="12"
+                                        title="Resorte / capacidad de espiral"
+                                      />
                                     </td>
+
+                                    {/* 5. Fechas */}
                                     {dateCols.map((dateHeader, idx) => {
                                       const cellVal = row.values && row.values[dateHeader] !== undefined ? row.values[dateHeader] : (row[dateHeader] !== undefined ? row[dateHeader] : '');
                                       return (
