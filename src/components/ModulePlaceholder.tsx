@@ -5663,10 +5663,8 @@ export default function ModulePlaceholder({
 
         // Smart handler when user edits sale price
         const handleSmartPrecioChange = (row: any, val: string) => {
-          const numVal = parseFloat(val.replace(/[^0-9.-]/g, ''));
-          const finalVal = isNaN(numVal) ? val : numVal;
           handleUpdateSmartRowFields(row.id, {
-            precio_venta: finalVal
+            precio_venta: val
           });
         };
 
@@ -7451,12 +7449,18 @@ export default function ModulePlaceholder({
                             ) : (
                               paginatedSubmenuRows.map((row, rowIdx) => {
                                 const matchedProd = findMatchingProduct(row);
-                                const currentSelVal = row.sel !== undefined && row.sel !== null && String(row.sel) !== '' ? String(row.sel) : (row.slot || row.codigo || String(rowIdx + 11));
-                                const currentNameVal = row.nombre_producto || row.producto || row.articulo || '';
-                                const currentPriceVal = row.precio_venta !== undefined && row.precio_venta !== null && row.precio_venta !== ''
-                                  ? (typeof row.precio_venta === 'number' ? `$${row.precio_venta.toFixed(2)}` : String(row.precio_venta))
+                                const currentSelVal = (row.sel !== undefined && row.sel !== null)
+                                  ? String(row.sel)
+                                  : (row.slot !== undefined && row.slot !== null ? String(row.slot) : (row.codigo !== undefined && row.codigo !== null ? String(row.codigo) : String(rowIdx + 11)));
+                                const currentNameVal = (row.nombre_producto !== undefined && row.nombre_producto !== null)
+                                  ? String(row.nombre_producto)
+                                  : (row.producto !== undefined && row.producto !== null ? String(row.producto) : (row.articulo || ''));
+                                const currentPriceVal = (row.precio_venta !== undefined && row.precio_venta !== null)
+                                  ? String(row.precio_venta)
                                   : (matchedProd && matchedProd.precio_venta !== undefined ? `$${matchedProd.precio_venta}` : '$0.00');
-                                const currentResorteVal = row.resorte !== undefined && row.resorte !== null && String(row.resorte) !== '' ? String(row.resorte) : (row.resort || (matchedProd && matchedProd.resorte ? String(matchedProd.resorte) : '12'));
+                                const currentResorteVal = (row.resorte !== undefined && row.resorte !== null)
+                                  ? String(row.resorte)
+                                  : (row.resort !== undefined && row.resort !== null ? String(row.resort) : (matchedProd && matchedProd.resorte ? String(matchedProd.resorte) : '12'));
 
                                 return (
                                   <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
