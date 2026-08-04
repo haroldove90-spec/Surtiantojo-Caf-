@@ -7197,28 +7197,15 @@ export default function ModulePlaceholder({
 
                   return (
                     <div className="space-y-6">
-                      {/* Table 1: Resumen de Cabecera por Fecha (Unid. Vtas, $ Ventas, Inventario) */}
+                      {/* Table 1: Resumen de Cabecera (Unid. Vtas, $ Ventas, Inventario) */}
                       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-xs">
                         <table className="w-full text-xs text-left border-collapse border border-slate-300">
                           <thead>
                             <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-extrabold select-none">
                               <th className="py-2.5 px-3 border-r border-slate-300 text-center w-12 font-bold bg-slate-100">Sel</th>
                               <th className="py-2.5 px-3 border-r border-slate-300 font-extrabold min-w-[150px] bg-slate-100">Nombre Maquina</th>
-                              {dateCols.map((dateHeader, idx) => (
-                                <th key={idx} className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100">
-                                  {dateHeader}
-                                </th>
-                              ))}
-                              <th className="py-2 px-3 text-center min-w-[140px] bg-slate-100">
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddFechaColumn()}
-                                  className="inline-flex items-center justify-center gap-1 text-xs font-black text-[#043077] hover:text-blue-900 bg-white hover:bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-300 shadow-3xs cursor-pointer transition-all"
-                                  title="Agregar otra columna de fecha (+)"
-                                >
-                                  <Plus className="w-3.5 h-3.5 stroke-[3]" /> Fecha (+)
-                                </button>
-                              </th>
+                              <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100">Fecha</th>
+                              <th className="py-2.5 px-3 text-center min-w-[140px] bg-slate-100 font-extrabold">Formato</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-300 bg-white font-medium text-slate-700">
@@ -7226,17 +7213,15 @@ export default function ModulePlaceholder({
                             <tr className="border-b border-slate-300 hover:bg-slate-50/70">
                               <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">1</td>
                               <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">Unid. Vtas.</td>
-                              {dateCols.map((dateHeader, idx) => (
-                                <td key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center">
-                                  <input
-                                    type="text"
-                                    value={summaryMetrics[activeSupplySubmenu]?.[dateHeader]?.unidVtas || ''}
-                                    onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, dateHeader, 'unidVtas', e.target.value)}
-                                    className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
-                                    placeholder="0"
-                                  />
-                                </td>
-                              ))}
+                              <td className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                <input
+                                  type="text"
+                                  value={summaryMetrics[activeSupplySubmenu]?.['Fecha']?.unidVtas || ''}
+                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'Fecha', 'unidVtas', e.target.value)}
+                                  className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
+                                  placeholder="0"
+                                />
+                              </td>
                               <td className="py-2.5 px-3 text-center text-slate-600 font-bold bg-slate-50/40 text-xs">
                                 Formato número
                               </td>
@@ -7246,17 +7231,15 @@ export default function ModulePlaceholder({
                             <tr className="border-b border-slate-300 hover:bg-slate-50/70">
                               <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">2</td>
                               <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">$ Ventas</td>
-                              {dateCols.map((dateHeader, idx) => (
-                                <td key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center">
-                                  <input
-                                    type="text"
-                                    value={summaryMetrics[activeSupplySubmenu]?.[dateHeader]?.ventas || ''}
-                                    onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, dateHeader, 'ventas', e.target.value)}
-                                    className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
-                                    placeholder="$0.00"
-                                  />
-                                </td>
-                              ))}
+                              <td className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                <input
+                                  type="text"
+                                  value={summaryMetrics[activeSupplySubmenu]?.['Fecha']?.ventas || ''}
+                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'Fecha', 'ventas', e.target.value)}
+                                  className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
+                                  placeholder="$0.00"
+                                />
+                              </td>
                               <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
                             </tr>
 
@@ -7264,17 +7247,15 @@ export default function ModulePlaceholder({
                             <tr className="hover:bg-slate-50/70">
                               <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700"></td>
                               <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">Inventario</td>
-                              {dateCols.map((dateHeader, idx) => (
-                                <td key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center">
-                                  <input
-                                    type="text"
-                                    value={summaryMetrics[activeSupplySubmenu]?.[dateHeader]?.inventario || ''}
-                                    onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, dateHeader, 'inventario', e.target.value)}
-                                    className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
-                                    placeholder="0"
-                                  />
-                                </td>
-                              ))}
+                              <td className="py-1.5 px-2 border-r border-slate-300 text-center">
+                                <input
+                                  type="text"
+                                  value={summaryMetrics[activeSupplySubmenu]?.['Fecha']?.inventario || ''}
+                                  onChange={(e) => handleUpdateSummaryMetric(activeSupplySubmenu, 'Fecha', 'inventario', e.target.value)}
+                                  className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077]"
+                                  placeholder="0"
+                                />
+                              </td>
                               <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
                             </tr>
                           </tbody>
@@ -7295,12 +7276,22 @@ export default function ModulePlaceholder({
                                   {dateHeader}
                                 </th>
                               ))}
+                              <th className="py-2 px-3 text-center min-w-[140px] bg-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddFechaColumn()}
+                                  className="inline-flex items-center justify-center gap-1 text-xs font-black text-[#043077] hover:text-blue-900 bg-white hover:bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-300 shadow-3xs cursor-pointer transition-all"
+                                  title="Agregar otra columna de fecha (+)"
+                                >
+                                  <Plus className="w-3.5 h-3.5 stroke-[3]" /> Fecha (+)
+                                </button>
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-300 bg-white">
                             {paginatedSubmenuRows.length === 0 ? (
                               <tr>
-                                <td colSpan={4 + dateCols.length} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
+                                <td colSpan={5 + dateCols.length} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
                                   No hay registros cargados para {activeMeta.name}.
                                 </td>
                               </tr>
@@ -7340,6 +7331,7 @@ export default function ModulePlaceholder({
                                         </td>
                                       );
                                     })}
+                                    <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
                                   </tr>
                                 );
                               })
