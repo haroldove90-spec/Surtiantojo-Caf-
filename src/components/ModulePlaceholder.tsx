@@ -36,6 +36,7 @@ import {
   X,
   FileSpreadsheet,
   FileText,
+  Save,
   Filter,
   Settings,
   ArrowUpDown,
@@ -749,6 +750,9 @@ export default function ModulePlaceholder({
 
   // Values for editing dynamic row
   const [editRowValues, setEditRowValues] = useState<Record<string, string>>({});
+
+  // Notification when manually saving surtido
+  const [saveNotification, setSaveNotification] = useState<string | null>(null);
 
   // Machine Maintenance Bitácora state (1 card group per registered machine)
   const [machineMaintenance, setMachineMaintenance] = useState<Record<string, Array<{
@@ -5543,6 +5547,26 @@ export default function ModulePlaceholder({
           saveToSupabase(activeSupplySubmenu, newRows);
         };
 
+        const handleManualSaveSurtido = async () => {
+          const currentData = getActiveSubmenuData();
+          if (activeSupplySubmenu === 'cer_bb') {
+            localStorage.setItem('surtiantojo_cer_bb', JSON.stringify(currentData));
+          } else if (activeSupplySubmenu === 'art_alt') {
+            localStorage.setItem('surtiantojo_art_alt', JSON.stringify(currentData));
+          } else if (activeSupplySubmenu === 'art_ct') {
+            localStorage.setItem('surtiantojo_art_ct', JSON.stringify(currentData));
+          } else {
+            setGenericSubmenuData(prev => {
+              const updated = { ...prev, [activeSupplySubmenu]: currentData };
+              localStorage.setItem('surtiantojo_generic_submenu', JSON.stringify(updated));
+              return updated;
+            });
+          }
+          await saveToSupabase(activeSupplySubmenu, currentData);
+          setSaveNotification(`¡Surtido de "${activeMeta.name}" guardado exitosamente!`);
+          setTimeout(() => setSaveNotification(null), 4000);
+        };
+
         const handleUpdateDynamicCellValue = (rowId: number, header: string, value: string) => {
           let updatedRow: any = null;
           handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
@@ -6808,10 +6832,36 @@ export default function ModulePlaceholder({
                   </div>
                 )}
 
+                {/* Save Notification Banner */}
+                {saveNotification && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="p-3 bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center justify-between shadow-md"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                      <span>{saveNotification}</span>
+                    </div>
+                    <button type="button" onClick={() => setSaveNotification(null)} className="text-emerald-100 hover:text-white font-extrabold text-sm px-2">✕</button>
+                  </motion.div>
+                )}
+
                 {/* Submenu filters & rows manipulation bar */}
                 <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-start">
                   {/* Actions buttons */}
                   <div className="flex flex-wrap gap-2 shrink-0 w-full">
+                    {/* 0. Botón Principal Guardar Surtido */}
+                    <button
+                      type="button"
+                      onClick={handleManualSaveSurtido}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs hover:shadow-md active:scale-95"
+                      title="Guardar cambios del surtido actual en la base de datos y memoria local"
+                    >
+                      <Save className="w-4 h-4" /> Guardar Surtido
+                    </button>
+
                     {/* 1. Botón para agregar 1 o más filas rápida en la tarjeta */}
                     <div className="inline-flex items-center rounded-xl border border-blue-900 bg-[#043077] shadow-3xs overflow-hidden shrink-0">
                       <button
