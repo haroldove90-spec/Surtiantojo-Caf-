@@ -97,7 +97,7 @@ function getStoredUserSession(): any | null {
     const local = localStorage.getItem(SESSION_KEY);
     if (local) {
       const parsed = JSON.parse(local);
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (parsed && typeof parsed === 'object' && parsed.username) return parsed;
     }
   } catch (e) {}
 
@@ -105,7 +105,7 @@ function getStoredUserSession(): any | null {
     const session = sessionStorage.getItem(SESSION_KEY);
     if (session) {
       const parsed = JSON.parse(session);
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (parsed && typeof parsed === 'object' && parsed.username) return parsed;
     }
   } catch (e) {}
 
@@ -113,7 +113,15 @@ function getStoredUserSession(): any | null {
     const match = document.cookie.match(new RegExp('(^| )' + SESSION_KEY + '=([^;]+)'));
     if (match && match[2]) {
       const parsed = JSON.parse(decodeURIComponent(match[2]));
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (parsed && typeof parsed === 'object' && parsed.username) return parsed;
+    }
+  } catch (e) {}
+
+  try {
+    if (window.name && window.name.startsWith('SESSION_USER:')) {
+      const raw = window.name.substring('SESSION_USER:'.length);
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.username) return parsed;
     }
   } catch (e) {}
 
@@ -136,6 +144,10 @@ function saveUserSession(user: any): void {
     const encoded = encodeURIComponent(jsonStr);
     document.cookie = `${SESSION_KEY}=${encoded}; max-age=${365 * 86400}; path=/; SameSite=Lax`;
   } catch (e) {}
+
+  try {
+    window.name = `SESSION_USER:${jsonStr}`;
+  } catch (e) {}
 }
 
 function clearUserSession(): void {
@@ -149,6 +161,12 @@ function clearUserSession(): void {
 
   try {
     document.cookie = `${SESSION_KEY}=; max-age=0; path=/; SameSite=Lax`;
+  } catch (e) {}
+
+  try {
+    if (window.name && window.name.startsWith('SESSION_USER:')) {
+      window.name = '';
+    }
   } catch (e) {}
 }
 
@@ -201,6 +219,13 @@ export default function App() {
     } catch (e) {}
     return 'metrics';
   });
+
+  // Automatically save logged-in user session on any change
+  useEffect(() => {
+    if (currentUser) {
+      saveUserSession(currentUser);
+    }
+  }, [currentUser]);
 
   const isSurtidorOnly = useMemo(() => {
     if (!currentUser) return false;

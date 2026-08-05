@@ -5562,6 +5562,38 @@ export default function ModulePlaceholder({
           }
         };
 
+        // Quick helper to add 1 or more blank editable rows directly into active machine table
+        const handleAddBlankRows = (count: number = 1) => {
+          const numCount = Math.max(1, count);
+          const activeSubHeaders = cleanHeaders(submenuHeaders[activeSupplySubmenu] || []);
+          const newRows: any[] = [];
+
+          for (let i = 0; i < numCount; i++) {
+            const newRowValues: Record<string, string> = {};
+            activeSubHeaders.forEach(h => {
+              newRowValues[h] = '';
+            });
+
+            const newRow = {
+              id: Date.now() + Math.floor(Math.random() * 100000) + i,
+              sel: '',
+              slot: '',
+              codigo: '',
+              nombre_producto: '',
+              producto: '',
+              articulo: '',
+              precio_venta: '',
+              resorte: '',
+              fecha_registro: new Date().toISOString().split('T')[0],
+              values: newRowValues
+            };
+            newRows.push(newRow);
+          }
+
+          handleUpdateSubmenuData((prev: any[]) => [...prev, ...newRows]);
+          saveToSupabase(activeSupplySubmenu, newRows);
+        };
+
         const handleUpdateDynamicCellValue = (rowId: number, header: string, value: string) => {
           let updatedRow: any = null;
           handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
@@ -6838,18 +6870,54 @@ export default function ModulePlaceholder({
                 <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-start">
                   {/* Actions buttons */}
                   <div className="flex flex-wrap gap-2 shrink-0 w-full">
-                    {/* 1. Agregar Registro */}
+                    {/* 1. Botón para agregar 1 o más filas rápida en la tarjeta */}
+                    <div className="inline-flex items-center rounded-xl border border-blue-900 bg-[#043077] shadow-3xs overflow-hidden shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleAddBlankRows(1)}
+                        className="px-3.5 py-2 hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        title="Agregar 1 fila editable a la tarjeta"
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" /> Agregar Fila
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddBlankRows(3)}
+                        className="px-2 py-2 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-xs font-black transition-all cursor-pointer"
+                        title="Agregar 3 filas editables a la tarjeta"
+                      >
+                        +3
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddBlankRows(5)}
+                        className="px-2 py-2 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-xs font-black transition-all cursor-pointer"
+                        title="Agregar 5 filas editables a la tarjeta"
+                      >
+                        +5
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddBlankRows(10)}
+                        className="px-2 py-2 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-xs font-black transition-all cursor-pointer"
+                        title="Agregar 10 filas editables a la tarjeta"
+                      >
+                        +10
+                      </button>
+                    </div>
+
+                    {/* 1b. Agregar Registro (Formulario completo) */}
                     {!isSurtidorOnly && (
                       <button
                         type="button"
                         onClick={() => setAddSupplyRowOpen(!addSupplyRowOpen)}
-                        className="px-3.5 py-2 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-3xs"
+                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-3xs"
                       >
-                        <Plus className="w-3.5 h-3.5" /> Agregar Registro
+                        <Plus className="w-3.5 h-3.5" /> Formulario (+)
                       </button>
                     )}
 
-                    {/* 1b. Agregar Columna de Fecha (+) */}
+                    {/* 1c. Agregar Columna de Fecha (+) */}
                     <button
                       type="button"
                       onClick={() => handleAddFechaColumn()}
@@ -7427,23 +7495,78 @@ export default function ModulePlaceholder({
                                   </th>
                                 );
                               })}
-                              <th className="py-2 px-3 text-center min-w-[140px] bg-slate-100">
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddFechaColumn()}
-                                  className="inline-flex items-center justify-center gap-1 text-xs font-black text-[#043077] hover:text-blue-900 bg-white hover:bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-300 shadow-3xs cursor-pointer transition-all"
-                                  title="Agregar otra columna de fecha (+)"
-                                >
-                                  <Plus className="w-3.5 h-3.5 stroke-[3]" /> Fecha (+)
-                                </button>
+                              <th className="py-2 px-3 text-center min-w-[200px] bg-slate-100">
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                  {/* Quick row addition button */}
+                                  <div className="inline-flex items-center rounded-lg border border-blue-900 bg-[#043077] shadow-3xs overflow-hidden">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddBlankRows(1)}
+                                      className="px-2 py-1 hover:bg-blue-800 text-white text-[11px] font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer"
+                                      title="Agregar 1 fila editable a la tarjeta"
+                                    >
+                                      <Plus className="w-3 h-3 stroke-[3]" /> Fila
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddBlankRows(5)}
+                                      className="px-1.5 py-1 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-[11px] font-black transition-all cursor-pointer"
+                                      title="Agregar 5 filas editables a la tarjeta"
+                                    >
+                                      +5
+                                    </button>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddFechaColumn()}
+                                    className="inline-flex items-center justify-center gap-1 text-[11px] font-black text-[#043077] hover:text-blue-900 bg-white hover:bg-slate-50 px-2 py-1 rounded-lg border border-slate-300 shadow-3xs cursor-pointer transition-all"
+                                    title="Agregar otra columna de fecha (+)"
+                                  >
+                                    <Plus className="w-3 h-3 stroke-[3]" /> Fecha (+)
+                                  </button>
+                                </div>
                               </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-300 bg-white">
                             {paginatedSubmenuRows.length === 0 ? (
                               <tr>
-                                <td colSpan={5 + dateCols.length} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
-                                  No hay registros cargados para {activeMeta.name}.
+                                <td colSpan={5 + dateCols.length} className="py-12 text-center text-slate-500 font-bold bg-slate-50/50">
+                                  <div className="flex flex-col items-center justify-center gap-3">
+                                    <p className="text-slate-700 text-sm font-extrabold">No hay registros cargados para {activeMeta.name}.</p>
+                                    <p className="text-xs text-slate-500 font-normal">Agrega 1 o más filas a la tarjeta para capturar Sel, Nombre, Precio, Resorte y Fechas:</p>
+                                    <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddBlankRows(1)}
+                                        className="px-4 py-2 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                                      >
+                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 1 Fila
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddBlankRows(3)}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                                      >
+                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 3 Filas
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddBlankRows(5)}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                                      >
+                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 5 Filas
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddBlankRows(10)}
+                                        className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                                      >
+                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 10 Filas
+                                      </button>
+                                    </div>
+                                  </div>
                                 </td>
                               </tr>
                             ) : (
@@ -7451,16 +7574,16 @@ export default function ModulePlaceholder({
                                 const matchedProd = findMatchingProduct(row);
                                 const currentSelVal = (row.sel !== undefined && row.sel !== null)
                                   ? String(row.sel)
-                                  : (row.slot !== undefined && row.slot !== null ? String(row.slot) : (row.codigo !== undefined && row.codigo !== null ? String(row.codigo) : String(rowIdx + 11)));
+                                  : (row.slot !== undefined && row.slot !== null ? String(row.slot) : (row.codigo !== undefined && row.codigo !== null ? String(row.codigo) : ''));
                                 const currentNameVal = (row.nombre_producto !== undefined && row.nombre_producto !== null)
                                   ? String(row.nombre_producto)
                                   : (row.producto !== undefined && row.producto !== null ? String(row.producto) : (row.articulo || ''));
                                 const currentPriceVal = (row.precio_venta !== undefined && row.precio_venta !== null)
                                   ? String(row.precio_venta)
-                                  : (matchedProd && matchedProd.precio_venta !== undefined ? `$${matchedProd.precio_venta}` : '$0.00');
+                                  : '';
                                 const currentResorteVal = (row.resorte !== undefined && row.resorte !== null)
                                   ? String(row.resorte)
-                                  : (row.resort !== undefined && row.resort !== null ? String(row.resort) : (matchedProd && matchedProd.resorte ? String(matchedProd.resorte) : '12'));
+                                  : (row.resort !== undefined && row.resort !== null ? String(row.resort) : '');
 
                                 return (
                                   <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
@@ -7505,7 +7628,7 @@ export default function ModulePlaceholder({
                                         value={currentPriceVal}
                                         onChange={(e) => handleSmartPrecioChange(row, e.target.value)}
                                         className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-bold text-xs text-slate-800 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
-                                        placeholder="$0.00"
+                                        placeholder=""
                                         title="Precio de venta asignado"
                                       />
                                     </td>
@@ -7517,7 +7640,7 @@ export default function ModulePlaceholder({
                                         value={currentResorteVal}
                                         onChange={(e) => handleSmartResorteChange(row, e.target.value)}
                                         className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-bold text-xs text-slate-700 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
-                                        placeholder="12"
+                                        placeholder=""
                                         title="Resorte / capacidad de espiral"
                                       />
                                     </td>
@@ -7532,12 +7655,26 @@ export default function ModulePlaceholder({
                                             value={cellVal !== undefined && cellVal !== null ? String(cellVal) : ''}
                                             onChange={(e) => handleUpdateDynamicCellValue(row.id, dateHeader, e.target.value)}
                                             className="w-full bg-indigo-50/70 hover:bg-white focus:bg-white border border-indigo-200 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-extrabold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
-                                            placeholder="0"
+                                            placeholder=""
                                           />
                                         </td>
                                       );
                                     })}
-                                    <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
+                                    <td className="py-1.5 px-2 text-center bg-slate-50/40">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`¿Eliminar la fila de ${currentNameVal || currentSelVal || 'este registro'}?`)) {
+                                            handleUpdateSubmenuData((prev: any[]) => prev.filter(r => r.id !== row.id));
+                                            deleteFromSupabase(activeSupplySubmenu, row.id);
+                                          }
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                                        title="Eliminar esta fila"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </td>
                                   </tr>
                                 );
                               })
