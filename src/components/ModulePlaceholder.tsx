@@ -4780,35 +4780,23 @@ export default function ModulePlaceholder({
           if (activeSupplySubmenu === 'cer_bb') {
             setCerBBData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
-              const sorted = [...res].sort((a, b) => {
-                const aVal = getSupplyRowCompareValue(a, 'sel');
-                const bVal = getSupplyRowCompareValue(b, 'sel');
-                return compareVals(aVal, bVal);
-              });
-              setTimeout(() => saveToSupabase('cer_bb', sorted), 10);
-              return sorted;
+              const resArr = [...res];
+              setTimeout(() => saveToSupabase('cer_bb', resArr), 10);
+              return resArr;
             });
           } else if (activeSupplySubmenu === 'art_alt') {
             setArtAltData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
-              const sorted = [...res].sort((a, b) => {
-                const aVal = getSupplyRowCompareValue(a, 'sel');
-                const bVal = getSupplyRowCompareValue(b, 'sel');
-                return compareVals(aVal, bVal);
-              });
-              setTimeout(() => saveToSupabase('art_alt', sorted), 10);
-              return sorted;
+              const resArr = [...res];
+              setTimeout(() => saveToSupabase('art_alt', resArr), 10);
+              return resArr;
             });
           } else if (activeSupplySubmenu === 'art_ct') {
             setArtCtData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
-              const sorted = [...res].sort((a, b) => {
-                const aVal = getSupplyRowCompareValue(a, 'sel');
-                const bVal = getSupplyRowCompareValue(b, 'sel');
-                return compareVals(aVal, bVal);
-              });
-              setTimeout(() => saveToSupabase('art_ct', sorted), 10);
-              return sorted;
+              const resArr = [...res];
+              setTimeout(() => saveToSupabase('art_ct', resArr), 10);
+              return resArr;
             });
           } else {
             setGenericSubmenuData(prev => {
@@ -4831,15 +4819,11 @@ export default function ModulePlaceholder({
                 ];
               })();
               const res = typeof updater === 'function' ? updater(actualList) : updater;
-              const sorted = [...res].sort((a, b) => {
-                const aVal = getSupplyRowCompareValue(a, 'sel');
-                const bVal = getSupplyRowCompareValue(b, 'sel');
-                return compareVals(aVal, bVal);
-              });
-              setTimeout(() => saveToSupabase(activeSupplySubmenu, sorted), 10);
+              const resArr = [...res];
+              setTimeout(() => saveToSupabase(activeSupplySubmenu, resArr), 10);
               return {
                 ...prev,
-                [activeSupplySubmenu]: sorted
+                [activeSupplySubmenu]: resArr
               };
             });
           }
@@ -4867,9 +4851,9 @@ export default function ModulePlaceholder({
           return supplySortDirection === 'asc' ? comp : -comp;
         });
 
-        // Paginate Surtido rows (5 per page)
-        const totalSupplyPages = Math.max(Math.ceil(sortedSubmenuRows.length / 5), 1);
-        const paginatedSubmenuRows = sortedSubmenuRows.slice((supplyPage - 1) * 5, supplyPage * 5);
+        // Paginate Surtido rows (50 per page)
+        const totalSupplyPages = Math.max(Math.ceil(sortedSubmenuRows.length / 50), 1);
+        const paginatedSubmenuRows = sortedSubmenuRows.slice((supplyPage - 1) * 50, supplyPage * 50);
 
         // Dynamic Calculations for KPIs
         const totalUnits = filteredSubmenuRows.reduce((acc, row) => acc + safeVal(row.unidad_surtida), 0);
@@ -5674,17 +5658,13 @@ export default function ModulePlaceholder({
             });
 
             if (match) {
-              if (match.precio_venta !== undefined || match.precio !== undefined) {
+              if ((match.precio_venta !== undefined || match.precio !== undefined) && (!row.precio_venta || row.precio_venta === '0' || row.precio_venta === '$0.00')) {
                 updates.precio_venta = match.precio_venta !== undefined ? match.precio_venta : match.precio;
               }
-              if (match.resorte || match.resort || match.capacidad) {
+              if ((match.resorte || match.resort || match.capacidad) && !row.resorte) {
                 updates.resorte = match.resorte || match.resort || match.capacidad;
               }
-              if (match.codigo || match.sel || match.slot) {
-                updates.sel = match.codigo || match.sel || match.slot;
-                updates.codigo = match.codigo || match.sel || match.slot;
-              }
-              if (match.proveedor) {
+              if (match.proveedor && !row.proveedor) {
                 updates.proveedor = match.proveedor;
               }
             }
@@ -7609,13 +7589,11 @@ export default function ModulePlaceholder({
                                           onChange={(e) => handleSmartNombreChange(row, e.target.value)}
                                           className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-left font-bold text-xs text-slate-900 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
                                           placeholder="Nombre del Producto"
-                                          title="Nombre del producto registrado por el Administrador"
+                                          title="Escribe el nombre del producto o selecciona de la lista"
                                         />
                                         <datalist id={`prods-datalist-${row.id}`}>
                                           {availableProducts.map((p: any, pIdx: number) => (
-                                            <option key={p.id || pIdx} value={p.nombre || p.nombre_producto || p.name}>
-                                              {p.codigo ? `[${p.codigo}] ` : ''}{p.nombre || p.nombre_producto || p.name}
-                                            </option>
+                                            <option key={p.id || pIdx} value={p.nombre || p.nombre_producto || p.name} />
                                           ))}
                                         </datalist>
                                       </div>
