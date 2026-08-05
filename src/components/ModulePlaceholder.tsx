@@ -872,20 +872,20 @@ export default function ModulePlaceholder({
     const newVisit = {
       id: `v_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       visitLabel: `Visita ${newVisNum}`,
-      mon_inicial: '$ 0',
-      mon_final: '$ 0',
-      pruebas: 'no',
-      ventas_externas: 'no',
-      limpieza_interna: 'si',
-      limpieza_externa: 'si',
-      falla_equipo: 'no',
-      monedero: 'no',
-      billetero: 'no',
-      base_resorte: 'no',
-      otro: 'no',
-      notas: 'no',
-      repartidor: currentUserName,
-      elaboro: 'FC'
+      mon_inicial: '',
+      mon_final: '',
+      pruebas: '',
+      ventas_externas: '',
+      limpieza_interna: '',
+      limpieza_externa: '',
+      falla_equipo: '',
+      monedero: '',
+      billetero: '',
+      base_resorte: '',
+      otro: '',
+      notas: '',
+      repartidor: '',
+      elaboro: ''
     };
     const updated = [...current, newVisit];
     setMachineMaintenance(prev => ({ ...prev, [tabId]: updated }));
@@ -4788,21 +4788,7 @@ export default function ModulePlaceholder({
             case 'art_ct': return artCtData;
             default: {
               const currentData = genericSubmenuData[activeSupplySubmenu];
-              if (!currentData || currentData.length === 0) {
-                const submenuMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu);
-                const subName = submenuMeta ? submenuMeta.name : 'Insumo';
-                const pCode = `${subName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-1`;
-                return [
-                  {
-                    id: pCode,
-                    nombre_producto: `Surtido Inicial de ${subName}`,
-                    unidad_surtida: 15.00,
-                    precio_venta: "Proveedor General",
-                    fecha_registro: new Date().toISOString().split('T')[0]
-                  }
-                ];
-              }
-              return currentData;
+              return currentData || [];
             }
           }
         };
@@ -4832,21 +4818,7 @@ export default function ModulePlaceholder({
           } else {
             setGenericSubmenuData(prev => {
               const currentList = prev[activeSupplySubmenu] || [];
-              const actualList = currentList.length > 0 ? currentList : (() => {
-                const submenuMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu);
-                const subName = submenuMeta ? submenuMeta.name : 'Insumo';
-                const pCode = `${subName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-1`;
-                return [
-                  {
-                    id: pCode,
-                    nombre_producto: `Surtido Inicial de ${subName}`,
-                    unidad_surtida: 15.00,
-                    precio_venta: "Proveedor General",
-                    fecha_registro: new Date().toISOString().split('T')[0]
-                  }
-                ];
-              })();
-              const res = typeof updater === 'function' ? updater(actualList) : updater;
+              const res = typeof updater === 'function' ? updater(currentList) : updater;
               const resArr = [...res];
               setTimeout(() => saveToSupabase(activeSupplySubmenu, resArr), 10);
               return {
