@@ -771,7 +771,40 @@ export default function ModulePlaceholder({
   }>>>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_machine_maintenance');
-      return stored ? JSON.parse(stored) : {};
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const cleaned: Record<string, any[]> = {};
+        Object.keys(parsed).forEach(k => {
+          if (Array.isArray(parsed[k])) {
+            cleaned[k] = parsed[k].map(vis => {
+              const isDummy = vis.visitLabel === '$ 2,540' || vis.visitLabel === '$ 2,280' || vis.repartidor === 'Harold Anguiano' || vis.mon_inicial === '$ 679' || vis.elaboro === 'FC';
+              if (isDummy) {
+                return {
+                  ...vis,
+                  visitLabel: '',
+                  mon_inicial: '',
+                  mon_final: '',
+                  pruebas: '',
+                  ventas_externas: '',
+                  limpieza_interna: '',
+                  limpieza_externa: '',
+                  falla_equipo: '',
+                  monedero: '',
+                  billetero: '',
+                  base_resorte: '',
+                  otro: '',
+                  notas: '',
+                  repartidor: '',
+                  elaboro: ''
+                };
+              }
+              return vis;
+            });
+          }
+        });
+        return cleaned;
+      }
+      return {};
     } catch (e) {
       return {};
     }
@@ -819,17 +852,17 @@ export default function ModulePlaceholder({
     if (machineMaintenance[tabId] && machineMaintenance[tabId].length > 0) {
       visits = machineMaintenance[tabId];
     } else {
-      // Default initial 4 visits per machine matching Image
+      // Default initial 4 visits per machine start completely empty for manual filling
       visits = [
-        { id: 'v1', visitLabel: '$ 2,540', mon_inicial: '$ 679', mon_final: '$ 1,349', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', repartidor: currentUserName, elaboro: 'FC' },
-        { id: 'v2', visitLabel: '$ 2,540', mon_inicial: '$ 51', mon_final: '$ 1,040', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', repartidor: currentUserName, elaboro: 'FC' },
-        { id: 'v3', visitLabel: '$ 2,280', mon_inicial: '$ 202', mon_final: '$ 1,208', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', repartidor: currentUserName, elaboro: 'FC' },
-        { id: 'v4', visitLabel: '$ 2,280', mon_inicial: '$ 21', mon_final: '$ 1,260', pruebas: 'no', ventas_externas: 'no', limpieza_interna: 'si', limpieza_externa: 'si', falla_equipo: 'no', monedero: 'no', billetero: 'no', base_resorte: 'no', otro: 'no', notas: 'no', repartidor: currentUserName, elaboro: 'Fc' },
+        { id: 'v1', visitLabel: '', mon_inicial: '', mon_final: '', pruebas: '', ventas_externas: '', limpieza_interna: '', limpieza_externa: '', falla_equipo: '', monedero: '', billetero: '', base_resorte: '', otro: '', notas: '', repartidor: '', elaboro: '' },
+        { id: 'v2', visitLabel: '', mon_inicial: '', mon_final: '', pruebas: '', ventas_externas: '', limpieza_interna: '', limpieza_externa: '', falla_equipo: '', monedero: '', billetero: '', base_resorte: '', otro: '', notas: '', repartidor: '', elaboro: '' },
+        { id: 'v3', visitLabel: '', mon_inicial: '', mon_final: '', pruebas: '', ventas_externas: '', limpieza_interna: '', limpieza_externa: '', falla_equipo: '', monedero: '', billetero: '', base_resorte: '', otro: '', notas: '', repartidor: '', elaboro: '' },
+        { id: 'v4', visitLabel: '', mon_inicial: '', mon_final: '', pruebas: '', ventas_externas: '', limpieza_interna: '', limpieza_externa: '', falla_equipo: '', monedero: '', billetero: '', base_resorte: '', otro: '', notas: '', repartidor: '', elaboro: '' },
       ];
     }
     return visits.map(v => ({
       ...v,
-      repartidor: v.repartidor || currentUserName
+      repartidor: v.repartidor ?? ''
     }));
   };
 
@@ -7545,7 +7578,7 @@ export default function ModulePlaceholder({
                                         value={currentSelVal}
                                         onChange={(e) => handleSmartSelChange(row, e.target.value)}
                                         className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-black text-xs text-slate-800 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
-                                        placeholder="Sel"
+                                        placeholder=""
                                         title="Código de selección (ej. 11, S024). Escribe un código para extraer los datos de producto automáticamente."
                                       />
                                     </td>
@@ -7559,7 +7592,7 @@ export default function ModulePlaceholder({
                                           value={currentNameVal}
                                           onChange={(e) => handleSmartNombreChange(row, e.target.value)}
                                           className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-left font-bold text-xs text-slate-900 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
-                                          placeholder="Nombre del Producto"
+                                          placeholder=""
                                           title="Escribe el nombre del producto o selecciona de la lista"
                                         />
                                         <datalist id={`prods-datalist-${row.id}`}>
@@ -8120,7 +8153,7 @@ export default function ModulePlaceholder({
                                       value={vis.visitLabel}
                                       onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'visitLabel', e.target.value)}
                                       className="w-full bg-white/90 border border-emerald-300 rounded px-1.5 py-1 text-center font-black text-emerald-900 text-xs focus:ring-1 focus:ring-emerald-600"
-                                      placeholder="Visita / $"
+                                      placeholder=""
                                     />
                                     {visits.length > 1 && (
                                       <button
@@ -8149,7 +8182,7 @@ export default function ModulePlaceholder({
                                     value={vis.mon_inicial || ''}
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'mon_inicial', e.target.value)}
                                     className="w-full bg-white/90 border border-emerald-300 rounded px-2 py-1 text-center text-xs font-black text-emerald-950 focus:ring-1 focus:ring-emerald-600 shadow-3xs"
-                                    placeholder="$ 0"
+                                    placeholder=""
                                   />
                                 </td>
                               ))}
@@ -8166,7 +8199,7 @@ export default function ModulePlaceholder({
                                     value={vis.mon_final || ''}
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'mon_final', e.target.value)}
                                     className="w-full bg-white/90 border border-emerald-300 rounded px-2 py-1 text-center text-xs font-black text-emerald-950 focus:ring-1 focus:ring-emerald-600 shadow-3xs"
-                                    placeholder="$ 0"
+                                    placeholder=""
                                   />
                                 </td>
                               ))}
@@ -8217,6 +8250,7 @@ export default function ModulePlaceholder({
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'limpieza_interna', e.target.value)}
                                     className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
                                   >
+                                    <option value=""></option>
                                     <option value="si">si</option>
                                     <option value="no">no</option>
                                   </select>
@@ -8237,6 +8271,7 @@ export default function ModulePlaceholder({
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'limpieza_externa', e.target.value)}
                                     className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
                                   >
+                                    <option value=""></option>
                                     <option value="si">si</option>
                                     <option value="no">no</option>
                                   </select>
@@ -8257,6 +8292,7 @@ export default function ModulePlaceholder({
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'falla_equipo', e.target.value)}
                                     className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-center text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-600"
                                   >
+                                    <option value=""></option>
                                     <option value="no">no</option>
                                     <option value="si">si</option>
                                   </select>
@@ -8355,10 +8391,10 @@ export default function ModulePlaceholder({
                                 <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-200 text-center">
                                   <input
                                     type="text"
-                                    value={vis.repartidor || currentUserName}
+                                    value={vis.repartidor ?? ''}
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'repartidor', e.target.value)}
                                     className="w-full bg-white/95 border border-emerald-300 rounded px-2 py-1 text-center text-xs font-black text-emerald-950 focus:ring-1 focus:ring-emerald-600 shadow-3xs"
-                                    placeholder="Nombre repartidor"
+                                    placeholder=""
                                   />
                                 </td>
                               ))}
