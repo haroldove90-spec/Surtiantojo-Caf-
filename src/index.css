@@ -29,4 +29,16 @@ label {
   font-weight: 700;
 }
 
+/* Remove datalist drop-down arrow indicator from text inputs */
+input::-webkit-calendar-picker-indicator,
+input::-webkit-list-button {
+  display: none !important;
+  opacity: 0 !important;
+  -webkit-appearance: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+}
+
 

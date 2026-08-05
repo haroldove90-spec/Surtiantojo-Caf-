@@ -971,14 +971,30 @@ export default function ModulePlaceholder({
       } catch (e) {}
       return updated;
     });
-    
-    // Auto-save to Supabase
-    let currentData: any[] = [];
-    if (tabId === 'cer_bb') currentData = cerBBData;
-    else if (tabId === 'art_alt') currentData = artAltData;
-    else if (tabId === 'art_ct') currentData = artCtData;
-    else currentData = genericSubmenuData[tabId] || [];
-    saveToSupabase(tabId, currentData, cleaned);
+
+    // Ensure all existing rows keep their current values and add the new header key
+    const updateRowsWithNewKey = (rows: any[] = []) => {
+      return rows.map(r => ({
+        ...r,
+        values: {
+          ...(r.values || {}),
+          [newHeaderName]: r.values?.[newHeaderName] !== undefined ? r.values[newHeaderName] : ''
+        }
+      }));
+    };
+
+    if (tabId === 'cer_bb') setCerBBData(prev => updateRowsWithNewKey(prev));
+    else if (tabId === 'art_alt') setArtAltData(prev => updateRowsWithNewKey(prev));
+    else if (tabId === 'art_ct') setArtCtData(prev => updateRowsWithNewKey(prev));
+    else {
+      setGenericSubmenuData(prev => ({
+        ...prev,
+        [tabId]: updateRowsWithNewKey(prev[tabId] || [])
+      }));
+    }
+
+    setSaveNotification(`📅 ¡Columna "${newHeaderName}" agregada exitosamente!`);
+    setTimeout(() => setSaveNotification(null), 4000);
   };
 
   const handleRemoveColumn = (headerToRemove: string, customTabId?: string) => {
@@ -1393,16 +1409,46 @@ export default function ModulePlaceholder({
           };
         });
 
-        // Safely set states without infinite looping
-        if (tabId === 'cer_bb') setCerBBData(updatedRows);
-        else if (tabId === 'art_alt') setArtAltData(updatedRows);
-        else if (tabId === 'art_ct') setArtCtData(updatedRows);
+        // Safely update state without overwriting user-typed text or wiping other rows
+        const updateStateRowsSafely = (prevList: any[] = []) => {
+          if (!prevList || prevList.length === 0) return updatedRows;
+          return prevList.map(localRow => {
+            const dbItem = updatedRows.find((u: any) => u.id === localRow.id || (localRow.codigo && u.codigo === localRow.codigo));
+            if (!dbItem) return localRow;
+            const keepName = (localRow.nombre_producto && !/^Producto \d+$/i.test(String(localRow.nombre_producto).trim()))
+              ? localRow.nombre_producto
+              : (dbItem.nombre_producto || localRow.nombre_producto);
+            const mergedValues = { ...(dbItem.values || {}) };
+            if (localRow.values) {
+              Object.keys(localRow.values).forEach(k => {
+                if (localRow.values[k] !== undefined && localRow.values[k] !== null && String(localRow.values[k]).trim() !== '') {
+                  mergedValues[k] = localRow.values[k];
+                }
+              });
+            }
+
+            return {
+              ...localRow,
+              id: dbItem.id || localRow.id,
+              nombre_producto: keepName,
+              precio_venta: localRow.precio_venta || dbItem.precio_venta,
+              resorte: localRow.resorte || dbItem.resorte,
+              sel: localRow.sel || dbItem.sel || dbItem.codigo,
+              values: mergedValues
+            };
+          });
+        };
+
+        if (tabId === 'cer_bb') setCerBBData(prev => updateStateRowsSafely(prev));
+        else if (tabId === 'art_alt') setArtAltData(prev => updateStateRowsSafely(prev));
+        else if (tabId === 'art_ct') setArtCtData(prev => updateStateRowsSafely(prev));
         else {
           setGenericSubmenuData(prev => ({
             ...prev,
-            [tabId]: updatedRows
+            [tabId]: updateStateRowsSafely(prev[tabId] || [])
           }));
         }
+
       }
     } catch (err) {
       console.error("Error in saveToSupabase:", err);
@@ -5581,34 +5627,24 @@ export default function ModulePlaceholder({
         };
 
         const handleUpdateDynamicCellValue = (rowId: number, header: string, value: string) => {
-          let updatedRow: any = null;
           handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
             if (r.id === rowId) {
               const updatedValues = { ...(r.values || {}), [header]: value };
-              updatedRow = { ...r, values: updatedValues };
-              return updatedRow;
+              return { ...r, values: updatedValues };
             }
             return r;
           }));
-          if (updatedRow) {
-            saveToSupabase(activeSupplySubmenu, [updatedRow]);
-          }
         };
 
         // Smart cell helper to update fields and persist
         const handleUpdateSmartRowFields = (rowId: number, fieldUpdates: Record<string, any>) => {
-          let updatedRow: any = null;
           handleUpdateSubmenuData((prev: any[]) => prev.map(r => {
             if (r.id === rowId) {
               const updatedValues = { ...(r.values || {}), ...fieldUpdates };
-              updatedRow = { ...r, ...fieldUpdates, values: updatedValues };
-              return updatedRow;
+              return { ...r, ...fieldUpdates, values: updatedValues };
             }
             return r;
           }));
-          if (updatedRow) {
-            saveToSupabase(activeSupplySubmenu, [updatedRow]);
-          }
         };
 
         // Smart handler when user types or changes SEL (e.g. 11, S024)
@@ -7472,6 +7508,23 @@ export default function ModulePlaceholder({
                       </div>
 
                       {/* Table 2: 'Tabla Principal de Productos / Surtido */}
+                      {saveNotification && (
+                        <div className="mb-3 px-4 py-3 bg-emerald-600 text-white font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center justify-between gap-3 animate-fadeIn border border-emerald-500">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+                            <span>{saveNotification}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSaveNotification(null)}
+                            className="text-white hover:text-emerald-100 font-black text-sm cursor-pointer px-2 py-0.5 rounded-lg hover:bg-emerald-700 transition-colors"
+                            title="Cerrar notificación"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+
                       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-xs">
                         <table className="w-full text-xs text-left border-collapse border border-slate-300">
                           <thead>
