@@ -913,6 +913,19 @@ export default function ModulePlaceholder({
     setMachineMaintenance(prev => ({ ...prev, [tabId]: updated }));
   };
 
+  const handleSaveBitacora = (tabId: string) => {
+    const visits = getMachineVisits(tabId);
+    setMachineMaintenance(prev => {
+      const updated = { ...prev, [tabId]: visits };
+      try {
+        localStorage.setItem('surtiantojo_machine_maintenance', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    setSaveNotification('¡Bitácora de Control y Mantenimiento guardada exitosamente!');
+    setTimeout(() => setSaveNotification(null), 4000);
+  };
+
   // Dynamic Date Column Management (+)
   const handleAddFechaColumn = (customTabId?: string) => {
     const tabId = customTabId || activeSupplySubmenu;
@@ -7516,6 +7529,15 @@ export default function ModulePlaceholder({
                                   >
                                     <Plus className="w-3 h-3 stroke-[3]" /> Fecha (+)
                                   </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={handleManualSaveSurtido}
+                                    className="inline-flex items-center justify-center gap-1 text-[11px] font-black text-white bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-700 shadow-3xs cursor-pointer transition-all active:scale-95"
+                                    title="Guardar todos los registros de la tabla de productos"
+                                  >
+                                    <Save className="w-3.5 h-3.5" /> Guardar Tabla
+                                  </button>
                                 </div>
                               </th>
                             </tr>
@@ -8148,8 +8170,16 @@ export default function ModulePlaceholder({
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
+                            onClick={() => handleSaveBitacora(activeSupplySubmenu)}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs hover:shadow-md active:scale-95"
+                            title="Guardar todos los registros de la bitácora de control y mantenimiento"
+                          >
+                            <Save className="w-4 h-4" /> Guardar Bitácora
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleAddMaintenanceVisit(activeSupplySubmenu)}
-                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-3xs"
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-black text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-3xs"
                           >
                             <Plus className="w-4 h-4 stroke-[3]" /> Agregar Visita
                           </button>
