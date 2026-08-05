@@ -90,7 +90,7 @@ const cleanHeader = (h: string) => {
 const cleanHeaders = (headersList: string[]): string[] => {
   if (!headersList) return [];
   
-  // 1. Map headers: "Precio sin acuerdo" -> "Precio regular", remove other special/unwanted ones
+  // 1. Map headers: "" -> "Precio regular", remove other special/unwanted ones
   let mapped = headersList.map(h => {
     const norm = h.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
     if (norm === 'precio sin acuerdo' || norm === 'precios sin acuerdo') {
@@ -256,13 +256,13 @@ export default function ModulePlaceholder({
     { id: 'cg1', name: 'CG1', alias: 'Empaque de Cartón Tipo 1', icon: 'Layers', stock: 150, maxStock: 500, category: 'Empaques', unit: 'pzas', fillCount: 3, totalFilledAmount: 450, lastFilledDate: 'Ayer 18:22', loadedProduct: 'Café Molido Premium' },
     { id: 'cg2', name: 'CG2', alias: 'Empaque de Cartón Tipo 2', icon: 'Package', stock: 85, maxStock: 400, category: 'Empaques', unit: 'pzas', fillCount: 1, totalFilledAmount: 120, lastFilledDate: 'Hace 2 horas', loadedProduct: 'Vasos Térmicos 12oz' },
     { id: 'cg3', name: 'CG3', alias: 'Empaque de Cartón Tipo 3', icon: 'Boxes', stock: 18, maxStock: 300, category: 'Empaques', unit: 'pzas', fillCount: 2, totalFilledAmount: 200, lastFilledDate: 'Hace 5 horas', loadedProduct: 'Vasos Plásticos 16oz' },
-    { id: 'art2alt', name: 'ART2ALT', alias: 'Artículo Alternativo Doble', icon: 'Sparkles', stock: 110, maxStock: 250, category: 'Insumos', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
-    { id: 'vitrobb', name: 'VitroBB', alias: 'Frasco Vidrio Bebidas', icon: 'GlassWater', stock: 320, maxStock: 600, category: 'Vidrio', unit: 'pzas', fillCount: 4, totalFilledAmount: 850, lastFilledDate: 'Ayer 15:30', loadedProduct: 'Botella de Vidrio 500ml' },
-    { id: 'artpk', name: 'ARTPK', alias: 'Artículo Empaque Pack', icon: 'Archive', stock: 140, maxStock: 350, category: 'Empaques', unit: 'pzas', fillCount: 1, totalFilledAmount: 140, lastFilledDate: '15 Jun 2026', loadedProduct: 'Bolsas Kraft Medianas' },
-    { id: 'cer1', name: 'CER1', alias: 'Cerámica Especializada 1', icon: 'Coffee', stock: 68, maxStock: 150, category: 'Vajilla', unit: 'pzas', fillCount: 2, totalFilledAmount: 180, lastFilledDate: '14 Jun 2026', loadedProduct: 'Taza Cerámica 8oz' },
-    { id: 'cer2', name: 'CER2', alias: 'Cerámica Especializada 2', icon: 'CupSoda', stock: 14, maxStock: 120, category: 'Vajilla', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
-    { id: 'cerbb', name: 'CERBB', alias: 'Cerámica Bebé Bebidas', icon: 'Milk', stock: 45, maxStock: 100, category: 'Vajilla', unit: 'pzas', fillCount: 1, totalFilledAmount: 45, lastFilledDate: '10 Jun 2026', loadedProduct: 'Taza Espresso Mini' },
-    { id: 'cafe', name: 'CAFÉ', alias: 'Grano de Café Seleccionado', icon: 'Coffee', stock: 35, maxStock: 80, category: 'Materia Prima', unit: 'kgs', fillCount: 5, totalFilledAmount: 120, lastFilledDate: 'Hace 30 min', loadedProduct: 'Grano Espresso Veracruz' },
+    { id: 'art2alt', name: 'ART2ALT', alias: 'Artículo Alternativo Doble', icon: 'Sparkles', stock: 12, maxStock: 250, category: 'Insumos', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'vitrobb', name: 'VitroBB', alias: 'Frasco Vidrio Bebidas', icon: 'GlassWater', stock: 340, maxStock: 600, category: 'Vidrio', unit: 'pzas', fillCount: 5, totalFilledAmount: 850, lastFilledDate: 'Ayer 15:30', loadedProduct: 'Botella de Vidrio 500ml' },
+    { id: 'artpk', name: 'ARTPK', alias: 'Artículo Empaque Pack', icon: 'Archive', stock: 95, maxStock: 350, category: 'Empaques', unit: 'pzas', fillCount: 2, totalFilledAmount: 140, lastFilledDate: '15 Jun 2026', loadedProduct: 'Bolsas Kraft Medianas' },
+    { id: 'cer1', name: 'CER1', alias: 'Cerámica Especializada 1', icon: 'Coffee', stock: 45, maxStock: 150, category: 'Vajilla', unit: 'pzas', fillCount: 2, totalFilledAmount: 180, lastFilledDate: '14 Jun 2026', loadedProduct: 'Taza Cerámica 8oz' },
+    { id: 'cer2', name: 'CER2', alias: 'Cerámica Especializada 2', icon: 'CupSoda', stock: 8, maxStock: 120, category: 'Vajilla', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cerbb', name: 'CERBB', alias: 'Cerámica Bebé Bebidas', icon: 'Milk', stock: 22, maxStock: 100, category: 'Vajilla', unit: 'pzas', fillCount: 1, totalFilledAmount: 45, lastFilledDate: '10 Jun 2026', loadedProduct: 'Taza Espresso Mini' },
+    { id: 'cafe', name: 'CAFÉ', alias: 'Grano de Café Seleccionado', icon: 'Coffee', stock: 35, maxStock: 80, category: 'Materia Prima', unit: 'kgs', fillCount: 4, totalFilledAmount: 120, lastFilledDate: 'Hace 30 min', loadedProduct: 'Grano Espresso Veracruz' },
   ]);
 
   // Surtido interactive log history (simplified)
@@ -1199,7 +1199,7 @@ export default function ModulePlaceholder({
           headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
           setSubmenuHeaders(prev => ({
             ...prev,
-            [tabId]: ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor']
+            [tabId]: ['', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor']
           }));
         } else {
           // Both original insert and fallback failed
@@ -1926,7 +1926,7 @@ export default function ModulePlaceholder({
         const idx = colMap[key];
         if (idx !== undefined && rowData[idx] !== undefined) {
           let rawVal = rowData[idx].trim();
-          if (rawVal.startsWith('"') && rawVal.endsWith('"')) {
+          if (rawVal.startsWith('"') || rawVal.startsWith("'")) {
             rawVal = rawVal.substring(1, rawVal.length - 1).trim();
           }
           return rawVal;
@@ -2042,22 +2042,24 @@ export default function ModulePlaceholder({
           const sample = textStr.slice(0, 2000);
           for (let i = 0; i < sample.length; i++) {
             const char = sample[i];
-            if (char === '"') {
-              inQuotes = !inQuotes;
+            const nextChar = sample[i + 1] || '';
+            if (char === '"' || char === "'") {
+              if (inQuotes && nextChar === char) {
+                i++; // skip next escaped quote
+              } else {
+                inQuotes = !inQuotes;
+              }
             } else if (!inQuotes) {
               if (char === ',') countComma++;
               else if (char === ';') countSemi++;
               else if (char === '\t') countTab++;
             }
           }
-          if (countSemi > countComma && countSemi > countTab) return ';';
           if (countTab > countComma && countTab > countSemi) return '\t';
+          if (countSemi > countComma) return ';';
           return ',';
         };
-        
-        const delimiter = detectDelimiter(text);
 
-        // 2. CSV parser with dynamic delimiter & quote awareness (supporting newlines inside quotes!)
         const parseCSVToRowsAndCols = (textStr: string, delim: string): string[][] => {
           const result: string[][] = [];
           let currentRow: string[] = [];
@@ -2066,12 +2068,12 @@ export default function ModulePlaceholder({
           
           for (let i = 0; i < textStr.length; i++) {
             const char = textStr[i];
-            const nextChar = textStr[i + 1];
+            const nextChar = textStr[i + 1] || '';
             
-            if (char === '"') {
-              if (inQuotes && nextChar === '"') {
-                currentVal += '"';
-                i++; // skip next escaped quote
+            if (char === '"' || char === "'") {
+              if (inQuotes && nextChar === char) {
+                currentVal += char;
+                i++;
               } else {
                 inQuotes = !inQuotes;
               }
@@ -2079,12 +2081,10 @@ export default function ModulePlaceholder({
               currentRow.push(currentVal.trim());
               currentVal = '';
             } else if ((char === '\r' || char === '\n') && !inQuotes) {
-              // Handle CRLF or LF
               if (char === '\r' && nextChar === '\n') {
                 i++;
               }
               currentRow.push(currentVal.trim());
-              // Skip entirely empty parsed lines
               if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
                 result.push(currentRow);
               }
@@ -2103,6 +2103,7 @@ export default function ModulePlaceholder({
           return result;
         };
 
+        const delimiter = detectDelimiter(text);
         const scoredLines = parseCSVToRowsAndCols(text, delimiter);
         if (scoredLines.length < 2) {
           alert('El archivo no contiene suficientes registros o está vacío.');
@@ -2156,18 +2157,18 @@ export default function ModulePlaceholder({
           piezas_por_caja: ['piezasporcaja', 'pzascaja', 'piezas', 'piezas_por_caja', 'unidadesporcaja', 'pzasporcaja', 'pzas', 'caja_piezas'],
           precio_caja: ['preciocaja', 'precio_caja', 'costocaja', 'costo_caja', 'preciodebox', 'costo_por_caja'],
           precio_unidad: ['preciounitario', 'preciounidad', 'costounitario', 'precio_unidad', 'precio_unitario', 'costo_unitario'],
-          precio_venta: ['precioventa', 'precio_venta', 'venta', 'precioalpublico', 'precio_de_venta'],
-          margen_pct: ['margenpct', 'margen', 'margengana', 'margendeganancia', 'margen_ganancia'],
-          precio_sugerido: ['preciosugerido', 'sugerido', 'precio_sugerido', 'precio_recom', 'sugerido_precio'],
-          margen_ps_pct: ['margenpspct', 'margenps', 'margenpass', 'margen_ps_pct', 'margen_sugerido'],
-          forma_pago: ['formadepago', 'formapago', 'metododepago', 'pago', 'forma_de_pago'],
-          status: ['status', 'estado', 'disponible', 'habilitado'],
-          notas: ['notas', 'descripcion', 'detalles', 'comentarios', 'observaciones'],
-          resorte_usa: ['resorte', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa', 'resortequeusa', 'resortes'],
-          cambio_precio_fecha: ['cambiodeprecio', 'cambiodepreciofecha', 'fechadecambio', 'cambioprecio']
+          precio_venta: ['', 'precio_venta', 'venta', 'precioalpublico', 'precio_de_venta'],
+          margen_pct: ['', 'margen', 'margengana', 'margendeganancia', 'margen_ganancia'],
+          precio_sugerido: ['', 'sugerido', 'precio_sugerido', 'precio_recom', 'sugerido_precio'],
+          margen_ps_pct: ['', 'margenps', 'margenpass', 'margen_ps_pct', 'margen_sugerido'],
+          forma_pago: ['', 'formapago', 'metododepago', 'pago', 'forma_de_pago'],
+          status: ['', 'estado', 'disponible', 'habilitado'],
+          notas: ['', 'descripcion', 'detalles', 'comentarios', 'observaciones'],
+          resorte_usa: ['', 'resorteusa', 'resortedeuso', 'resortedeusocafetera', 'resortedeusocafeteranotas', 'resorte_usa', 'resortequeusa', 'resortes'],
+          cambio_precio_fecha: ['', 'cambiodepreciofecha', 'fechadecambio', 'cambioprecio']
         };
 
-        // Pass 1: Exact matches or direct includes
+        // Pass 1: 'Exact matches or direct includes
         headers.forEach((h, idx) => {
           for (const [key, list] of Object.entries(headerKeywords)) {
             if (colMap[key] === undefined) {
@@ -2178,7 +2179,7 @@ export default function ModulePlaceholder({
           }
         });
 
-        // Pass 2: Fuzzy keyword matches
+        // Pass 2: 'Fuzzy keyword matches
         headers.forEach((h, idx) => {
           for (const [key, list] of Object.entries(headerKeywords)) {
             if (colMap[key] === undefined) {
@@ -2190,7 +2191,7 @@ export default function ModulePlaceholder({
           }
         });
 
-        // Pass 3: Smart fallbacks for crucial fields
+        // Pass 3: 'Smart fallbacks for crucial fields
         if (colMap['codigo'] === undefined && headers.length > 0) {
           // Look for any header that sounds like code
           const foundIdx = headers.findIndex(h => h.includes('cod') || h.includes('id') || h.includes('ref') || h.includes('sku') || h.includes('code'));
@@ -2260,7 +2261,6 @@ export default function ModulePlaceholder({
         if (!text) return;
 
         // Detect delimiter (semicolon for Spanish locales, comma for US, or tab)
-        let delimiter = ',';
         let countComma = 0;
         let countSemi = 0;
         let countTab = 0;
@@ -2268,27 +2268,34 @@ export default function ModulePlaceholder({
         const sample = text.slice(0, 2000);
         for (let i = 0; i < sample.length; i++) {
           const char = sample[i];
-          if (char === '"') inQuotes = !inQuotes;
-          else if (!inQuotes) {
+          const nextChar = sample[i + 1] || '';
+          if (char === '"' || char === "'") {
+            if (inQuotes && nextChar === char) {
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (!inQuotes) {
             if (char === ',') countComma++;
             else if (char === ';') countSemi++;
             else if (char === '\t') countTab++;
           }
         }
-        if (countSemi > countComma && countSemi > countTab) delimiter = ';';
-        else if (countTab > countComma && countTab > countSemi) delimiter = '\t';
+        let delimiter = ',';
+        if (countTab > countComma && countTab > countSemi) delimiter = '\t';
+        else if (countSemi > countComma) delimiter = ';';
 
-        // Custom parser supporting escaped quotes and line breaks
         const lines: string[][] = [];
         let currentRow: string[] = [];
         let currentVal = '';
         inQuotes = false;
+
         for (let i = 0; i < text.length; i++) {
           const char = text[i];
-          const nextChar = text[i + 1];
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              currentVal += '"';
+          const nextChar = text[i + 1] || '';
+          if (char === '"' || char === "'") {
+            if (inQuotes && nextChar === char) {
+              currentVal += char;
               i++;
             } else {
               inQuotes = !inQuotes;
@@ -2374,7 +2381,7 @@ export default function ModulePlaceholder({
         let colProveedor = -1;
         let colFecha = -1;
 
-        // 1st Priority: Exact / Close matches
+        // 1st Priority: 'Exact / Close matches
         headersCleaned.forEach((h, idx) => {
           if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') colCodigo = idx;
           else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
@@ -2385,7 +2392,7 @@ export default function ModulePlaceholder({
           else if (h === 'fecha' || h === 'fechasurtido') colFecha = idx;
         });
 
-        // 2nd Priority: Partial match fallback
+        // 2nd Priority: 'Partial match fallback
         headersCleaned.forEach((h, idx) => {
           if (colCodigo === -1 && (h.includes('codigo') || h.includes('sku') || h.includes('codig') || h === 'ref' || h === 'code') && h !== 'prodcodigo') {
             colCodigo = idx;
@@ -2471,7 +2478,7 @@ export default function ModulePlaceholder({
           const unidadesVal = colUnidades !== -1 && row[colUnidades] ? cleanNumVal(row[colUnidades]) : 0;
           const costoVal = colCosto !== -1 && row[colCosto] ? cleanNumVal(row[colCosto]) : 0;
           const precioVal = colPrecio !== -1 && row[colPrecio] ? cleanNumVal(row[colPrecio]) : 0;
-          const provStr = colProveedor !== -1 && row[colProveedor] ? row[colProveedor].trim() : detectedSupplier;
+          const provStr = colProveedor !== -1 && row[colProveedor] ? row[colProveedor].trim() : 'Proveedor General';
           
           let dateStr = new Date().toISOString().split('T')[0];
           if (colFecha !== -1 && row[colFecha]) {
@@ -2528,9 +2535,9 @@ export default function ModulePlaceholder({
             }
             else {
               setGenericSubmenuData(prev => ({
-                ...prev,
-                [tabId]: parsedRows
-              }));
+            ...prev,
+            [tabId]: parsedRows
+          }));
               setTimeout(() => saveToSupabase(tabId, parsedRows, cleanedOriginalHeaders), 10);
             }
           });
@@ -2585,20 +2592,15 @@ export default function ModulePlaceholder({
     nombre: '',
     proveedor: '',
     piezas_por_caja: 0,
-    precio_caja: 0,
-    precio_unidad: 0,
-    status: 'Activo',
+    precio_unidad: "Activo",
     forma_pago: 'Efectivo',
     precio_venta: 0,
-    margen_pct: 0,
     precio_sugerido: 0,
-    margen_ps_pct: 0,
     cambio_precio_fecha: new Date().toISOString().split('T')[0],
     notas: '',
     resorte_usa: '',
     filtro_especial: '',
-    existencias: 0
-  };
+    existencias: 0 };;
   
   const [form, setForm] = useState(defaultFormState);
 
@@ -3010,20 +3012,20 @@ export default function ModulePlaceholder({
 
     const tableRows = itemsList.map(p => `
       <tr style="border-bottom: 1px solid #e2e8f0;">
-        <td style="padding: 10px 8px; font-weight: 500; font-size: 13px; color: #1e293b;">
-          ${p.codigo ? `<span style="font-size: 9px; font-family: monospace; color: #043077; background-color: #eff6ff; padding: 2px 5px; border-radius: 4px; font-weight: bold; margin-bottom: 3px; display: inline-block;">${p.codigo}</span><br>` : ''}
-          <span style="font-weight: bold;">${p.nombre}</span>
-          ${p.proveedor ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 600;">Prov: ${p.proveedor}</span>` : ''}
-          ${p.piezas_por_caja ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 600;">Piezas/Caja: ${p.piezas_por_caja} pzas</span>` : ''}
+        <td style="padding: 8px; font-weight: 500; font-size: 13px; color: #1e293b;">
+          ${p.codigo ? `<span style="font-size: 11px; font-family: monospace; color: #043077; background-color: #eff6ff; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-bottom: 2px; display: inline-block;">${p.codigo}</span><br>` : ''}
+          <span style="font-weight: 600;">${p.nombre}</span>
+          ${p.proveedor ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 400;">Prov: ${p.proveedor}</span>` : ''}
+          ${p.piezas_por_caja ? `<br><span style="font-size: 11px; color: #64748b; font-weight: 400;">Piezas/Caja: ${p.piezas_por_caja} pzas</span>` : ''}
         </td>
-        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">Caja: ${formatMXN(p.precio_caja)}<br><span style="font-size: 11px; color: #94a3b8;">Unitario: ${formatMXN(p.precio_unidad)}</span></td>
-        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">${formatMXN(p.precio_venta)}</td>
-        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #16a34a;">${safeVal(p.margen_pct).toFixed(1)}%</td>
-        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #1e293b;">${formatMXN(p.precio_sugerido)}</td>
-        <td style="padding: 10px 8px; font-size: 13px; font-weight: bold; color: #043077;">${safeVal(p.margen_ps_pct).toFixed(1)}%</td>
-        <td style="padding: 10px 8px; font-size: 13px; color: #475569;">${p.forma_pago}</td>
-        <td style="padding: 10px 8px; font-size: 12px; font-weight: bold;"><span style="background-color: ${ (String(p.status || '').trim().toLowerCase() === 'activo' || String(p.status || '').trim().toLowerCase() === 'active') ? '#dcfce7' : '#fee2e2'}; color: ${ (String(p.status || '').trim().toLowerCase() === 'activo' || String(p.status || '').trim().toLowerCase() === 'active') ? '#166534' : '#991b1b'}; padding: 2px 8px; border-radius: 9999px;">${p.status}</span></td>
-        <td style="padding: 10px 8px; font-size: 11px; font-family: monospace; color: #64748b;">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : today}</td>
+        <td style="padding: 8px; font-size: 12px; color: #475569;">Caja: ${formatMXN(p.precio_caja)}<br><span style="font-size: 11px; color: #94a3b8;">Unitario: ${formatMXN(p.precio_unidad)}</span></td>
+        <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #1e293b;">${formatMXN(p.precio_venta)}</td>
+        <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #16a34a;">${safeVal(p.margen_pct).toFixed(1)}%</td>
+        <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #1e293b;">${formatMXN(p.precio_sugerido)}</td>
+        <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #043077;">${safeVal(p.margen_ps_pct).toFixed(1)}%</td>
+        <td style="padding: 8px; font-size: 12px; color: #475569;">${p.forma_pago}</td>
+        <td style="padding: 8px; font-size: 12px; font-weight: 600;"><span style="background-color: ${ (String(p.status || '').trim().toLowerCase() === 'activo' || String(p.status || '').trim().toLowerCase() === 'active') ? '#dcfce7' : '#fee2e2'}; color: ${ (String(p.status || '').trim().toLowerCase() === 'activo' || String(p.status || '').trim().toLowerCase() === 'active') ? '#166534' : '#991b1b'}; padding: 2px 8px; border-radius: 12px;">${p.status}</span></td>
+        <td style="padding: 8px; font-size: 11px; font-family: monospace; color: #64748b;">${p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : today}</td>
       </tr>
     `).join('');
 
@@ -3034,20 +3036,20 @@ export default function ModulePlaceholder({
         <meta charset="UTF-8">
         <title>Surtiantojo - Reporte Catálogo</title>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #334155; }
-          .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 25px; margin-bottom: 25px; }
-          .logo { height: 90px; object-fit: contain; margin-bottom: 15px; }
-          .title { font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: -0.5px; }
-          .subtitle { font-size: 12px; font-weight: 700; color: #043077; margin: 5px 0 0 0; letter-spacing: 2px; }
-          .meta-info { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 20px; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background-color: #f8fafc; padding: 12px 8px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; border-bottom: 2px solid #cbd5e1; }
-          .metric-cards { display: flex; gap: 15px; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 25px; }
-          .metric-card { flex: 1; background-color: #f8fafc; border: 1px solid #f1f5f9; padding: 12px; border-radius: 8px; text-align: center; }
-          .metric-title { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #94a3b8; display: block; }
-          .metric-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 3px; display: block; }
-          .no-print-bar { display: flex; justify-content: space-between; align-items: center; background-color: #f1f5f9; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 12px; margin-bottom: 25px; }
-          .print-btn { background-color: #043077; color: white; border: none; padding: 8px 18px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 12px; transition: opacity 0.2s; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #334155; }
+          .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 20px; }
+          .logo { height: 60px; object-fit: contain; margin-bottom: 8px; }
+          .title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: -0.5px; }
+          .subtitle { font-size: 14px; font-weight: 600; color: #043077; margin: 4px 0 0 0; letter-spacing: 0.5px; }
+          .meta-info { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 12px; font-weight: 500; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+          th { background-color: #f8fafc; padding: 8px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; border-bottom: 2px solid #cbd5e1; }
+          .metric-cards { display: flex; gap: 12px; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+          .metric-card { flex: 1; background-color: #f8fafc; border: 1px solid #f1f5f9; padding: 10px; border-radius: 8px; text-align: center; }
+          .metric-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #94a3b8; display: block; }
+          .metric-value { font-size: 16px; font-weight: 800; color: #0f172a; margin-top: 2px; display: block; }
+          .no-print-bar { display: flex; justify-content: space-between; align-items: center; background-color: #f1f5f9; border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
+          .print-btn { background-color: #043077; color: #ffffff; border: none; padding: 8px 16px; font-weight: 600; border-radius: 6px; cursor: pointer; font-size: 13px; transition: opacity 0.2s; }
           .print-btn:hover { opacity: 0.9; }
           @media print {
             .no-print-bar { display: none; }
@@ -3057,7 +3059,7 @@ export default function ModulePlaceholder({
       </head>
       <body>
         <div class="no-print-bar">
-          <span style="font-size: 12px; font-weight: bold; color: #475569;">
+          <span style="font-size: 13px; font-weight: 600; color: #475569;">
             ${isFilteredOnly ? 'Exportando selección de productos' : 'Exportando catálogo completo'} (${itemsList.length} registros)
           </span>
           <button onclick="window.print()" class="print-btn">Imprimir / Guardar como PDF</button>
@@ -3073,18 +3075,18 @@ export default function ModulePlaceholder({
           </div>
         </div>
 
-         <table>
+        <table>
           <thead>
             <tr>
-              <th style="width: 31%">Producto</th>
-              <th style="width: 15%">Costo Caja / Unid</th>
-              <th style="width: 10%">Venta</th>
-              <th style="width: 9%">Margen</th>
-              <th style="width: 11%">Sugerido</th>
-              <th style="width: 11%">Margen Ps</th>
-              <th style="width: 11%">Pago</th>
-              <th style="width: 11%">Status</th>
-              <th style="text-align: right; width: 11%">Registro</th>
+              <th style="width: 31%;">Producto</th>
+              <th style="width: 15%;">Costo Caja / Unid</th>
+              <th style="width: 10%;">Venta</th>
+              <th style="width: 9%;">Margen</th>
+              <th style="width: 11%;">Sugerido</th>
+              <th style="width: 11%;">Margen Ps</th>
+              <th style="width: 11%;">Pago</th>
+              <th style="width: 11%;">Status</th>
+              <th style="text-align: right; width: 11%;">Registro</th>
             </tr>
           </thead>
           <tbody>
@@ -3114,7 +3116,7 @@ export default function ModulePlaceholder({
           </div>
         </div>
 
-        <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic;">
+        <div style="margin-top: 24px; text-align: center; font-size: 10px; color: #94a3b8; font-style: italic;">
           Soporte Surtiantojo Café - Documento válido como inventariado oficial con registro histórico automatizado.
         </div>
       </body>
@@ -3153,7 +3155,7 @@ export default function ModulePlaceholder({
         `"${p.status}"`,
         `"${p.cambio_precio_fecha}"`,
         `"${(p.notas || '').replace(/"/g, '""')}"`,
-        p.created_at ? new Date(p.created_at).toLocaleDateString() : today
+        p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Hoy'
       ].join(',');
     });
 
@@ -3170,11 +3172,10 @@ export default function ModulePlaceholder({
 
   // Common animation setup
   const containerVariants = {
-    hidden: { opacity: 0, y: 15 },
+    hidden: { opacity: 0 },
     visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.4, ease: "easeOut" }
+      opacity: 1,
+      transition: { duration: 0.3 }
     }
   };
 
@@ -3198,7 +3199,7 @@ export default function ModulePlaceholder({
                 <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
                   <div className="bg-gradient-to-r from-blue-600 to-[#043077] h-full" style={{ width: '74%' }}></div>
                 </div>
-                <span className="text-xs text-slate-500 mt-2 block">Meta mensual: $380,000</span>
+                <span className="text-xs text-slate-500 mt-2 block">Meta mensual: '$380,000</span>
               </div>
 
               <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
@@ -3213,7 +3214,7 @@ export default function ModulePlaceholder({
                 <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
                   <div className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full" style={{ width: '85%' }}></div>
                 </div>
-                <span className="text-xs text-slate-500 mt-2 block">Mayor consumo: Capuchinos + Postres</span>
+                <span className="text-xs text-slate-500 mt-2 block">Mayor consumo: 'Capuchinos + Postres</span>
               </div>
 
               <div className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
@@ -3379,7 +3380,7 @@ export default function ModulePlaceholder({
             {/* Filter and controls bar */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col gap-4">
               
-              {/* Row 1: Dropdowns (Full Width) */}
+              {/* Row 1: 'Dropdowns (Full Width) */}
               <div className="flex flex-col sm:flex-row gap-3 w-full">
                 
                 {/* Status Dropdown filter */}
@@ -3421,7 +3422,7 @@ export default function ModulePlaceholder({
                     type="button"
                     onClick={() => handleGlobalStatusChange('Activo')}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-lg cursor-pointer transition-all active:scale-95"
-                    title="Marcar absolutamente todos los productos registrados como Estado: Activo"
+                    title="Marcar absolutamente todos los productos registrados como Estado: 'Activo"
                   >
                     🟢 Activar Todos los Productos ({products.length})
                   </button>
@@ -3429,7 +3430,7 @@ export default function ModulePlaceholder({
                     type="button"
                     onClick={() => handleGlobalStatusChange('Inactivo')}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold rounded-lg cursor-pointer transition-all active:scale-95"
-                    title="Marcar absolutamente todos los productos registrados como Estado: Inactivo"
+                    title="Marcar absolutamente todos los productos registrados como Estado: 'Inactivo"
                   >
                     🔴 Desactivar Todos los Productos ({products.length})
                   </button>
@@ -3462,12 +3463,12 @@ export default function ModulePlaceholder({
                 </div>
               </div>
 
-              {/* Row 2: Metadata counters and exports/actions */}
+              {/* Row 2: 'Metadata counters and exports/actions */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
                 
                 {/* Result count metadata */}
                 <div className="text-xs font-black text-slate-400 uppercase tracking-wider">
-                  Resultados: <span className="text-[#043077] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">{filteredProducts.length}</span> de <span className="text-slate-600">{products.length}</span> registrados
+                  Resultados: '<span className="text-[#043077] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">{filteredProducts.length}</span> de <span className="text-slate-600">{products.length}</span> registrados
                 </div>
 
                 {/* PDF - Excel outputs and Add Product Button */}
@@ -3514,7 +3515,7 @@ export default function ModulePlaceholder({
 
               </div>
 
-              {/* Row 3: Product Search Bar (Moved below Registrar Producto) */}
+              {/* Row 3: 'Product Search Bar (Moved below Registrar Producto) */}
               <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
                 <label className="text-xs font-black text-[#043077] uppercase tracking-wider block">🔍 Buscar por producto:</label>
                 <div className="relative w-full">
@@ -3642,8 +3643,8 @@ export default function ModulePlaceholder({
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap">
                               <div className="text-xs text-slate-600 leading-tight">
-                                <div>Caja: <span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_caja)}</span></div>
-                                <div>Unitario: <span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_unidad)}</span></div>
+                                <div>Caja: '<span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_caja)}</span></div>
+                                <div>Unitario: '<span className="font-bold font-mono text-slate-800">{formatMXN(p.precio_unidad)}</span></div>
                               </div>
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap">
@@ -3787,9 +3788,9 @@ export default function ModulePlaceholder({
             <AnimatePresence>
               {selectedCount > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 50 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-slate-700 flex flex-col sm:flex-row items-center gap-4 max-w-[calc(100vw-3rem)] w-full sm:w-auto"
                 >
                   <div className="text-left">
@@ -3851,15 +3852,15 @@ export default function ModulePlaceholder({
                 <div id="product-form-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
                   <motion.div
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.6 }}
+                    animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setIsFormOpen(false)}
-                    className="absolute inset-0 bg-stone-900"
+                    className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs"
                   />
                   <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.95, opacity: 0 }}
+                    initial={{ scale: 0.95 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0.95 }}
                     className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative max-w-2xl w-full max-h-[90vh] flex flex-col"
                   >
                     {/* Header border line */}
@@ -3887,7 +3888,7 @@ export default function ModulePlaceholder({
                           type="text"
                           value={form.codigo}
                           onChange={(e) => handleFormChange('codigo', e.target.value)}
-                          placeholder="Ej: REF-7210928"
+                          placeholder="Ej: 'REF-7210928"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
                         />
                       </div>
@@ -3900,7 +3901,7 @@ export default function ModulePlaceholder({
                           required
                           value={form.nombre}
                           onChange={(e) => handleFormChange('nombre', e.target.value)}
-                          placeholder="Ej: Café Latte Sabores Premium 16oz"
+                          placeholder="Ej: 'Café Latte Sabores Premium 16oz"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
                         />
                       </div>
@@ -3912,7 +3913,7 @@ export default function ModulePlaceholder({
                           type="text"
                           value={form.proveedor}
                           onChange={(e) => handleFormChange('proveedor', e.target.value)}
-                          placeholder="Ej: Distribuidora Central de Café"
+                          placeholder="Ej: 'Distribuidora Central de Café"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
                         />
                       </div>
@@ -3924,7 +3925,7 @@ export default function ModulePlaceholder({
                           type="number"
                           value={form.piezas_por_caja || ''}
                           onChange={(e) => handleFormChange('piezas_por_caja', Number(e.target.value))}
-                          placeholder="Ej: 24"
+                          placeholder="Ej: '24"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800 font-mono"
                         />
                       </div>
@@ -4064,7 +4065,7 @@ export default function ModulePlaceholder({
                           type="text"
                           value={form.resorte_usa}
                           onChange={(e) => handleFormChange('resorte_usa', e.target.value)}
-                          placeholder="Ej: 58mm"
+                          placeholder="Ej: '58mm"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#043077] text-slate-800"
                         />
                       </div>
@@ -4100,15 +4101,15 @@ export default function ModulePlaceholder({
                 <div id="import-preview-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
                   <motion.div
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.6 }}
+                    animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => { if (!isImportingProgress) setImportSummary(null); }}
-                    className="absolute inset-0 bg-stone-900"
+                    className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs"
                   />
                   <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.95, opacity: 0 }}
+                    initial={{ scale: 0.95 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0.95 }}
                     className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative max-w-4xl w-full max-h-[90vh] flex flex-col z-10"
                   >
                     {/* Header line themed in corporate navy blue */}
@@ -4120,7 +4121,7 @@ export default function ModulePlaceholder({
                           <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> Previsualizar Importación de Excel
                         </h4>
                         <p className="text-xs text-slate-500 font-bold mt-1">
-                          Archivo: <span className="font-mono text-[#043077]">{importSummary.fileName}</span> — {importSummary.items.length} productos detectados
+                          Archivo: '<span className="font-mono text-[#043077]">{importSummary.fileName}</span> — {importSummary.items.length} productos detectados
                         </p>
                       </div>
                       <button
@@ -4216,7 +4217,7 @@ export default function ModulePlaceholder({
 
                     <div className="p-6 border-t border-slate-100 flex items-center justify-between bg-slate-50">
                       <span className="text-xs text-slate-500 font-bold shrink-0">
-                        Total a procesar: <span className="text-slate-800 font-black text-sm">{importSummary.items.length} productos</span>
+                        Total a procesar: '<span className="text-slate-800 font-black text-sm">{importSummary.items.length} productos</span>
                       </span>
                       <div className="flex items-center gap-3">
                         <button
@@ -4257,15 +4258,15 @@ export default function ModulePlaceholder({
                 <div id="product-details-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
                   <motion.div
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.6 }}
+                    animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setViewingItem(null)}
-                    className="absolute inset-0 bg-stone-900"
+                    className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs"
                   />
                   <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.95, opacity: 0 }}
+                    initial={{ scale: 0.95 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0.95 }}
                     className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative max-w-xl w-full p-6 text-left"
                   >
                     {/* Header line */}
@@ -4284,7 +4285,7 @@ export default function ModulePlaceholder({
                         <h4 className="text-lg font-black text-slate-900 mt-1">{viewingItem.nombre}</h4>
                         {viewingItem.proveedor && (
                           <span className="text-xs font-semibold text-slate-500 block mt-0.5">
-                            Proveedor: <span className="font-bold text-slate-700">{viewingItem.proveedor}</span>
+                            Proveedor: '<span className="font-bold text-slate-700">{viewingItem.proveedor}</span>
                           </span>
                         )}
                       </div>
@@ -4411,19 +4412,19 @@ export default function ModulePlaceholder({
         const filteredCards = surtidoCards;
 
         const defaultInventoryProducts = [
-          { id: 'p_cg1', codigo: 'CG1-P', nombre: 'Cartones de Empaque CG1', proveedor: 'Proveedora General S.A.', precio_venta: 12.50 },
-          { id: 'p_cg2', codigo: 'CG2-P', nombre: 'Cartones de Empaque CG2', proveedor: 'Proveedora General S.A.', precio_venta: 18.00 },
-          { id: 'p_cg3', codigo: 'CG3-P', nombre: 'Cartones de Empaque CG3', proveedor: 'Proveedora General S.A.', precio_venta: 24.50 },
-          { id: 'p_alt', codigo: 'ALT-INS', nombre: 'Insumo Alternativo Plus', proveedor: 'Distribuidora del Centro', precio_venta: 8.50 },
-          { id: 'p_vit', codigo: 'VIT-BB', nombre: 'Botellas de Vidrio Bebidas 350ml', proveedor: 'Vitromex', precio_venta: 14.00 },
-          { id: 'p_pk', codigo: 'PK-EMP', nombre: 'Artículos Empaque Combo-Pack', proveedor: 'Industrial Cajas', precio_venta: 32.00 },
-          { id: 'p_cer1', codigo: 'CER-1', nombre: 'Taza Cerámica Artisan White 8oz', proveedor: 'Vajillas Oaxaca', precio_venta: 110.00 },
-          { id: 'p_cer2', codigo: 'CER-2', nombre: 'Taza Cerámica Artisan Black 12oz', proveedor: 'Vajillas Oaxaca', precio_venta: 130.00 },
-          { id: 'p_cerbb', codigo: 'CER-BB', nombre: 'Jarros Infantiles Petit', proveedor: 'Vajillas Oaxaca', precio_venta: 85.00 },
-          { id: 'p_cafe', codigo: 'CAF-EXP', nombre: 'Grano de Café Veracruz (Espresso)', proveedor: 'Cafetalera Coatepec', precio_venta: 290.00 },
+          { id: 'p_cg1', codigo: 'CG1-P', nombre: 'Cartones de Empaque CG1', proveedor: 'Proveedora General S.A.', precio_venta: 0 },
+          { id: 'p_cg2', codigo: 'CG2-P', nombre: 'Cartones de Empaque CG2', proveedor: 'Proveedora General S.A.', precio_venta: 0 },
+          { id: 'p_cg3', codigo: 'CG3-P', nombre: 'Cartones de Empaque CG3', proveedor: 'Proveedora General S.A.', precio_venta: 0 },
+          { id: 'p_alt', codigo: 'ALT-INS', nombre: 'Insumo Alternativo Plus', proveedor: 'Distribuidora del Centro', precio_venta: 0 },
+          { id: 'p_vit', codigo: 'VIT-BB', nombre: 'Botellas de Vidrio Bebidas 350ml', proveedor: 'Vitromex', precio_venta: 0 },
+          { id: 'p_pk', codigo: 'PK-EMP', nombre: 'Artículos Empaque Combo-Pack', proveedor: 'Industrial Cajas', precio_venta: 0 },
+          { id: 'p_cer1', codigo: 'CER-1', nombre: 'Taza Cerámica Artisan White 8oz', proveedor: 'Vajillas Oaxaca', precio_venta: 0 },
+          { id: 'p_cer2', codigo: 'CER-2', nombre: 'Taza Cerámica Artisan Black 12oz', proveedor: 'Vajillas Oaxaca', precio_venta: 0 },
+          { id: 'p_cerbb', codigo: 'CER-BB', nombre: 'Jarros Infantiles Petit', proveedor: 'Vajillas Oaxaca', precio_venta: 0 },
+          { id: 'p_cafe', codigo: 'CAF-EXP', nombre: 'Grano de Café Veracruz (Espresso)', proveedor: 'Cafetalera Coatepec', precio_venta: 0 },
         ];
 
-        const availableProducts = products.length > 0 ? products : defaultInventoryProducts;
+        const availableProducts = products.length > 0 ? products : [];
 
         const handleStockChange = (id: string, delta: number) => {
           setSurtidoCards(prev => prev.map(c => {
@@ -4760,13 +4761,10 @@ export default function ModulePlaceholder({
                 const pCode = `${subName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-1`;
                 return [
                   {
-                    id: 1,
-                    codigo: pCode,
+                    id: pCode,
                     nombre_producto: `Surtido Inicial de ${subName}`,
-                    unidad_surtida: 40,
-                    costo_surtido: 15.00,
-                    precio_venta: 30.00,
-                    proveedor: 'Proveedor General',
+                    unidad_surtida: 15.00,
+                    precio_venta: "Proveedor General",
                     fecha_registro: new Date().toISOString().split('T')[0]
                   }
                 ];
@@ -4807,13 +4805,10 @@ export default function ModulePlaceholder({
                 const pCode = `${subName.replace(/\s+/g, '').substring(0,3).toUpperCase()}-1`;
                 return [
                   {
-                    id: 1,
-                    codigo: pCode,
+                    id: pCode,
                     nombre_producto: `Surtido Inicial de ${subName}`,
-                    unidad_surtida: 40,
-                    costo_surtido: 15.00,
-                    precio_venta: 30.00,
-                    proveedor: 'Proveedor General',
+                    unidad_surtida: 15.00,
+                    precio_venta: "Proveedor General",
                     fecha_registro: new Date().toISOString().split('T')[0]
                   }
                 ];
@@ -4866,8 +4861,7 @@ export default function ModulePlaceholder({
               const costo = safeVal(row.costo_surtido);
               if (precio === 0) return acc;
               return acc + (((precio - costo) / precio) * 100);
-            }, 0) / filteredSubmenuRows.length)
-          : 0;
+            }, 0) / filteredSubmenuRows.length) : 0;
 
         // SQL generation based on current submenu
         const getDynamicSQL = () => {
@@ -4955,59 +4949,25 @@ export default function ModulePlaceholder({
                   }
                   return `'${String(val).replace(/'/g, "''")}'`;
                 });
-                return `(${rowVals.join(', ')})`;
-              }).join(',\n');
-
-              sqlText += insertValues + `;\n\n`;
+                return `  (${rowVals.join(', ')})`;
+              });
+              sqlText += insertValues.join(',\n') + ';\n\n';
             }
-          } else {
-            // Default table schema
-            sqlText += `CREATE TABLE ${tableName} (\n`;
-            sqlText += `    id SERIAL PRIMARY KEY,\n`;
-            sqlText += `    codigo VARCHAR(50) NOT NULL,\n`;
-            sqlText += `    nombre_producto VARCHAR(150) NOT NULL,\n`;
-            sqlText += `    unidad_surtida INT DEFAULT 0,\n`;
-            sqlText += `    costo_surtido DECIMAL(10,2) DEFAULT 0.00,\n`;
-            sqlText += `    precio_venta DECIMAL(10,2) DEFAULT 0.00,\n`;
-            sqlText += `    importe_total DECIMAL(10,2) GENERATED ALWAYS AS (unidad_surtida * precio_venta) STORED,\n`;
-            sqlText += `    fecha_registro DATE DEFAULT CURRENT_DATE,\n`;
-            sqlText += `    proveedor VARCHAR(100) DEFAULT 'Proveedor General'\n`;
-            sqlText += `);\n\n`;
 
-            if (currentRows.length > 0) {
-              sqlText += `-- Seeding Inicial de Registros de Surtido\n`;
-              sqlText += `INSERT INTO ${tableName} (codigo, nombre_producto, unidad_surtida, costo_surtido, precio_venta, proveedor, fecha_registro)\nVALUES\n`;
-              
-              const insertValues = currentRows.map(row => {
-                const codeEscaped = `'${(row.codigo || '').replace(/'/g, "''")}'`;
-                const nameEscaped = `'${(row.nombre_producto || '').replace(/'/g, "''")}'`;
-                const provEscaped = `'${(row.proveedor || '').replace(/'/g, "''")}'`;
-                return `(${codeEscaped}, ${nameEscaped}, ${row.unidad_surtida}, ${row.costo_surtido}, ${row.precio_venta}, ${provEscaped}, '${row.fecha_registro}')`;
-              }).join(',\n');
-              
-              sqlText += insertValues + `;\n\n`;
-            }
-          }
+            // Create View for KPIs
+            sqlText += `-- Vista Analítica KPI\n`;
+            sqlText += `CREATE VIEW v_${tableName}_resumen AS\n`;
+            sqlText += `SELECT\n`;
+            sqlText += `    COUNT(*) AS total_registros,\n`;
 
-          sqlText += `-- ⚠️ DESACTIVAR SEGURIDAD RLS PARA ACCESO DIRECTO DESDE CLIENTE:\n`;
-          sqlText += `ALTER TABLE IF EXISTS ${tableName} DISABLE ROW LEVEL SECURITY;\n`;
-          sqlText += `GRANT ALL ON TABLE ${tableName} TO anon;\n`;
-          sqlText += `GRANT ALL ON TABLE ${tableName} TO authenticated;\n`;
-          sqlText += `GRANT ALL ON SEQUENCE ${tableName}_id_seq TO anon;\n`;
-          sqlText += `GRANT ALL ON SEQUENCE ${tableName}_id_seq TO authenticated;\n\n`;
-
-          sqlText += `-- Consulta Analítica de Dashboard: Calcular Ganancia Bruta y Margen Real\n`;
-          sqlText += `SELECT \n`;
-          if (headers.length > 0) {
-            // Find columns for calculations
-            let surtirCol = 'surtir';
-            let precioCol = 'precio_vta';
-            let costoCol = '0'; // fallback if no costo exists
+            let surtirCol = 'unidad_surtida';
+            let costoCol = 'costo_surtido';
+            let precioCol = 'precio_venta';
             let foundVenta = false;
-            
-            headers.forEach(h => {
-              const cleanH = cleanHeader(h);
-              const sqlCol = h.toLowerCase()
+
+            headers.forEach(header => {
+              const cleanH = cleanHeader(header);
+              const sqlCol = header.toLowerCase()
                 .normalize("NFD")
                 .replace(/[\u0300-\u036f]/g, "")
                 .replace(/[^a-z0-9]/g, "_")
@@ -5051,16 +5011,16 @@ export default function ModulePlaceholder({
           sqlText += `        FROM information_schema.tables\n`;
           sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name != 'surtido_submenus' AND table_name != 'surtido_bitacora_mantenimiento'\n`;
           sqlText += `    LOOP\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS sel VARCHAR(50) DEFAULT '''';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT '''';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS sel VARCHAR(50) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT ';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS precio_venta DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT '''';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT '''';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT '''';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT '''';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT '''';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT ';', t);\n`;
           sqlText += `    END LOOP;\n`;
           sqlText += `END $$;\n\n`;
 
@@ -5124,7 +5084,7 @@ export default function ModulePlaceholder({
           const hasDynamicHeaders = activeSubHeaders.length > 0;
           const colLabels = hasDynamicHeaders 
             ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
-            : ['ID', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
+            : ['', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
 
           const headers = colLabels.map(label => `"${label.replace(/"/g, '""')}"`).join(';');
           const rows = sortedDataToExport.map(item => {
@@ -5164,7 +5124,7 @@ export default function ModulePlaceholder({
             headers,
             ...rows,
             '',
-            '"BITÁCORA DE CONTROL Y MANTENIMIENTO DE MÁQUINA"',
+            '',
             ['Concepto', 'Detalle', ...getMachineVisits(tabId).map(v => v.visitLabel || 'Visita')].map(v => `"${v.replace(/"/g, '""')}"`).join(';'),
             ...[
               { concept: 'Mon. Inicial', detail: '', key: 'mon_inicial' },
@@ -5233,7 +5193,7 @@ export default function ModulePlaceholder({
 
             const colLabels = hasDynamicHeaders 
               ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
-              : ['Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
+              : ['', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
 
             // Title block for this submenu
             exportBlocks.push(`"MÁQUINA / SUBMENÚ: ${submenu.name.replace(/"/g, '""')}"`);
@@ -5869,13 +5829,10 @@ export default function ModulePlaceholder({
           setSupplySubmenuList(prev => sortSubmenus([...prev, newTabItem]));
           
           const initialRow = { 
-            id: 1, 
-            codigo: `${cleanTitle.substring(0,3).toUpperCase()}-1`, 
+            id: `${cleanTitle.substring(0,3).toUpperCase()}-1`, 
             nombre_producto: `Insumo Inicial ${cleanTitle}`, 
-            unidad_surtida: 40, 
-            costo_surtido: 35.00, 
-            precio_venta: 70.00, 
-            proveedor: 'Proveedor Asociado', 
+            unidad_surtida: 35.00, 
+            precio_venta: 0, 
             fecha_registro: new Date().toISOString().split('T')[0] 
           };
 
@@ -6054,7 +6011,7 @@ export default function ModulePlaceholder({
               {/* Grid interactive display split */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
                 
-                {/* Left side: Selector table of raw products */}
+                {/* Left side: 'Selector table of raw products */}
                 <div className="lg:col-span-7 bg-white border border-slate-200 rounded-3xl p-3 sm:p-6 shadow-xs flex flex-col gap-4">
                   <div>
                     <h5 className="text-xs font-black text-[#043077] uppercase tracking-wider">
@@ -6195,7 +6152,7 @@ export default function ModulePlaceholder({
                   </div>
                 </div>
 
-                {/* Right side: Amount picker / refill configurations */}
+                {/* Right side: 'Amount picker / refill configurations */}
                 <div className="lg:col-span-5 flex flex-col gap-6">
                   
                   {/* Visual Status Metrics */}
@@ -6338,7 +6295,7 @@ export default function ModulePlaceholder({
           );
         }
 
-        // 2. DEFAULT RENDER: MAIN OVERVIEW DECK OF CARDS
+        // 2. DEFAULT RENDER: 'MAIN OVERVIEW DECK OF CARDS
         return (
           <div className="space-y-6 text-left">
             
@@ -6348,7 +6305,7 @@ export default function ModulePlaceholder({
               
               {/* 4 Core Menus Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* Menu 1: Maq. Botana */}
+                {/* Menu 1: 'Maq. Botana */}
                 <button
                   type="button"
                   onClick={() => handleSelectCategory('botana')}
@@ -6382,7 +6339,7 @@ export default function ModulePlaceholder({
                   </div>
                 </button>
 
-                {/* Menu 2: Maq. Bebidas */}
+                {/* Menu 2: 'Maq. Bebidas */}
                 <button
                   type="button"
                   onClick={() => handleSelectCategory('bebidas')}
@@ -6416,7 +6373,7 @@ export default function ModulePlaceholder({
                   </div>
                 </button>
 
-                {/* Menu 3: Maq. de Café */}
+                {/* Menu 3: 'Maq. de Café */}
                 <button
                   type="button"
                   onClick={() => handleSelectCategory('cafe')}
@@ -6450,7 +6407,7 @@ export default function ModulePlaceholder({
                   </div>
                 </button>
 
-                {/* Menu 4: Registrar acceso */}
+                {/* Menu 4: 'Registrar acceso */}
                 <button
                   type="button"
                   onClick={() => setAddSubmenuOpen(true)}
@@ -6482,8 +6439,8 @@ export default function ModulePlaceholder({
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeCategory}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   exit={{ opacity: 0, y: -5 }}
                   className="bg-slate-50/50 border border-slate-200/60 p-4 rounded-2xl"
                 >
@@ -6554,7 +6511,7 @@ export default function ModulePlaceholder({
 
             {/* Render dynamically depending on chosen submenu */}
             {activeSupplySubmenu === 'vending_surtido' ? (
-              // Option A: Render standard general vending terminals cards
+              // Option A: 'Render standard general vending terminals cards
               <div className="space-y-6">
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-2xl text-left select-none flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                   <div>
@@ -6763,7 +6720,7 @@ export default function ModulePlaceholder({
                   return (
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      animate={{ opacity: 1 }}
                       className="p-5 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex flex-col md:flex-row gap-4 items-start text-left shadow-2xs relative"
                     >
                       <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
@@ -6972,7 +6929,7 @@ export default function ModulePlaceholder({
                 {addSupplyRowOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    animate={{ opacity: 1 }}
                     className="p-5 bg-slate-50 border border-slate-200 rounded-2xl text-left space-y-4"
                   >
                     <div className="flex justify-between items-center border-b border-slate-150 pb-2">
@@ -6993,7 +6950,7 @@ export default function ModulePlaceholder({
                         <label className="text-[10px] text-[#043077] font-extrabold block">Selección (SEL)</label>
                         <input
                           type="text"
-                          placeholder="p. ej: 15"
+                          placeholder="p. ej: '15"
                           value={rowSeleccion}
                           onChange={(e) => {
                             isManualSelRef.current = true;
@@ -7072,7 +7029,7 @@ export default function ModulePlaceholder({
                         <label className="text-[10px] text-slate-500 font-bold block">Código Producto</label>
                         <input
                           type="text"
-                          placeholder="p. ej: CER-BB-06"
+                          placeholder="p. ej: 'CER-BB-06"
                           value={rowCodigo}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -7135,7 +7092,7 @@ export default function ModulePlaceholder({
                               >
                                 <div className="flex justify-between items-center">
                                   <span className="font-mono font-black text-[11px] text-[#043077]">
-                                    {prod.codigo || `ID: ${prod.id}`}
+                                    {prod.codigo || `ID: '${prod.id}`}
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-[100px]">
                                     {prod.proveedor || 'Genérico'}
@@ -7145,8 +7102,8 @@ export default function ModulePlaceholder({
                                   {prod.nombre}
                                 </span>
                                 <div className="flex gap-2 text-[9px] text-slate-500 font-bold">
-                                  <span>Costo: <strong className="text-slate-700">${prod.precio_unidad || 0}</strong></span>
-                                  <span>Precio: <strong className="text-emerald-600">${prod.precio_venta || 0}</strong></span>
+                                  <span>Costo: '<strong className="text-slate-700">${prod.precio_unidad || 0}</strong></span>
+                                  <span>Precio: '<strong className="text-emerald-600">${prod.precio_venta || 0}</strong></span>
                                 </div>
                               </button>
                             ))}
@@ -7206,7 +7163,7 @@ export default function ModulePlaceholder({
                               >
                                 <div className="flex justify-between items-center">
                                   <span className="font-mono font-black text-[11px] text-[#043077]">
-                                    {prod.codigo || `ID: ${prod.id}`}
+                                    {prod.codigo || `ID: '${prod.id}`}
                                   </span>
                                   <span className="text-[9px] text-slate-400 font-bold uppercase truncate max-w-[100px]">
                                     {prod.proveedor || 'Genérico'}
@@ -7216,8 +7173,8 @@ export default function ModulePlaceholder({
                                   {prod.nombre}
                                 </span>
                                 <div className="flex gap-2 text-[9px] text-slate-500 font-bold">
-                                  <span>Costo: <strong className="text-slate-700">${prod.precio_unidad || 0}</strong></span>
-                                  <span>Precio: <strong className="text-emerald-600">${prod.precio_venta || 0}</strong></span>
+                                  <span>Costo: '<strong className="text-slate-700">${prod.precio_unidad || 0}</strong></span>
+                                  <span>Precio: '<strong className="text-emerald-600">${prod.precio_venta || 0}</strong></span>
                                 </div>
                               </button>
                             ))}
@@ -7255,7 +7212,7 @@ export default function ModulePlaceholder({
                         <label className="text-[10px] text-slate-500 font-bold block">Resorte</label>
                         <input
                           type="text"
-                          placeholder="Tamaño de resorte (p. ej: 12)"
+                          placeholder="Tamaño de resorte (p. ej: )"
                           value={rowResorte}
                           onChange={(e) => setRowResorte(e.target.value)}
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-[#043077]"
@@ -7291,7 +7248,7 @@ export default function ModulePlaceholder({
                                 <label className="text-[10px] text-[#043077] font-extrabold block uppercase tracking-wider">{header}</label>
                                 <input
                                   type="text"
-                                  inputMode={isFechaHeader ? "numeric" : "text"}
+                                  inputMode={isFechaHeader ? "numeric" : ""}
                                   pattern={isFechaHeader ? "[0-9]*" : undefined}
                                   placeholder={isFechaHeader ? `Ingrese ${header} (solo números)...` : `Ingrese ${header}...`}
                                   value={addRowValues[header] || ''}
@@ -7330,8 +7287,8 @@ export default function ModulePlaceholder({
                 {/* Show Live Postgres SQL generation script for backing up this specific submenu data */}
                 {showSQLSchema && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
                     className="p-5 bg-slate-900 text-slate-100 rounded-2xl text-left font-mono space-y-3 shadow-inner"
                   >
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2">
@@ -7383,7 +7340,7 @@ export default function ModulePlaceholder({
 
                   return (
                     <div className="space-y-6">
-                      {/* Table 1: Resumen de Cabecera (Unid. Vtas, $ Ventas, Inventario) */}
+                      {/* Table 1: 'Resumen de Cabecera (Unid. Vtas, $ Ventas, Inventario) */}
                       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-xs">
                         <table className="w-full text-xs text-left border-collapse border border-slate-300">
                           <thead>
@@ -7395,7 +7352,7 @@ export default function ModulePlaceholder({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-300 bg-white font-medium text-slate-700">
-                            {/* Row 1: Unid.Vtas. */}
+                            {/* Row 1: 'Unid.Vtas. */}
                             <tr className="border-b border-slate-300 hover:bg-slate-50/70">
                               <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">1</td>
                               <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">Unid. Vtas.</td>
@@ -7411,7 +7368,7 @@ export default function ModulePlaceholder({
                               <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
                             </tr>
 
-                            {/* Row 2: $Ventas */}
+                            {/* Row 2: '$Ventas */}
                             <tr className="border-b border-slate-300 hover:bg-slate-50/70">
                               <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700">2</td>
                               <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">$ Ventas</td>
@@ -7427,7 +7384,7 @@ export default function ModulePlaceholder({
                               <td className="py-2.5 px-3 text-center text-slate-400 bg-slate-50/40"></td>
                             </tr>
 
-                            {/* Row 3: Inventario */}
+                            {/* Row 3: 'Inventario */}
                             <tr className="hover:bg-slate-50/70">
                               <td className="py-2.5 px-3 border-r border-slate-300 text-center font-black text-slate-700"></td>
                               <td className="py-2.5 px-3 border-r border-slate-300 font-extrabold text-slate-900">Inventario</td>
@@ -7446,7 +7403,7 @@ export default function ModulePlaceholder({
                         </table>
                       </div>
 
-                      {/* Table 2: Tabla Principal de Productos / Surtido */}
+                      {/* Table 2: 'Tabla Principal de Productos / Surtido */}
                       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-xs">
                         <table className="w-full text-xs text-left border-collapse border border-slate-300">
                           <thead>
@@ -7457,8 +7414,7 @@ export default function ModulePlaceholder({
                               <th className="py-2.5 px-3 border-r border-slate-300 text-center font-extrabold min-w-[90px] bg-slate-100">Resorte</th>
                               {dateCols.map((dateHeader, idx) => {
                                 const currentTitle = customDateHeaders[activeSupplySubmenu]?.[idx] !== undefined
-                                  ? customDateHeaders[activeSupplySubmenu][idx]
-                                  : dateHeader;
+                                  ? customDateHeaders[activeSupplySubmenu][idx] : dateHeader;
                                 return (
                                   <th key={idx} className="py-1.5 px-2 border-r border-slate-300 text-center font-extrabold min-w-[130px] bg-slate-100 group relative">
                                     <div className="flex items-center justify-center gap-1">
@@ -7552,18 +7508,33 @@ export default function ModulePlaceholder({
                             ) : (
                               paginatedSubmenuRows.map((row, rowIdx) => {
                                 const matchedProd = findMatchingProduct(row);
-                                const currentSelVal = (row.sel !== undefined && row.sel !== null)
+                                let currentSelVal = (row.sel !== undefined && row.sel !== null)
                                   ? String(row.sel)
                                   : (row.slot !== undefined && row.slot !== null ? String(row.slot) : (row.codigo !== undefined && row.codigo !== null ? String(row.codigo) : ''));
-                                const currentNameVal = (row.nombre_producto !== undefined && row.nombre_producto !== null)
+                                if (currentSelVal.startsWith('PROD-S-') || currentSelVal.includes('-S-') || currentSelVal.startsWith('PROD-')) {
+                                  currentSelVal = '';
+                                }
+
+                                let currentNameVal = (row.nombre_producto !== undefined && row.nombre_producto !== null)
                                   ? String(row.nombre_producto)
                                   : (row.producto !== undefined && row.producto !== null ? String(row.producto) : (row.articulo || ''));
-                                const currentPriceVal = (row.precio_venta !== undefined && row.precio_venta !== null)
+                                if (/^Producto \d+$/i.test(currentNameVal.trim()) || /^Producto Importado \d+$/i.test(currentNameVal.trim())) {
+                                  currentNameVal = '';
+                                }
+
+                                let currentPriceVal = (row.precio_venta !== undefined && row.precio_venta !== null)
                                   ? String(row.precio_venta)
                                   : '';
-                                const currentResorteVal = (row.resorte !== undefined && row.resorte !== null)
+                                if (currentPriceVal === '0' || currentPriceVal === '0.00' || currentPriceVal === '$0' || currentPriceVal === '$0.00' || currentPriceVal === '0.0') {
+                                  currentPriceVal = '';
+                                }
+
+                                let currentResorteVal = (row.resorte !== undefined && row.resorte !== null)
                                   ? String(row.resorte)
                                   : (row.resort !== undefined && row.resort !== null ? String(row.resort) : '');
+                                if (currentResorteVal === '0') {
+                                  currentResorteVal = '';
+                                }
 
                                 return (
                                   <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
@@ -8100,7 +8071,7 @@ export default function ModulePlaceholder({
                   </div>
                 )}
 
-                {/* Nueva Tarjeta: Bitácora de Control y Mantenimiento por Visita (1 grupo por máquina) */}
+                {/* Nueva Tarjeta: 'Bitácora de Control y Mantenimiento por Visita (1 grupo por máquina) */}
                 {(() => {
                   const visits = getMachineVisits(activeSupplySubmenu);
                   return (
@@ -8167,7 +8138,7 @@ export default function ModulePlaceholder({
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-emerald-100 font-bold text-slate-700">
-                            {/* Row 0A: Mon. Inicial */}
+                            {/* Row 0A: 'Mon. Inicial */}
                             <tr className="bg-[#e2f0d9]/60 hover:bg-[#d5e8c8]/80 transition-colors">
                               <td className="py-2 px-3 font-black text-slate-900 border-r border-emerald-200 bg-[#d5e8c8]">Mon. Inicial</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-200 text-[11px] bg-[#d5e8c8]"></td>
@@ -8184,7 +8155,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 0B: Mon. Final */}
+                            {/* Row 0B: 'Mon. Final */}
                             <tr className="bg-[#e2f0d9]/60 hover:bg-[#d5e8c8]/80 transition-colors">
                               <td className="py-2 px-3 font-black text-slate-900 border-r border-emerald-200 bg-[#d5e8c8]">Mon. Final</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-200 text-[11px] bg-[#d5e8c8]"></td>
@@ -8201,7 +8172,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 1: Pruebas con $$ */}
+                            {/* Row 1: 'Pruebas con $$ */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Pruebas con $$</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">Cuanto $?</td>
@@ -8217,7 +8188,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 2: Ventas Externas */}
+                            {/* Row 2: 'Ventas Externas */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Ventas Externas</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">Cuanto $?</td>
@@ -8233,7 +8204,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 3: Limpieza interna */}
+                            {/* Row 3: 'Limpieza interna */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Limpieza interna</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">
@@ -8253,7 +8224,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 4: Limpieza externa */}
+                            {/* Row 4: 'Limpieza externa */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Limpieza externa</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">
@@ -8273,7 +8244,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 5: Falla de equipo */}
+                            {/* Row 5: 'Falla de equipo */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Falla de equipo</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">
@@ -8293,7 +8264,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 6: Monedero */}
+                            {/* Row 6: 'Monedero */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Monedero</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
@@ -8309,7 +8280,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 7: Billetero */}
+                            {/* Row 7: 'Billetero */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Billetero</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
@@ -8325,7 +8296,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 8: Base de resorte */}
+                            {/* Row 8: 'Base de resorte */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Base de resorte</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
@@ -8341,7 +8312,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 9: Otro */}
+                            {/* Row 9: 'Otro */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Otro</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
@@ -8357,7 +8328,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 10: Notas */}
+                            {/* Row 10: 'Notas */}
                             <tr className="hover:bg-emerald-50/40">
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Notas</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">-</td>
@@ -8373,7 +8344,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 10B: Nombre del repartidor */}
+                            {/* Row 10B: 'Nombre del repartidor */}
                             <tr className="bg-emerald-50/60 hover:bg-emerald-100/50 transition-colors">
                               <td className="py-2 px-3 font-black text-emerald-950 border-r border-emerald-200 bg-emerald-100/60 flex items-center gap-1.5 whitespace-nowrap">
                                 <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -8393,7 +8364,7 @@ export default function ModulePlaceholder({
                               ))}
                             </tr>
 
-                            {/* Row 11: Elaboro (green row matching design image!) */}
+                            {/* Row 11: 'Elaboro (green row matching design image!) */}
                             <tr className="bg-[#00b050] text-white font-extrabold">
                               <td className="py-2.5 px-3 font-black text-white border-r border-emerald-600">Elaboro</td>
                               <td className="py-2.5 px-3 text-emerald-100 font-bold border-r border-emerald-600 text-[11px]">-</td>
@@ -8422,8 +8393,8 @@ export default function ModulePlaceholder({
             {addSubmenuOpen && (
               <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
                 <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
                   className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xl w-full max-w-md space-y-4 text-left"
                 >
                   <div className="flex justify-between items-center border-b border-slate-150 pb-3">
@@ -8461,7 +8432,7 @@ export default function ModulePlaceholder({
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título de registro de máquina</label>
                       <input
                         type="text"
-                        placeholder="p. ej: Máquina de refrescos pasillo central"
+                        placeholder="p. ej: 'Máquina de refrescos pasillo central"
                         value={newSubmenuTitle}
                         onChange={(e) => setNewSubmenuTitle(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
@@ -8472,7 +8443,7 @@ export default function ModulePlaceholder({
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cliente</label>
                       <input
                         type="text"
-                        placeholder="p. ej: Empresa Cliente S.A."
+                        placeholder="p. ej: 'Empresa Cliente S.A."
                         value={newSubmenuCliente}
                         onChange={(e) => setNewSubmenuCliente(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
@@ -8543,8 +8514,8 @@ export default function ModulePlaceholder({
             {isEditSubmenuOpen && (
               <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
                 <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
                   className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xl w-full max-w-md space-y-4 text-left"
                 >
                   <div className="flex justify-between items-center border-b border-slate-150 pb-3">
@@ -8582,7 +8553,7 @@ export default function ModulePlaceholder({
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título de registro de máquina</label>
                       <input
                         type="text"
-                        placeholder="p. ej: Máquina de refrescos pasillo central"
+                        placeholder="p. ej: 'Máquina de refrescos pasillo central"
                         value={editSubmenuTitle}
                         onChange={(e) => setEditSubmenuTitle(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
@@ -8593,7 +8564,7 @@ export default function ModulePlaceholder({
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cliente</label>
                       <input
                         type="text"
-                        placeholder="p. ej: Empresa Cliente S.A."
+                        placeholder="p. ej: 'Empresa Cliente S.A."
                         value={editSubmenuCliente}
                         onChange={(e) => setEditSubmenuCliente(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
@@ -8686,9 +8657,9 @@ export default function ModulePlaceholder({
                 <div className="space-y-4">
                   {[
                     { rank: 1, name: 'Capuchino Aromático 16oz', sales: '320 tazas', rev: '$15,360', pct: 40 },
-                    { rank: 2, name: 'Café Americano 12oz', sales: '280 tazas', rev: '$9,800', pct: 28 },
-                    { rank: 3, name: 'Rebanada Tres Leches', sales: '142 pzas', rev: '$7,810', pct: 16 },
-                    { rank: 4, name: 'Espresso Intenso Doble', sales: '110 tazas', rev: '$3,300', pct: 9 },
+                    { rank: 2, name: 'Café Americano 12oz', sales: '280 tazas', rev: '$9,800', pct: 25 },
+                    { rank: 3, name: 'Rebanada Tres Leches', sales: '142 pzas', rev: '$7,810', pct: 18 },
+                    { rank: 4, name: 'Espresso Intenso Doble', sales: '110 tazas', rev: '$3,300', pct: 10 },
                     { rank: 5, name: 'Cuernito de Mantequilla', sales: '94 pzas', rev: '$2,632', pct: 7 },
                   ].map((top, idx) => (
                     <div key={idx} className="flex items-center justify-between">
@@ -8804,7 +8775,7 @@ export default function ModulePlaceholder({
               <div className="p-5 bg-white border border-slate-150 rounded-2xl text-left space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-extrabold text-[#043077]">Ranking VIP de Clientes</span>
-                  <span className="text-xs font-mono text-slate-500">Total: 182 Registros</span>
+                  <span className="text-xs font-mono text-slate-500">Total: '182 Registros</span>
                 </div>
                 <div className="space-y-3">
                   {[
@@ -8833,7 +8804,7 @@ export default function ModulePlaceholder({
                 </div>
                 <div className="pt-3">
                   <span className="inline-block text-xs font-bold font-mono bg-white/20 px-3.5 py-1.5 rounded">
-                    Código de Promoción: CAFEVIP10
+                    Código de Promoción: 'CAFEVIP10
                   </span>
                 </div>
               </div>
@@ -8845,8 +8816,8 @@ export default function ModulePlaceholder({
               <h4 className="text-sm md:text-md font-extrabold text-slate-900">Estado de Cuentas y Fidelidad</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { name: 'Gabriela Martínez', activeStamps: 7, totalCofees: 32, phone: '55-1234-5678' },
-                  { name: 'Héctor Vega', activeStamps: 1, totalCofees: 11, phone: '55-3456-7890' },
+                  { name: "Gabriela Martínez", activeStamps: 7, totalCoffees: 32, phone: "55-1234-5678" },
+                  { name: "Héctor Vega", activeStamps: 1, totalCoffees: 11, phone: "55-3456-7890" },
                 ].map((client, idx) => (
                   <div key={idx} className="p-3.5 bg-slate-50 rounded-xl space-y-3.5 border border-slate-100">
                     <div className="flex justify-between">
@@ -8855,7 +8826,7 @@ export default function ModulePlaceholder({
                         <p className="text-xs text-slate-500">{client.phone}</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-sm font-bold text-slate-700 block">{client.totalCofees} consumidos</span>
+                        <span className="text-sm font-bold text-slate-700 block">{client.totalCoffees} consumidos</span>
                       </div>
                     </div>
                     {/* Visual Stamp Card */}
@@ -8950,9 +8921,9 @@ export default function ModulePlaceholder({
                 <h4 className="text-base font-extrabold text-slate-900">Salud General de Maquinaria</h4>
                 <div className="space-y-4">
                   {[
-                    { machine: 'Máquina Espresso Italiana', health: 94, state: 'Excelente' },
-                    { machine: 'Molino de Café Principal', health: 88, state: 'Óptimo' },
-                    { machine: 'Refrigerador Vitrina Postres', health: 76, state: 'Revisión Filtro' },
+                    { machine: "Máquina Espresso Italiana", health: 94, state: "Excelente" },
+                    { machine: "Molino de Café Principal", health: 88, state: "Óptimo" },
+                    { machine: "Refrigerador Vitrina Postres", health: 76, state: "Revisión Filtro" },
                   ].map((mch, idx) => (
                     <div key={idx} className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -8976,7 +8947,7 @@ export default function ModulePlaceholder({
                   </div>
                   <div className="flex items-center gap-2.5 p-3 rounded-lg bg-amber-50 text-amber-800 border-l-4 border-l-amber-600 text-sm font-bold">
                     <Clock className="w-5 h-5 shrink-0" />
-                    <span>Calibración de muelas del molino: Fin de mes</span>
+                    <span>Calibración de muelas del molino: 'Fin de mes</span>
                   </div>
                 </div>
               </div>
@@ -9316,7 +9287,7 @@ CREATE POLICY "Allow public delete on usuarios" ON usuarios FOR DELETE USING (tr
 
                     <div className="relative">
                       <input
-                        type={showEmpPassword ? "text" : "password"}
+                        type={showEmpPassword ? "text" : ""}
                         required
                         value={empContrasena}
                         onChange={(e) => setEmpContrasena(e.target.value)}
@@ -9523,80 +9494,80 @@ CREATE POLICY "Allow public delete on usuarios" ON usuarios FOR DELETE USING (tr
     switch (moduleId) {
       case 'metrics':
         return {
-          title: "Métricas Generales",
-          desc: "Visualiza reportes financieros, tasas de conversión, ventas netas y el rendimiento mensual de tu cafetería.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'products':
         return {
-          title: "Catálogo de Productos",
-          desc: "Administra el menú de bebidas, postres, desayunos y paquetes de Surtiantojo Café con precios y categorías.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'supply':
         return {
-          title: "Surtido & Abastecimiento",
-          desc: "Controla compras de insumos (grano de café, leche, tazas, empaques) con alertas de niveles de reabastecimiento.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'sales_by_product':
         return {
-          title: "Venta por Producto",
-          desc: "Analiza el top de bebidas más vendidas, alimentos favoritos de los clientes y horas de mayor consumo.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'expenses':
         return {
-          title: "Control de Gastos",
-          desc: "Registra egresos operativos, pago de nómina, renta local, mantenimientos y servicios para balance neto.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'client_accounts':
         return {
-          title: "Cuentas y Clientes",
-          desc: "Fidelización de clientes habituales. Con la tarjeta digital acumulan tazas de café y obtienen descuentos.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'routes':
         return {
-          title: "Rutas de Despacho",
-          desc: "Monitorea entregas de insumos a sucursales secundarias y rutas de pedidos especiales a domicilio.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'maintenance':
         return {
-          title: "Mantenimiento Preventivo",
-          desc: "Calendariza limpieza de caldera, descalcificación espresso, calibración de molinos y revisión de refrigeración.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'profile':
         return {
-          title: "Mi Perfil de Usuario",
-          desc: "Configura tus datos de contacto, accesos de seguridad, roles del personal y preferencias del sistema.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       case 'employees':
         return {
-          title: "Gestión de Empleados & Repartidores",
-          desc: "Alta de empleados con roles de Administrador o Surtidor, generación de contraseñas seguras y envío directo de credenciales por WhatsApp.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
       default:
         return {
-          title: "Módulo del Sistema",
-          desc: "Administración integral de la operación de Surtiantojo Café.",
-          color: "border-[#043077] bg-white",
-          accentColor: "text-[#043077]"
+          title: "",
+          desc: "",
+          color: "",
+          accentColor: ""
         };
     }
   };
