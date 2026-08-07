@@ -902,10 +902,16 @@ export default function ModulePlaceholder({
         .delete()
         .eq('maquina_id', tabId);
 
-      if (delErr && (delErr.code === '42P01' || delErr.message.toLowerCase().includes('does not exist'))) {
-        setSaveNotification('¡Bitácora guardada localmente! (Atención: Ejecuta el script SQL en Supabase para crear la tabla "surtido_bitacora_mantenimiento")');
-        setTimeout(() => setSaveNotification(null), 6000);
-        return;
+      if (delErr) {
+        if (delErr.code === '42P01' || delErr.message.toLowerCase().includes('does not exist')) {
+          setSaveNotification('¡Bitácora guardada localmente! (Ejecuta el script SQL en Supabase para crear la tabla "surtido_bitacora_mantenimiento")');
+          setTimeout(() => setSaveNotification(null), 6000);
+          return;
+        } else if (delErr.code === '42501' || delErr.message.toLowerCase().includes('permission') || delErr.message.toLowerCase().includes('policy')) {
+          setSaveNotification('¡Error de permisos en Supabase! Ejecuta "ALTER TABLE surtido_bitacora_mantenimiento DISABLE ROW LEVEL SECURITY;" en Supabase.');
+          setTimeout(() => setSaveNotification(null), 7000);
+          return;
+        }
       }
 
       const rowsToInsert = visits.map((v, idx) => ({
@@ -933,7 +939,7 @@ export default function ModulePlaceholder({
 
       if (insErr) {
         console.warn("Supabase bitacora insert info:", insErr.message);
-        setSaveNotification(`¡Guardado localmente! (Supabase: ${insErr.message})`);
+        setSaveNotification(`¡Guardado localmente! (Supabase error: ${insErr.message})`);
       } else {
         setSaveNotification('¡Bitácora de Control y Mantenimiento guardada exitosamente en Supabase!');
       }
@@ -5172,6 +5178,8 @@ export default function ModulePlaceholder({
           sqlText += `    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n`;
           sqlText += `);\n`;
           sqlText += `ALTER TABLE surtido_bitacora_mantenimiento ADD COLUMN IF NOT EXISTS nombre_repartidor VARCHAR(255) DEFAULT '';\n`;
+          sqlText += `ALTER TABLE surtido_bitacora_mantenimiento DISABLE ROW LEVEL SECURITY;\n`;
+          sqlText += `GRANT ALL ON TABLE surtido_bitacora_mantenimiento TO anon, authenticated, postgres, service_role;\n`;
           sqlText += `CREATE INDEX IF NOT EXISTS idx_bitacora_maquina_id ON surtido_bitacora_mantenimiento(maquina_id);\n`;
 
           return sqlText;
