@@ -254,16 +254,16 @@ export default function ModulePlaceholder({
 
   // Surtido / Abastecimiento custom state with refill metrics
   const [surtidoCards, setSurtidoCards] = useState([
-    { id: 'cg1', name: 'CG1', alias: 'Empaque de Cartón Tipo 1', icon: 'Layers', stock: 150, maxStock: 500, category: 'Empaques', unit: 'pzas', fillCount: 3, totalFilledAmount: 450, lastFilledDate: 'Ayer 18:22', loadedProduct: 'Café Molido Premium' },
-    { id: 'cg2', name: 'CG2', alias: 'Empaque de Cartón Tipo 2', icon: 'Package', stock: 85, maxStock: 400, category: 'Empaques', unit: 'pzas', fillCount: 1, totalFilledAmount: 120, lastFilledDate: 'Hace 2 horas', loadedProduct: 'Vasos Térmicos 12oz' },
-    { id: 'cg3', name: 'CG3', alias: 'Empaque de Cartón Tipo 3', icon: 'Boxes', stock: 18, maxStock: 300, category: 'Empaques', unit: 'pzas', fillCount: 2, totalFilledAmount: 200, lastFilledDate: 'Hace 5 horas', loadedProduct: 'Vasos Plásticos 16oz' },
-    { id: 'art2alt', name: 'ART2ALT', alias: 'Artículo Alternativo Doble', icon: 'Sparkles', stock: 12, maxStock: 250, category: 'Insumos', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
-    { id: 'vitrobb', name: 'VitroBB', alias: 'Frasco Vidrio Bebidas', icon: 'GlassWater', stock: 340, maxStock: 600, category: 'Vidrio', unit: 'pzas', fillCount: 5, totalFilledAmount: 850, lastFilledDate: 'Ayer 15:30', loadedProduct: 'Botella de Vidrio 500ml' },
-    { id: 'artpk', name: 'ARTPK', alias: 'Artículo Empaque Pack', icon: 'Archive', stock: 95, maxStock: 350, category: 'Empaques', unit: 'pzas', fillCount: 2, totalFilledAmount: 140, lastFilledDate: '15 Jun 2026', loadedProduct: 'Bolsas Kraft Medianas' },
-    { id: 'cer1', name: 'CER1', alias: 'Cerámica Especializada 1', icon: 'Coffee', stock: 45, maxStock: 150, category: 'Vajilla', unit: 'pzas', fillCount: 2, totalFilledAmount: 180, lastFilledDate: '14 Jun 2026', loadedProduct: 'Taza Cerámica 8oz' },
-    { id: 'cer2', name: 'CER2', alias: 'Cerámica Especializada 2', icon: 'CupSoda', stock: 8, maxStock: 120, category: 'Vajilla', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
-    { id: 'cerbb', name: 'CERBB', alias: 'Cerámica Bebé Bebidas', icon: 'Milk', stock: 22, maxStock: 100, category: 'Vajilla', unit: 'pzas', fillCount: 1, totalFilledAmount: 45, lastFilledDate: '10 Jun 2026', loadedProduct: 'Taza Espresso Mini' },
-    { id: 'cafe', name: 'CAFÉ', alias: 'Grano de Café Seleccionado', icon: 'Coffee', stock: 35, maxStock: 80, category: 'Materia Prima', unit: 'kgs', fillCount: 4, totalFilledAmount: 120, lastFilledDate: 'Hace 30 min', loadedProduct: 'Grano Espresso Veracruz' },
+    { id: 'cg1', name: 'CG1', alias: 'Empaque de Cartón Tipo 1', icon: 'Layers', stock: 0, maxStock: 500, category: 'Empaques', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cg2', name: 'CG2', alias: 'Empaque de Cartón Tipo 2', icon: 'Package', stock: 0, maxStock: 400, category: 'Empaques', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cg3', name: 'CG3', alias: 'Empaque de Cartón Tipo 3', icon: 'Boxes', stock: 0, maxStock: 300, category: 'Empaques', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'art2alt', name: 'ART2ALT', alias: 'Artículo Alternativo Doble', icon: 'Sparkles', stock: 0, maxStock: 250, category: 'Insumos', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'vitrobb', name: 'VitroBB', alias: 'Frasco Vidrio Bebidas', icon: 'GlassWater', stock: 0, maxStock: 600, category: 'Vidrio', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'artpk', name: 'ARTPK', alias: 'Artículo Empaque Pack', icon: 'Archive', stock: 0, maxStock: 350, category: 'Empaques', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cer1', name: 'CER1', alias: 'Cerámica Especializada 1', icon: 'Coffee', stock: 0, maxStock: 150, category: 'Vajilla', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cer2', name: 'CER2', alias: 'Cerámica Especializada 2', icon: 'CupSoda', stock: 0, maxStock: 120, category: 'Vajilla', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cerbb', name: 'CERBB', alias: 'Cerámica Bebé Bebidas', icon: 'Milk', stock: 0, maxStock: 100, category: 'Vajilla', unit: 'pzas', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
+    { id: 'cafe', name: 'CAFÉ', alias: 'Grano de Café Seleccionado', icon: 'Coffee', stock: 0, maxStock: 80, category: 'Materia Prima', unit: 'kgs', fillCount: 0, totalFilledAmount: 0, lastFilledDate: 'Nunca', loadedProduct: 'Sin Producto' },
   ]);
 
   // Surtido interactive log history (simplified)
@@ -676,42 +676,12 @@ export default function ModulePlaceholder({
     return updatedObj;
   };
 
-  const [cerBBData, setCerBBData] = useState<any[]>(() => {
-    try {
-      const stored = localStorage.getItem('surtiantojo_cer_bb');
-      return stored ? normalizeRowListWithResorte(JSON.parse(stored)) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [artAltData, setArtAltData] = useState<any[]>(() => {
-    try {
-      const stored = localStorage.getItem('surtiantojo_art_alt');
-      return stored ? normalizeRowListWithResorte(JSON.parse(stored)) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  const [artCtData, setArtCtData] = useState<any[]>(() => {
-    try {
-      const stored = localStorage.getItem('surtiantojo_art_ct');
-      return stored ? normalizeRowListWithResorte(JSON.parse(stored)) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [cerBBData, setCerBBData] = useState<any[]>([]);
+  const [artAltData, setArtAltData] = useState<any[]>([]);
+  const [artCtData, setArtCtData] = useState<any[]>([]);
 
   // Dynamic content list map for custom added ones!
-  const [genericSubmenuData, setGenericSubmenuData] = useState<Record<string, Array<any>>>(() => {
-    try {
-      const stored = localStorage.getItem('surtiantojo_generic_submenu');
-      return stored ? normalizeGenericSubmenuWithResorte(JSON.parse(stored)) : {};
-    } catch (e) {
-      return {};
-    }
-  });
+  const [genericSubmenuData, setGenericSubmenuData] = useState<Record<string, Array<any>>>({});
 
   // Save submenu headers for dynamic CSV import
   const [submenuHeaders, setSubmenuHeaders] = useState<Record<string, string[]>>(() => {
@@ -1164,9 +1134,16 @@ export default function ModulePlaceholder({
       let updateErrGlobal: any = null;
 
       if (mappedRowsToUpdate.length > 0) {
+        // Deduplicate update batch by ID to prevent Postgres ON CONFLICT DO UPDATE conflict
+        const uniqueToUpdateMap = new Map<number, any>();
+        mappedRowsToUpdate.forEach(item => {
+          if (item.id) uniqueToUpdateMap.set(item.id, item);
+        });
+        const uniqueMappedRowsToUpdate = Array.from(uniqueToUpdateMap.values());
+
         const { data: updateRes, error: updateErr } = await supabase
           .from(tableName)
-          .upsert(mappedRowsToUpdate, { onConflict: 'id' })
+          .upsert(uniqueMappedRowsToUpdate, { onConflict: 'id' })
           .select();
         
         if (updateErr) {
@@ -5561,16 +5538,21 @@ export default function ModulePlaceholder({
         };
 
         const handleClearAllSubmenuRows = () => {
-          if (isSurtidorOnly) return;
           const count = currentSubmenuData.length;
           if (count === 0) {
             alert("No hay registros para borrar en esta sección.");
             return;
           }
-          if (confirm(`⚠️ ALERTA DE BORRADO MASIVO \n\n¿Estás completamente seguro de eliminar TODOS los ${count} registros de esta sección (${activeMeta.name})?\n\nEsta acción borrará la tabla entera.`)) {
+          if (confirm(`⚠️ ALERTA DE BORRADO DE TABLA\n\n¿Deseas vaciar todos los ${count} registros de "${activeMeta.name}"?`)) {
             handleUpdateSubmenuData([]);
             clearTableInSupabase(activeSupplySubmenu);
             setSelectedRowIds([]);
+            if (activeSupplySubmenu === 'cer_bb') setCerBBData([]);
+            else if (activeSupplySubmenu === 'art_alt') setArtAltData([]);
+            else if (activeSupplySubmenu === 'art_ct') setArtCtData([]);
+            else {
+              setGenericSubmenuData(prev => ({ ...prev, [activeSupplySubmenu]: [] }));
+            }
           }
         };
 
@@ -5914,10 +5896,10 @@ export default function ModulePlaceholder({
             fecha_registro: new Date().toISOString().split('T')[0] 
           };
 
-          // Bootstrap state
+          // Bootstrap state empty by default for manual entry
           setGenericSubmenuData(prev => ({
             ...prev,
-            [generatedId]: [initialRow]
+            [generatedId]: []
           }));
 
           // Persist custom submenu definition in Supabase metadata table
@@ -5934,8 +5916,6 @@ export default function ModulePlaceholder({
               console.log("Supabase submenus config status:", error.message);
             } else {
               console.log("Submenu registered successfully in Supabase!");
-              // Save default row inside the new table in Supabase!
-              setTimeout(() => saveToSupabase(generatedId, [initialRow]), 200);
             }
           });
 
@@ -7007,14 +6987,14 @@ export default function ModulePlaceholder({
                     )}
 
                     {/* 4. Vaciar máquina */}
-                    {!isSurtidorOnly && currentSubmenuData.length > 0 && (
+                    {currentSubmenuData.length > 0 && (
                       <button
                         type="button"
                         onClick={handleClearAllSubmenuRows}
                         className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/30 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                        title="Eliminar todos los registros de esta sección de forma masiva"
+                        title="Eliminar todos los registros de esta sección"
                       >
-                        <Trash2 className="w-3.5 h-3.5" /> Vaciar máquina
+                        <Trash2 className="w-3.5 h-3.5" /> Vaciar Tabla
                       </button>
                     )}
 
@@ -7671,7 +7651,7 @@ export default function ModulePlaceholder({
                                 }
 
                                 return (
-                                  <tr key={row.id} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
+                                  <tr key={`surtidor_row_${row.id || 'id'}_${rowIdx}`} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
                                     {/* 1. SEL (Código / Selección smart cell) */}
                                     <td className="py-1.5 px-2 border-r border-slate-300 text-center">
                                       <input
@@ -7698,7 +7678,7 @@ export default function ModulePlaceholder({
                                         />
                                         <datalist id={`prods-datalist-${row.id}`}>
                                           {availableProducts.map((p: any, pIdx: number) => (
-                                            <option key={p.id || pIdx} value={p.nombre || p.nombre_producto || p.name} />
+                                            <option key={`p_opt_${p.id || 'p'}_${pIdx}`} value={p.nombre || p.nombre_producto || p.name} />
                                           ))}
                                         </datalist>
                                       </div>
@@ -7842,11 +7822,17 @@ export default function ModulePlaceholder({
                         {paginatedSubmenuRows.length === 0 ? (
                           <tr>
                             <td colSpan={15} className="py-12 text-center text-slate-400 font-bold bg-slate-50/50">
-                              No hay registros cargados para {activeMeta.name} que coincidan con la búsqueda.
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                <Package className="w-8 h-8 text-slate-300" />
+                                <p className="text-sm font-black text-slate-600">No hay registros en la tabla para {activeMeta.name}</p>
+                                <p className="text-xs text-slate-400 font-medium max-w-md">
+                                  La tabla se llenará automáticamente al capturar o surtir datos. Puedes agregar filas con el botón <strong className="text-slate-600">+ FILA</strong>.
+                                </p>
+                              </div>
                             </td>
                           </tr>
                         ) : (
-                          paginatedSubmenuRows.map((row) => {
+                          paginatedSubmenuRows.map((row, rowIdx) => {
                             const isEditing = row.id === editingRowId;
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
                             const rawDisplaySubHeaders = isSurtidorOnly 
@@ -7864,7 +7850,7 @@ export default function ModulePlaceholder({
 
                             return (
                               <tr 
-                                key={row.id} 
+                                key={`supply_row_${row.id || 'id'}_${rowIdx}`} 
                                 className={`${isEditing ? 'bg-indigo-50/60' : 'hover:bg-slate-50/50'} transition-colors`}
                               >
                                 {isEditing ? (
@@ -8287,7 +8273,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-900 border-r border-emerald-200 bg-[#d5e8c8]">Mon. Inicial</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-200 text-[11px] bg-[#d5e8c8]"></td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-200 text-center">
+                                <td key={`bitacora-mon-init-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-200 text-center">
                                   <input
                                     type="text"
                                     value={vis.mon_inicial || ''}
@@ -8304,7 +8290,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-900 border-r border-emerald-200 bg-[#d5e8c8]">Mon. Final</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-200 text-[11px] bg-[#d5e8c8]"></td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-200 text-center">
+                                <td key={`bitacora-mon-fin-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-200 text-center">
                                   <input
                                     type="text"
                                     value={vis.mon_final || ''}
@@ -8321,7 +8307,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Pruebas con $$</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">Cuanto $?</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-pruebas-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <input
                                     type="text"
                                     value={vis.pruebas}
@@ -8337,7 +8323,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Ventas Externas</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">Cuanto $?</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-vext-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <input
                                     type="text"
                                     value={vis.ventas_externas}
@@ -8355,7 +8341,7 @@ export default function ModulePlaceholder({
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">Si</span> / <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">no</span>
                               </td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-limp-int-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <select
                                     value={vis.limpieza_interna}
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'limpieza_interna', e.target.value)}
@@ -8376,7 +8362,7 @@ export default function ModulePlaceholder({
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">Si</span> / <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">no</span>
                               </td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-limp-ext-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <select
                                     value={vis.limpieza_externa}
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'limpieza_externa', e.target.value)}
@@ -8397,7 +8383,7 @@ export default function ModulePlaceholder({
                                 <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">Si</span> / <span className="px-1 py-0.5 bg-slate-100 rounded text-slate-600">no</span>
                               </td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-falla-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <select
                                     value={vis.falla_equipo}
                                     onChange={(e) => handleUpdateMaintenanceVisit(activeSupplySubmenu, vIdx, 'falla_equipo', e.target.value)}
@@ -8416,7 +8402,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Monedero</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-monedero-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <input
                                     type="text"
                                     value={vis.monedero}
@@ -8432,7 +8418,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Billetero</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-billetero-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <input
                                     type="text"
                                     value={vis.billetero}
@@ -8448,7 +8434,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Base de resorte</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-base-res-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <input
                                     type="text"
                                     value={vis.base_resorte}
@@ -8464,7 +8450,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Otro</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">X</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-otro-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <input
                                     type="text"
                                     value={vis.otro}
@@ -8480,7 +8466,7 @@ export default function ModulePlaceholder({
                               <td className="py-2 px-3 font-black text-slate-800 border-r border-emerald-100">Notas</td>
                               <td className="py-2 px-3 text-slate-500 font-bold border-r border-emerald-100 text-[11px]">-</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-100 text-center">
+                                <td key={`bitacora-notas-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-100 text-center">
                                   <input
                                     type="text"
                                     value={vis.notas}
@@ -8499,7 +8485,7 @@ export default function ModulePlaceholder({
                               </td>
                               <td className="py-2 px-3 text-emerald-800 font-bold border-r border-emerald-200 text-[11px] bg-emerald-100/60">Surtidor</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-200 text-center">
+                                <td key={`bitacora-repartidor-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-200 text-center">
                                   <input
                                     type="text"
                                     value={vis.repartidor ?? ''}
@@ -8516,7 +8502,7 @@ export default function ModulePlaceholder({
                               <td className="py-2.5 px-3 font-black text-white border-r border-emerald-600">Elaboro</td>
                               <td className="py-2.5 px-3 text-emerald-100 font-bold border-r border-emerald-600 text-[11px]">-</td>
                               {visits.map((vis, vIdx) => (
-                                <td key={vis.id} className="py-1.5 px-2 border-r border-emerald-600 text-center">
+                                <td key={`bitacora-elaboro-${vis.id || vIdx}`} className="py-1.5 px-2 border-r border-emerald-600 text-center">
                                   <input
                                     type="text"
                                     value={vis.elaboro}

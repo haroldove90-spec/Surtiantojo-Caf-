@@ -1173,7 +1173,7 @@ export default function App() {
                   const isActive = mod.id === activeModule;
                   return (
                     <button
-                      key={mod.id}
+                      key={`desktop-mod-${mod.id}`}
                       id={`sidebar-link-${mod.id}`}
                       onClick={() => selectModule(mod.id)}
                       title={mod.name}
@@ -1287,7 +1287,7 @@ export default function App() {
                       const isActive = mod.id === activeModule;
                       return (
                         <button
-                          key={mod.id}
+                          key={`mobile-mod-${mod.id}`}
                           id={`mobile-sidebar-link-${mod.id}`}
                           onClick={() => selectModule(mod.id)}
                           className={`w-full flex items-center gap-3.5 px-3.5 py-3 rounded-lg text-left transition-colors focus:outline-none text-base ${
