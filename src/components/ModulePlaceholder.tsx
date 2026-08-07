@@ -1435,33 +1435,22 @@ export default function ModulePlaceholder({
           };
         });
 
-        // Safely update state without overwriting user-typed text or wiping other rows
+        // Safely update state row IDs for newly inserted items without wiping or duplicating local row state
         const updateStateRowsSafely = (prevList: any[] = []) => {
-          if (!prevList || prevList.length === 0) return updatedRows;
+          if (!prevList || prevList.length === 0) return prevList;
           return prevList.map(localRow => {
-            const dbItem = updatedRows.find((u: any) => u.id === localRow.id || (localRow.codigo && u.codigo === localRow.codigo));
-            if (!dbItem) return localRow;
-            const keepName = (localRow.nombre_producto && !/^Producto \d+$/i.test(String(localRow.nombre_producto).trim()))
-              ? localRow.nombre_producto
-              : (dbItem.nombre_producto || localRow.nombre_producto);
-            const mergedValues = { ...(dbItem.values || {}) };
-            if (localRow.values) {
-              Object.keys(localRow.values).forEach(k => {
-                if (localRow.values[k] !== undefined && localRow.values[k] !== null && String(localRow.values[k]).trim() !== '') {
-                  mergedValues[k] = localRow.values[k];
-                }
-              });
+            const dbItem = combinedData.find((u: any) =>
+              (u.id && localRow.id && u.id === localRow.id) ||
+              (u.codigo && localRow.codigo && String(u.codigo).trim().toLowerCase() === String(localRow.codigo).trim().toLowerCase() && String(localRow.codigo).trim() !== '') ||
+              (u.sel && localRow.sel && String(u.sel).trim().toLowerCase() === String(localRow.sel).trim().toLowerCase() && String(localRow.sel).trim() !== '')
+            );
+            if (dbItem && dbItem.id) {
+              return {
+                ...localRow,
+                id: dbItem.id
+              };
             }
-
-            return {
-              ...localRow,
-              id: dbItem.id || localRow.id,
-              nombre_producto: keepName,
-              precio_venta: localRow.precio_venta || dbItem.precio_venta,
-              resorte: localRow.resorte || dbItem.resorte,
-              sel: localRow.sel || (dbItem as any).sel || dbItem.codigo,
-              values: mergedValues
-            };
+            return localRow;
           });
         };
 
@@ -4932,21 +4921,21 @@ export default function ModulePlaceholder({
             setCerBBData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
               const resArr = [...res];
-              setTimeout(() => saveToSupabase('cer_bb', resArr), 10);
+              try { localStorage.setItem('surtiantojo_cer_bb', JSON.stringify(resArr)); } catch(e){}
               return resArr;
             });
           } else if (activeSupplySubmenu === 'art_alt') {
             setArtAltData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
               const resArr = [...res];
-              setTimeout(() => saveToSupabase('art_alt', resArr), 10);
+              try { localStorage.setItem('surtiantojo_art_alt', JSON.stringify(resArr)); } catch(e){}
               return resArr;
             });
           } else if (activeSupplySubmenu === 'art_ct') {
             setArtCtData(prev => {
               const res = typeof updater === 'function' ? updater(prev) : updater;
               const resArr = [...res];
-              setTimeout(() => saveToSupabase('art_ct', resArr), 10);
+              try { localStorage.setItem('surtiantojo_art_ct', JSON.stringify(resArr)); } catch(e){}
               return resArr;
             });
           } else {
@@ -4954,11 +4943,9 @@ export default function ModulePlaceholder({
               const currentList = prev[activeSupplySubmenu] || [];
               const res = typeof updater === 'function' ? updater(currentList) : updater;
               const resArr = [...res];
-              setTimeout(() => saveToSupabase(activeSupplySubmenu, resArr), 10);
-              return {
-                ...prev,
-                [activeSupplySubmenu]: resArr
-              };
+              const updatedMap = { ...prev, [activeSupplySubmenu]: resArr };
+              try { localStorage.setItem('surtiantojo_generic_submenu', JSON.stringify(updatedMap)); } catch(e){}
+              return updatedMap;
             });
           }
         };
@@ -5679,7 +5666,6 @@ export default function ModulePlaceholder({
           }
 
           handleUpdateSubmenuData((prev: any[]) => [...prev, ...newRows]);
-          saveToSupabase(activeSupplySubmenu, newRows);
         };
 
         const handleManualSaveSurtido = async () => {
@@ -5723,81 +5709,33 @@ export default function ModulePlaceholder({
           }));
         };
 
-        // Smart handler when user types or changes SEL (e.g. 11, S024)
+        // Cell change handlers for manual entry (direct updates per row)
         const handleSmartSelChange = (row: any, val: string) => {
-          const normSel = val.trim().toLowerCase();
-          const updates: Record<string, any> = {
+          handleUpdateSmartRowFields(row.id, {
             sel: val,
-            codigo: val
-          };
-
-          if (normSel) {
-            const match = availableProducts.find((p: any) => {
-              const pCode = (p.codigo || p.code || p.id || '').trim().toLowerCase();
-              const pSel = (p.sel || p.slot || '').trim().toLowerCase();
-              const pName = (p.nombre || p.name || p.nombre_producto || '').trim().toLowerCase();
-              return pCode === normSel || pSel === normSel || pName === normSel;
-            });
-
-            if (match) {
-              updates.nombre_producto = match.nombre || match.nombre_producto || match.name || row.nombre_producto;
-              if (match.precio_venta !== undefined || match.precio !== undefined) {
-                updates.precio_venta = match.precio_venta !== undefined ? match.precio_venta : match.precio;
-              }
-              if (match.resorte || match.resort || match.capacidad) {
-                updates.resorte = match.resorte || match.resort || match.capacidad;
-              }
-              if (match.proveedor) {
-                updates.proveedor = match.proveedor;
-              }
-            }
-          }
-
-          handleUpdateSmartRowFields(row.id, updates);
+            codigo: val,
+            slot: val
+          });
         };
 
-        // Smart handler when user types or selects product name
         const handleSmartNombreChange = (row: any, val: string) => {
-          const normName = val.trim().toLowerCase();
-          const updates: Record<string, any> = {
+          handleUpdateSmartRowFields(row.id, {
             nombre_producto: val,
-            producto: val
-          };
-
-          if (normName) {
-            const match = availableProducts.find((p: any) => {
-              const pName = (p.nombre || p.name || p.nombre_producto || '').trim().toLowerCase();
-              const pCode = (p.codigo || p.code || p.id || '').trim().toLowerCase();
-              return pName === normName || pCode === normName;
-            });
-
-            if (match) {
-              if ((match.precio_venta !== undefined || match.precio !== undefined) && (!row.precio_venta || row.precio_venta === '0' || row.precio_venta === '$0.00')) {
-                updates.precio_venta = match.precio_venta !== undefined ? match.precio_venta : match.precio;
-              }
-              if ((match.resorte || match.resort || match.capacidad) && !row.resorte) {
-                updates.resorte = match.resorte || match.resort || match.capacidad;
-              }
-              if (match.proveedor && !row.proveedor) {
-                updates.proveedor = match.proveedor;
-              }
-            }
-          }
-
-          handleUpdateSmartRowFields(row.id, updates);
+            producto: val,
+            articulo: val
+          });
         };
 
-        // Smart handler when user edits sale price
         const handleSmartPrecioChange = (row: any, val: string) => {
           handleUpdateSmartRowFields(row.id, {
             precio_venta: val
           });
         };
 
-        // Smart handler when user edits resorte
         const handleSmartResorteChange = (row: any, val: string) => {
           handleUpdateSmartRowFields(row.id, {
-            resorte: val
+            resorte: val,
+            resort: val
           });
         };
 
@@ -7746,7 +7684,7 @@ export default function ModulePlaceholder({
 
                                 return (
                                   <tr key={`surtidor_row_${row.id || 'id'}_${rowIdx}`} className="border-b border-slate-300 hover:bg-slate-50/70 transition-colors">
-                                    {/* 1. SEL (Código / Selección smart cell) */}
+                                    {/* 1. SEL (Selección) */}
                                     <td className="py-1.5 px-2 border-r border-slate-300 text-center">
                                       <input
                                         type="text"
@@ -7754,31 +7692,23 @@ export default function ModulePlaceholder({
                                         onChange={(e) => handleSmartSelChange(row, e.target.value)}
                                         className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-black text-xs text-slate-800 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
                                         placeholder=""
-                                        title="Código de selección (ej. 11, S024). Escribe un código para extraer los datos de producto automáticamente."
+                                        title="Selección / Código"
                                       />
                                     </td>
 
-                                    {/* 2. Nombre del Producto (Smart cell with auto-complete datalist) */}
+                                    {/* 2. Nombre del Producto */}
                                     <td className="py-1.5 px-2 border-r border-slate-300 font-extrabold text-slate-900">
-                                      <div className="relative w-full">
-                                        <input
-                                          type="text"
-                                          list={`prods-datalist-${row.id}`}
-                                          value={currentNameVal}
-                                          onChange={(e) => handleSmartNombreChange(row, e.target.value)}
-                                          className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-left font-bold text-xs text-slate-900 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
-                                          placeholder=""
-                                          title="Escribe el nombre del producto o selecciona de la lista"
-                                        />
-                                        <datalist id={`prods-datalist-${row.id}`}>
-                                          {availableProducts.map((p: any, pIdx: number) => (
-                                            <option key={`p_opt_${p.id || 'p'}_${pIdx}`} value={p.nombre || p.nombre_producto || p.name} />
-                                          ))}
-                                        </datalist>
-                                      </div>
+                                      <input
+                                        type="text"
+                                        value={currentNameVal}
+                                        onChange={(e) => handleSmartNombreChange(row, e.target.value)}
+                                        className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-left font-bold text-xs text-slate-900 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                        placeholder=""
+                                        title="Nombre del producto (llenado manual)"
+                                      />
                                     </td>
 
-                                    {/* 3. Precio de venta (Smart cell) */}
+                                    {/* 3. Precio de venta */}
                                     <td className="py-1.5 px-2 border-r border-slate-300 text-center font-mono font-bold text-slate-800">
                                       <input
                                         type="text"
@@ -7786,11 +7716,11 @@ export default function ModulePlaceholder({
                                         onChange={(e) => handleSmartPrecioChange(row, e.target.value)}
                                         className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-mono font-bold text-xs text-slate-800 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
                                         placeholder=""
-                                        title="Precio de venta asignado"
+                                        title="Precio de venta (llenado manual)"
                                       />
                                     </td>
 
-                                    {/* 4. Resorte (Smart cell) */}
+                                    {/* 4. Resorte */}
                                     <td className="py-1.5 px-2 border-r border-slate-300 text-center font-bold text-slate-700">
                                       <input
                                         type="text"
@@ -7798,7 +7728,7 @@ export default function ModulePlaceholder({
                                         onChange={(e) => handleSmartResorteChange(row, e.target.value)}
                                         className="w-full bg-slate-50/90 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-2 py-1 text-center font-bold text-xs text-slate-700 transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
                                         placeholder=""
-                                        title="Resorte / capacidad de espiral"
+                                        title="Resorte (llenado manual)"
                                       />
                                     </td>
 
