@@ -1433,7 +1433,7 @@ export default function ModulePlaceholder({
               nombre_producto: keepName,
               precio_venta: localRow.precio_venta || dbItem.precio_venta,
               resorte: localRow.resorte || dbItem.resorte,
-              sel: localRow.sel || dbItem.sel || dbItem.codigo,
+              sel: localRow.sel || (dbItem as any).sel || dbItem.codigo,
               values: mergedValues
             };
           });
@@ -4779,7 +4779,7 @@ export default function ModulePlaceholder({
         };
 
         // Render sortable header helper for supply table
-        const renderSupplySortableHeader = (label: string, field: string) => {
+        const renderSupplySortableHeader = (label: string, field: string, customKey?: string) => {
           const isSorted = supplySortField === field;
           const cleanF = field.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
           const isNameColumn = cleanF.includes('nombre') || cleanF.includes('producto') || cleanF.includes('articulo') || cleanF.includes('description');
@@ -4787,7 +4787,7 @@ export default function ModulePlaceholder({
           const isRemovableFecha = isFecha && label.toLowerCase().trim() !== 'fecha';
 
           return (
-            <th key={field} className={`py-3 px-3 select-none ${isNameColumn ? 'w-full min-w-[240px]' : 'w-px whitespace-nowrap'}`}>
+            <th key={customKey || field} className={`py-3 px-3 select-none ${isNameColumn ? 'w-full min-w-[240px]' : 'w-px whitespace-nowrap'}`}>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -6378,10 +6378,11 @@ export default function ModulePlaceholder({
           <div className="space-y-6 text-left">
             
             {/* Elegant Submenu Control Accesses bar */}
-            <div className="flex flex-col gap-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#043077]">Organización de Accesos Surtido</span>
-              
-              {/* 4 Core Menus Grid */}
+            {!isSurtidorOnly && (
+              <div className="flex flex-col gap-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#043077]">Organización de Accesos Surtido</span>
+                
+                {/* 4 Core Menus Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* Menu 1: 'Maq. Botana */}
                 <button
@@ -6586,6 +6587,7 @@ export default function ModulePlaceholder({
                 </motion.div>
               </AnimatePresence>
             </div>
+            )}
 
             {/* Render dynamically depending on chosen submenu */}
             {activeSupplySubmenu === 'vending_surtido' ? (
@@ -6732,61 +6734,63 @@ export default function ModulePlaceholder({
               <div className="space-y-6">
                 
                 {/* Section Header */}
-                <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-left">
-                  <div>
-                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 flex-wrap">
-                      <FileSpreadsheet className="w-5 h-5 text-[#043077]" />
-                      <span>{activeMeta.title}</span>
-                      {activeMeta.convenio && (
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                          activeMeta.convenio === 'SI' 
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                            : 'bg-slate-100 text-slate-500 border-slate-200'
-                        }`}>
-                          Convenio: {activeMeta.convenio}
-                        </span>
-                      )}
-                      {activeMeta.cliente && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-indigo-50 text-indigo-700 border-indigo-200">
-                          Cliente: {activeMeta.cliente}
-                        </span>
-                      )}
-                      {!isSurtidorOnly && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditSubmenuId(activeMeta.id);
-                            setEditSubmenuName(activeMeta.name);
-                            setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
-                            setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
-                            setEditSubmenuCliente(activeMeta.cliente || '');
-                            setIsEditSubmenuOpen(true);
-                          }}
-                          className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-[9px] uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5 cursor-pointer ml-2 shrink-0"
-                          title="Editar nombre y descripción de este acceso"
-                        >
-                          <Edit className="w-3 h-3" /> Editar Acceso
-                        </button>
-                      )}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta.desc}</p>
+                {!isSurtidorOnly && (
+                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-left">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 flex-wrap">
+                        <FileSpreadsheet className="w-5 h-5 text-[#043077]" />
+                        <span>{activeMeta.title}</span>
+                        {activeMeta.convenio && (
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                            activeMeta.convenio === 'SI' 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                              : 'bg-slate-100 text-slate-500 border-slate-200'
+                          }`}>
+                            Convenio: {activeMeta.convenio}
+                          </span>
+                        )}
+                        {activeMeta.cliente && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-indigo-50 text-indigo-700 border-indigo-200">
+                            Cliente: {activeMeta.cliente}
+                          </span>
+                        )}
+                        {!isSurtidorOnly && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditSubmenuId(activeMeta.id);
+                              setEditSubmenuName(activeMeta.name);
+                              setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
+                              setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
+                              setEditSubmenuCliente(activeMeta.cliente || '');
+                              setIsEditSubmenuOpen(true);
+                            }}
+                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-[9px] uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5 cursor-pointer ml-2 shrink-0"
+                            title="Editar nombre y descripción de este acceso"
+                          >
+                            <Edit className="w-3 h-3" /> Editar Acceso
+                          </button>
+                        )}
+                      </h3>
+                      <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta.desc}</p>
+                    </div>
+                    
+                    {/* Master quick import Excel trigger */}
+                    {!isSurtidorOnly && (
+                      <label
+                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap self-stretch md:self-auto text-center justify-center select-none"
+                      >
+                        <Download className="w-4 h-4 rotate-180" /> Importar de Excel (.csv)
+                        <input
+                          type="file"
+                          accept=".csv,.txt"
+                          className="hidden"
+                          onChange={(e) => handleImportSubmenuCSV(e, activeSupplySubmenu)}
+                        />
+                      </label>
+                    )}
                   </div>
-                  
-                  {/* Master quick import Excel trigger */}
-                  {!isSurtidorOnly && (
-                    <label
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-xs whitespace-nowrap self-stretch md:self-auto text-center justify-center select-none"
-                    >
-                      <Download className="w-4 h-4 rotate-180" /> Importar de Excel (.csv)
-                      <input
-                        type="file"
-                        accept=".csv,.txt"
-                        className="hidden"
-                        onChange={(e) => handleImportSubmenuCSV(e, activeSupplySubmenu)}
-                      />
-                    </label>
-                  )}
-                </div>
+                )}
 
                 {(() => {
                   const isCurrentTableMissing = missingTables.includes(`surtido_${activeSupplySubmenu}`);
@@ -7808,13 +7812,14 @@ export default function ModulePlaceholder({
                           </th>
                           {(() => {
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
-                            const displaySubHeaders = isSurtidorOnly 
+                            const rawDisplaySubHeaders = isSurtidorOnly 
                               ? activeSubHeaders.filter(h => !isHeaderDisabledForSurtidor(h)) 
                               : activeSubHeaders;
+                            const displaySubHeaders = Array.from(new Set(rawDisplaySubHeaders));
 
                             return displaySubHeaders.length > 0 ? (
                               displaySubHeaders.map((header, idx) => (
-                                renderSupplySortableHeader(header, header)
+                                renderSupplySortableHeader(header, header, `hdr_${header}_${idx}`)
                               ))
                             ) : (
                               <>
@@ -7823,7 +7828,7 @@ export default function ModulePlaceholder({
                                 {!isSurtidorOnly && renderSupplySortableHeader("Unidades", "unidad_surtida")}
                                 {!isSurtidorOnly && renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
                                 {!isSurtidorOnly && renderSupplySortableHeader("Precio regular", "precio_venta")}
-                                {!isSurtidorOnly && <th className="py-3 px-3 text-right whitespace-nowrap w-px">Importe Total</th>}
+                                {!isSurtidorOnly && <th key="th_importe_total" className="py-3 px-3 text-right whitespace-nowrap w-px">Importe Total</th>}
                                 {renderSupplySortableHeader("Resorte", "resorte")}
                                 {!isSurtidorOnly && renderSupplySortableHeader("Notas", "notas")}
                                 {!isSurtidorOnly && renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
@@ -7844,9 +7849,10 @@ export default function ModulePlaceholder({
                           paginatedSubmenuRows.map((row) => {
                             const isEditing = row.id === editingRowId;
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
-                            const displaySubHeaders = isSurtidorOnly 
+                            const rawDisplaySubHeaders = isSurtidorOnly 
                               ? activeSubHeaders.filter(h => !isHeaderDisabledForSurtidor(h)) 
                               : activeSubHeaders;
+                            const displaySubHeaders = Array.from(new Set(rawDisplaySubHeaders));
                             const hasDynamicHeaders = displaySubHeaders.length > 0;
                             const currentPrecioVenta = (() => {
                               const matched = findMatchingProduct(row);
@@ -8201,8 +8207,8 @@ export default function ModulePlaceholder({
                   </div>
                 )}
 
-                {/* Nueva Tarjeta: 'Bitácora de Control y Mantenimiento por Visita (1 grupo por máquina) */}
-                {(() => {
+                {/* Nueva Tarjeta: 'Bitácora de Control y Mantenimiento por Visita (Solo visible para rol Surtidor) */}
+                {isSurtidorOnly && (() => {
                   const visits = getMachineVisits(activeSupplySubmenu);
                   return (
                     <div className="bg-white p-5 rounded-2xl border border-emerald-200/80 shadow-xs space-y-4 mt-6">
@@ -9116,7 +9122,7 @@ export default function ModulePlaceholder({
                     <h3 className="text-xl font-extrabold text-slate-900">{currentUser?.nombre_completo || 'Usuario'}</h3>
                     <p className="text-sm text-[#043077] font-extrabold">@{currentUser?.username || 'user'}</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Permisos del Sistema: {currentUser?.rol === 'Administrador' ? 'Módulos Totales' : 'Módulo Surtido Limitado'}
+                      Permisos del Sistema: {currentUser?.rol === 'Administrador' ? 'Módulos Totales' : 'Módulo Surtidos Limitado'}
                     </p>
                   </div>
                 </div>
@@ -9197,7 +9203,7 @@ export default function ModulePlaceholder({
 
                 <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-[11px] text-slate-600 leading-normal flex items-center gap-2">
                   <span className="text-base">💡</span>
-                  <span><strong>Tip de Pruebas:</strong> Al ingresar con el rol <strong>Surtidor</strong>, la barra lateral se bloquea automáticamente mostrando únicamente el módulo <strong>Surtido</strong>.</span>
+                  <span><strong>Tip de Pruebas:</strong> Al ingresar con el rol <strong>Surtidor</strong>, la barra lateral se bloquea automáticamente mostrando únicamente el módulo <strong>Surtidos</strong>.</span>
                 </div>
               </div>
             )}
@@ -9473,7 +9479,7 @@ CREATE POLICY "Allow public delete on usuarios" ON usuarios FOR DELETE USING (tr
                       onChange={(e) => setEmpRol(e.target.value as any)}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all cursor-pointer"
                     >
-                      <option value="Surtidor">🚚 Surtidor (Repartidor - Solo Módulo Surtido)</option>
+                      <option value="Surtidor">🚚 Surtidor (Repartidor - Solo Módulo Surtidos)</option>
                       <option value="Administrador">👔 Administrador (Acceso Total a Módulos)</option>
                     </select>
                   </div>
@@ -9615,7 +9621,7 @@ CREATE POLICY "Allow public delete on usuarios" ON usuarios FOR DELETE USING (tr
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
                   <p className="font-bold text-slate-800">💡 Información para el repartidor:</p>
-                  <p>Al ingresar con el rol <strong>Surtidor</strong>, el sistema restringe el acceso únicamente al módulo <strong>Surtido</strong>. El enlace de acceso compartido es: <strong className="text-blue-700">https://surtiantojo.com.mx/</strong></p>
+                  <p>Al ingresar con el rol <strong>Surtidor</strong>, el sistema restringe el acceso únicamente al módulo <strong>Surtidos</strong>. El enlace de acceso compartido es: <strong className="text-blue-700">https://surtiantojo.com.mx/</strong></p>
                 </div>
 
               </div>

@@ -237,7 +237,7 @@ export default function App() {
   const visibleModules = useMemo(() => {
     if (!currentUser) return [];
     if (isSurtidorOnly) {
-      return APP_MODULES.filter(m => m.id === 'supply');
+      return APP_MODULES.filter(m => m.id === 'supply').map(m => ({ ...m, name: 'Surtidos' }));
     }
     // Deactivate 'client_accounts' (Cuentas clientes) for Admin role as requested
     return APP_MODULES.filter(m => m.id !== 'client_accounts');
@@ -904,7 +904,13 @@ export default function App() {
     }, 20);
   };
 
-  const activeModuleData = APP_MODULES.find(m => m.id === activeModule) || APP_MODULES[0];
+  const activeModuleData = useMemo(() => {
+    const found = APP_MODULES.find(m => m.id === activeModule) || APP_MODULES[0];
+    if (isSurtidorOnly && found.id === 'supply') {
+      return { ...found, name: 'Surtidos' };
+    }
+    return found;
+  }, [activeModule, isSurtidorOnly]);
 
   // Current formatted date to display on top
   const formattedDate = "Hoy, 09:45 AM";
@@ -1343,7 +1349,7 @@ export default function App() {
                 <div>
                   <p className="text-xs font-black text-amber-950">MODO VISTA PREVIA: ROL SURTIDOR / REPARTIDOR</p>
                   <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                    Estás viendo el panel exactamente como lo ve un Surtidor. Únicamente se muestra el módulo <strong>Surtido</strong>.
+                    Estás viendo el panel exactamente como lo ve un Surtidor. Únicamente se muestra el módulo <strong>Surtidos</strong>.
                   </p>
                 </div>
               </div>
