@@ -883,7 +883,7 @@ export default function ModulePlaceholder({
     setMachineMaintenance(prev => ({ ...prev, [tabId]: updated }));
   };
 
-  const handleSaveBitacora = (tabId: string) => {
+  const handleSaveBitacora = async (tabId: string) => {
     const visits = getMachineVisits(tabId);
     setMachineMaintenance(prev => {
       const updated = { ...prev, [tabId]: visits };
@@ -892,8 +892,57 @@ export default function ModulePlaceholder({
       } catch (e) {}
       return updated;
     });
-    setSaveNotification('¡Bitácora de Control y Mantenimiento guardada exitosamente!');
-    setTimeout(() => setSaveNotification(null), 4000);
+
+    setSaveNotification('Sincronizando Bitácora con Supabase...');
+
+    try {
+      // Clear previous entries for this maquina_id to replace with updated visits order
+      const { error: delErr } = await supabase
+        .from('surtido_bitacora_mantenimiento')
+        .delete()
+        .eq('maquina_id', tabId);
+
+      if (delErr && (delErr.code === '42P01' || delErr.message.toLowerCase().includes('does not exist'))) {
+        setSaveNotification('¡Bitácora guardada localmente! (Atención: Ejecuta el script SQL en Supabase para crear la tabla "surtido_bitacora_mantenimiento")');
+        setTimeout(() => setSaveNotification(null), 6000);
+        return;
+      }
+
+      const rowsToInsert = visits.map((v, idx) => ({
+        maquina_id: tabId,
+        visita_label: v.visitLabel || `Visita ${idx + 1}`,
+        mon_inicial: v.mon_inicial || '',
+        mon_final: v.mon_final || '',
+        pruebas: v.pruebas || 'no',
+        ventas_externas: v.ventas_externas || 'no',
+        limpieza_interna: v.limpieza_interna || 'si',
+        limpieza_externa: v.limpieza_externa || 'si',
+        falla_equipo: v.falla_equipo || 'no',
+        monedero: v.monedero || 'no',
+        billetero: v.billetero || 'no',
+        base_resorte: v.base_resorte || 'no',
+        otro: v.otro || 'no',
+        notas: v.notas || 'no',
+        nombre_repartidor: v.repartidor || currentUserName || '',
+        elaboro: v.elaboro || 'FC'
+      }));
+
+      const { error: insErr } = await supabase
+        .from('surtido_bitacora_mantenimiento')
+        .insert(rowsToInsert);
+
+      if (insErr) {
+        console.warn("Supabase bitacora insert info:", insErr.message);
+        setSaveNotification(`¡Guardado localmente! (Supabase: ${insErr.message})`);
+      } else {
+        setSaveNotification('¡Bitácora de Control y Mantenimiento guardada exitosamente en Supabase!');
+      }
+    } catch (err: any) {
+      console.error("Error al persistir bitácora:", err);
+      setSaveNotification('¡Bitácora de Control y Mantenimiento guardada en almacenamiento local!');
+    }
+
+    setTimeout(() => setSaveNotification(null), 5000);
   };
 
   // Dynamic Date Column Management (+)
@@ -1641,6 +1690,51 @@ export default function ModulePlaceholder({
               }));
             }
           }
+        }
+
+        // Fetch Bitácora de Control y Mantenimiento from Supabase
+        try {
+          const { data: bitacoraData, error: bitacoraErr } = await supabase
+            .from('surtido_bitacora_mantenimiento')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+          if (!bitacoraErr && bitacoraData && bitacoraData.length > 0) {
+            const loadedMaintenance: Record<string, any[]> = {};
+            bitacoraData.forEach((row: any) => {
+              const mId = row.maquina_id;
+              if (!loadedMaintenance[mId]) loadedMaintenance[mId] = [];
+              loadedMaintenance[mId].push({
+                id: row.id,
+                visitLabel: row.visita_label || '',
+                mon_inicial: row.mon_inicial || '',
+                mon_final: row.mon_final || '',
+                pruebas: row.pruebas || 'no',
+                ventas_externas: row.ventas_externas || 'no',
+                limpieza_interna: row.limpieza_interna || 'si',
+                limpieza_externa: row.limpieza_externa || 'si',
+                falla_equipo: row.falla_equipo || 'no',
+                monedero: row.monedero || 'no',
+                billetero: row.billetero || 'no',
+                base_resorte: row.base_resorte || 'no',
+                otro: row.otro || 'no',
+                notas: row.notas || 'no',
+                repartidor: row.nombre_repartidor || '',
+                elaboro: row.elaboro || 'FC'
+              });
+            });
+
+            setMachineMaintenance(prev => ({
+              ...prev,
+              ...loadedMaintenance
+            }));
+          } else if (bitacoraErr && (bitacoraErr.code === '42P01' || bitacoraErr.message.toLowerCase().includes('does not exist'))) {
+            if (!missingTablesList.includes('surtido_bitacora_mantenimiento')) {
+              missingTablesList.push('surtido_bitacora_mantenimiento');
+            }
+          }
+        } catch (e) {
+          console.log("Supabase bitacora fetch note:", e);
         }
 
         if (missingTablesList.length > 0) {
