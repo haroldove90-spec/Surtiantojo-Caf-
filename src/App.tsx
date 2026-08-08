@@ -37,6 +37,7 @@ const APP_MODULES = [
   { id: 'metrics', name: 'Métricas', icon: TrendingUp, desc: 'Balance general de ventas y rentabilidad' },
   { id: 'products', name: 'Productos', icon: Coffee, desc: 'Catálogo y carta de cafés y postres' },
   { id: 'supply', name: 'Surtido', icon: ClipboardList, desc: 'Abastecimiento de granos, leche e insumos' },
+  { id: 'operadores', name: 'Operadores', icon: Route, desc: 'Registro de ruta de operadores y máquinas' },
   { id: 'sales_by_product', name: 'Venta por producto', icon: BarChart3, desc: 'Rendimiento individual de consumibles' },
   { id: 'expenses', name: 'Gastos', icon: Wallet, desc: 'Egreso por servicios, renta e insumos' },
   { id: 'client_accounts', name: 'Cuentas clientes', icon: Users, desc: 'Premios de fidelidad y saldo VIP' },
@@ -237,7 +238,7 @@ export default function App() {
   const visibleModules = useMemo(() => {
     if (!currentUser) return [];
     if (isSurtidorOnly) {
-      return APP_MODULES.filter(m => m.id === 'supply').map(m => ({ ...m, name: 'Surtidos' }));
+      return APP_MODULES.filter(m => m.id === 'supply' || m.id === 'operadores').map(m => m.id === 'supply' ? { ...m, name: 'Surtidos' } : m);
     }
     // Deactivate 'client_accounts' (Cuentas clientes) for Admin role as requested
     return APP_MODULES.filter(m => m.id !== 'client_accounts');
@@ -277,9 +278,9 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Lock Surtidor/Operator or Admin in preview mode to 'supply' module, and redirect from client_accounts
+  // Lock Surtidor/Operator or Admin in preview mode to Surtido or Operadores module, and redirect from client_accounts
   useEffect(() => {
-    if (isSurtidorOnly && activeModule !== 'supply') {
+    if (isSurtidorOnly && activeModule !== 'supply' && activeModule !== 'operadores') {
       setActiveModule('supply');
     } else if (!isSurtidorOnly && activeModule === 'client_accounts') {
       setActiveModule('metrics');

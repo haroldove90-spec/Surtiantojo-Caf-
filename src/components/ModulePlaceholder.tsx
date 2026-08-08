@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
+import OperadoresModule from './OperadoresModule';
 
 const PRODUCT_FIELDS = [
   { key: 'codigo', label: 'Código / Ref ID' },
@@ -3344,6 +3345,9 @@ export default function ModulePlaceholder({
   // Render metrics graphs/charts depending on the specific module selected
   const renderInteractiveMetrics = () => {
     switch (moduleId) {
+      case 'operadores':
+        return <OperadoresModule currentUser={currentUser} isSurtidorOnly={isSurtidorOnly} />;
+
       case 'metrics':
         return (
           <div className="space-y-6">
@@ -9607,6 +9611,13 @@ CREATE POLICY "Allow public delete on usuarios" ON usuarios FOR DELETE USING (tr
   // Get module detailed title & specific descriptive subtitle
   const getModuleMeta = () => {
     switch (moduleId) {
+      case 'operadores':
+        return {
+          title: "Módulo Operadores",
+          desc: "Registro de ruta, lecturas de máquinas vendomáticas y control de inventario por fecha",
+          color: "blue",
+          accentColor: "#043077"
+        };
       case 'metrics':
         return {
           title: "",
