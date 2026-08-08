@@ -4844,6 +4844,23 @@ export default function ModulePlaceholder({
           return isSurtir || isCodigo || isPrecio || isFecha || isNotas;
         };
 
+        // Helper to check if a column header is disabled for Admin role in modulo surtido
+        const isHeaderDisabledForAdmin = (headerName: string) => {
+          if (isSurtidorOnly) return false;
+          const cleanF = headerName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+          
+          // Fecha
+          const isFecha = cleanF.startsWith('fecha') || cleanF.includes('fecha');
+          
+          // Nombre del producto
+          const isNombreProd = cleanF.includes('nombre') || cleanF.includes('producto') || cleanF.includes('articulo') || cleanF.includes('description');
+          
+          // Precio venta / regular
+          const isPrecio = cleanF.includes('precioregular') || cleanF === 'precio' || cleanF.includes('precioventa') || cleanF.includes('preciosinacuerdo') || cleanF === 'sinacuerdo' || cleanF.includes('precio');
+
+          return isFecha || isNombreProd || isPrecio;
+        };
+
         // Render sortable header helper for supply table
         const renderSupplySortableHeader = (label: string, field: string, customKey?: string) => {
           const isSorted = supplySortField === field;
@@ -4877,7 +4894,7 @@ export default function ModulePlaceholder({
                   </span>
                 </button>
 
-                {isFecha && (
+                {isFecha && isSurtidorOnly && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -4891,7 +4908,7 @@ export default function ModulePlaceholder({
                   </button>
                 )}
 
-                {isRemovableFecha && (
+                {isRemovableFecha && isSurtidorOnly && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -6950,42 +6967,6 @@ export default function ModulePlaceholder({
                       <Save className="w-4 h-4" /> Guardar Surtido
                     </button>
 
-                    {/* 1. Botón para agregar 1 o más filas rápida en la tarjeta */}
-                    <div className="inline-flex items-center rounded-xl border border-blue-900 bg-[#043077] shadow-3xs overflow-hidden shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleAddBlankRows(1)}
-                        className="px-3.5 py-2 hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
-                        title="Agregar 1 fila editable a la tarjeta"
-                      >
-                        <Plus className="w-3.5 h-3.5 stroke-[3]" /> Agregar Fila
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAddBlankRows(3)}
-                        className="px-2 py-2 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-xs font-black transition-all cursor-pointer"
-                        title="Agregar 3 filas editables a la tarjeta"
-                      >
-                        +3
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAddBlankRows(5)}
-                        className="px-2 py-2 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-xs font-black transition-all cursor-pointer"
-                        title="Agregar 5 filas editables a la tarjeta"
-                      >
-                        +5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAddBlankRows(10)}
-                        className="px-2 py-2 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-xs font-black transition-all cursor-pointer"
-                        title="Agregar 10 filas editables a la tarjeta"
-                      >
-                        +10
-                      </button>
-                    </div>
-
                     {/* 1b. Agregar Registro (Formulario completo) */}
                     {!isSurtidorOnly && (
                       <button
@@ -6998,14 +6979,16 @@ export default function ModulePlaceholder({
                     )}
 
                     {/* 1c. Agregar Columna de Fecha (+) */}
-                    <button
-                      type="button"
-                      onClick={() => handleAddFechaColumn()}
-                      className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#043077] border border-indigo-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
-                      title="Agregar otra columna de Fecha sin límite (+)"
-                    >
-                      <Plus className="w-4 h-4 stroke-[3]" /> Fecha
-                    </button>
+                    {isSurtidorOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleAddFechaColumn()}
+                        className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-[#043077] border border-indigo-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                        title="Agregar otra columna de Fecha sin límite (+)"
+                      >
+                        <Plus className="w-4 h-4 stroke-[3]" /> Fecha
+                      </button>
+                    )}
 
                     {/* 2. Exportar en Excel */}
                     {currentSubmenuData.length > 0 && (
@@ -7593,34 +7576,16 @@ export default function ModulePlaceholder({
                               })}
                               <th className="py-2 px-3 text-center min-w-[200px] bg-slate-100">
                                 <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                  {/* Quick row addition button */}
-                                  <div className="inline-flex items-center rounded-lg border border-blue-900 bg-[#043077] shadow-3xs overflow-hidden">
+                                  {isSurtidorOnly && (
                                     <button
                                       type="button"
-                                      onClick={() => handleAddBlankRows(1)}
-                                      className="px-2 py-1 hover:bg-blue-800 text-white text-[11px] font-black uppercase transition-all flex items-center gap-0.5 cursor-pointer"
-                                      title="Agregar 1 fila editable a la tarjeta"
+                                      onClick={() => handleAddFechaColumn()}
+                                      className="inline-flex items-center justify-center gap-1 text-[11px] font-black text-[#043077] hover:text-blue-900 bg-white hover:bg-slate-50 px-2 py-1 rounded-lg border border-slate-300 shadow-3xs cursor-pointer transition-all"
+                                      title="Agregar otra columna de fecha (+)"
                                     >
-                                      <Plus className="w-3 h-3 stroke-[3]" /> Fila
+                                      <Plus className="w-3 h-3 stroke-[3]" /> Fecha (+)
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAddBlankRows(5)}
-                                      className="px-1.5 py-1 hover:bg-blue-800 text-blue-100 border-l border-blue-800/80 text-[11px] font-black transition-all cursor-pointer"
-                                      title="Agregar 5 filas editables a la tarjeta"
-                                    >
-                                      +5
-                                    </button>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAddFechaColumn()}
-                                    className="inline-flex items-center justify-center gap-1 text-[11px] font-black text-[#043077] hover:text-blue-900 bg-white hover:bg-slate-50 px-2 py-1 rounded-lg border border-slate-300 shadow-3xs cursor-pointer transition-all"
-                                    title="Agregar otra columna de fecha (+)"
-                                  >
-                                    <Plus className="w-3 h-3 stroke-[3]" /> Fecha (+)
-                                  </button>
+                                  )}
 
                                   <button
                                     type="button"
@@ -7640,37 +7605,6 @@ export default function ModulePlaceholder({
                                 <td colSpan={5 + dateCols.length} className="py-12 text-center text-slate-500 font-bold bg-slate-50/50">
                                   <div className="flex flex-col items-center justify-center gap-3">
                                     <p className="text-slate-700 text-sm font-extrabold">No hay registros cargados para {activeMeta.name}.</p>
-                                    <p className="text-xs text-slate-500 font-normal">Agrega 1 o más filas a la tarjeta para capturar Sel, Nombre, Precio, Resorte y Fechas:</p>
-                                    <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddBlankRows(1)}
-                                        className="px-4 py-2 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-                                      >
-                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 1 Fila
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddBlankRows(3)}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-                                      >
-                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 3 Filas
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddBlankRows(5)}
-                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-                                      >
-                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 5 Filas
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAddBlankRows(10)}
-                                        className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-                                      >
-                                        <Plus className="w-4 h-4 stroke-[3]" /> Agregar 10 Filas
-                                      </button>
-                                    </div>
                                   </div>
                                 </td>
                               </tr>
@@ -7841,7 +7775,7 @@ export default function ModulePlaceholder({
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
                             const rawDisplaySubHeaders = isSurtidorOnly 
                               ? activeSubHeaders.filter(h => !isHeaderDisabledForSurtidor(h)) 
-                              : activeSubHeaders;
+                              : activeSubHeaders.filter(h => !isHeaderDisabledForAdmin(h));
                             const displaySubHeaders = Array.from(new Set(rawDisplaySubHeaders));
 
                             return displaySubHeaders.length > 0 ? (
@@ -7851,14 +7785,13 @@ export default function ModulePlaceholder({
                             ) : (
                               <>
                                 {!isSurtidorOnly && renderSupplySortableHeader("Código / SKU", "codigo")}
-                                {renderSupplySortableHeader("Producto o Artículo", "nombre_producto")}
+                                {isSurtidorOnly && renderSupplySortableHeader("Producto o Artículo", "nombre_producto")}
                                 {!isSurtidorOnly && renderSupplySortableHeader("Unidades", "unidad_surtida")}
                                 {!isSurtidorOnly && renderSupplySortableHeader("Costo Unit.", "costo_surtido")}
-                                {!isSurtidorOnly && renderSupplySortableHeader("Precio regular", "precio_venta")}
+                                {isSurtidorOnly && renderSupplySortableHeader("Precio regular", "precio_venta")}
                                 {!isSurtidorOnly && <th key="th_importe_total" className="py-3 px-3 text-right whitespace-nowrap w-px">Importe Total</th>}
                                 {renderSupplySortableHeader("Resorte", "resorte")}
                                 {!isSurtidorOnly && renderSupplySortableHeader("Notas", "notas")}
-                                {!isSurtidorOnly && renderSupplySortableHeader("Fecha Surtido", "fecha_registro")}
                               </>
                             );
                           })()}
@@ -7884,7 +7817,7 @@ export default function ModulePlaceholder({
                             const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[activeSupplySubmenu] || []), currentSubmenuData);
                             const rawDisplaySubHeaders = isSurtidorOnly 
                               ? activeSubHeaders.filter(h => !isHeaderDisabledForSurtidor(h)) 
-                              : activeSubHeaders;
+                              : activeSubHeaders.filter(h => !isHeaderDisabledForAdmin(h));
                             const displaySubHeaders = Array.from(new Set(rawDisplaySubHeaders));
                             const hasDynamicHeaders = displaySubHeaders.length > 0;
                             const currentPrecioVenta = (() => {
@@ -8131,18 +8064,20 @@ export default function ModulePlaceholder({
                                         <td className="py-3 px-3 text-slate-700 font-medium whitespace-nowrap">
                                           {row.notas || ''}
                                         </td>
-                                        <td className="py-1.5 px-2 text-center whitespace-nowrap">
-                                          <input
-                                            type="text"
-                                            value={row.fecha_registro || ''}
-                                            onChange={(e) => {
-                                              const newVal = e.target.value;
-                                              handleUpdateSubmenuData((prev: any[]) => prev.map(r => r.id === row.id ? { ...r, fecha_registro: newVal } : r));
-                                            }}
-                                            className="w-28 bg-indigo-50/80 hover:bg-white focus:bg-white border border-indigo-200 focus:border-[#043077] rounded-lg px-2 py-1 text-center font-mono font-bold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
-                                            placeholder="YYYY-MM-DD"
-                                          />
-                                        </td>
+                                        {isSurtidorOnly && (
+                                          <td className="py-1.5 px-2 text-center whitespace-nowrap">
+                                            <input
+                                              type="text"
+                                              value={row.fecha_registro || ''}
+                                              onChange={(e) => {
+                                                const newVal = e.target.value;
+                                                handleUpdateSubmenuData((prev: any[]) => prev.map(r => r.id === row.id ? { ...r, fecha_registro: newVal } : r));
+                                              }}
+                                              className="w-28 bg-indigo-50/80 hover:bg-white focus:bg-white border border-indigo-200 focus:border-[#043077] rounded-lg px-2 py-1 text-center font-mono font-bold text-xs text-[#043077] transition-all focus:outline-none focus:ring-1 focus:ring-[#043077] shadow-3xs"
+                                              placeholder="YYYY-MM-DD"
+                                            />
+                                          </td>
+                                        )}
                                       </>
                                     )}
                                     <td className="py-3 px-3 text-center whitespace-nowrap">
