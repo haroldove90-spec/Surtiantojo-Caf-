@@ -1520,6 +1520,7 @@ export default function ModulePlaceholder({
         // Try to load custom submenus list from Supabase first
         let currentMenuList = [...supplySubmenuList];
         const { data: menuData, error: menuError } = await supabase.from('surtido_submenus').select('*');
+        
         if (!menuError && menuData) {
           if (menuData.length > 0) {
             const loadedMenus = menuData.map((m: any) => ({
@@ -1531,47 +1532,48 @@ export default function ModulePlaceholder({
               cliente: m.cliente || '',
               grupo: m.grupo || ''
             }));
+
+            // Merge local machines (created in AI Studio or cached) that aren't in Supabase yet
+            const missingInSupabase: any[] = [];
+            currentMenuList.forEach(localItem => {
+              if (!loadedMenus.some(m => m.id === localItem.id)) {
+                loadedMenus.push(localItem);
+                missingInSupabase.push({
+                  id: localItem.id,
+                  name: localItem.name,
+                  title: localItem.title || localItem.name,
+                  description: localItem.desc || '',
+                  convenio: localItem.convenio || 'NO',
+                  cliente: localItem.cliente || '',
+                  grupo: localItem.grupo || localItem.group || ''
+                });
+              }
+            });
+
+            // Auto-publish any missing local machines to Supabase so they appear everywhere (including Vercel)
+            if (missingInSupabase.length > 0) {
+              await supabase.from('surtido_submenus').upsert(missingInSupabase);
+            }
+
             const sortedMerged = sortSubmenus(loadedMenus);
             setSupplySubmenuList(sortedMerged);
             currentMenuList = sortedMerged;
             localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sortedMerged));
           } else {
-            // Supabase is empty, so let's populate it with the default submenus
-            const defaultSubmenus = [
-              { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.', convenio: 'NO', cliente: '' },
-              { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.', convenio: 'NO', cliente: '' },
-              { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', desc: 'Surtido de artículos de botanas y confitería PRK.', convenio: 'NO', cliente: '' },
-              { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', desc: 'Surtido de la máquina CER 1 para botanas.', convenio: 'NO', cliente: '' },
-              { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', desc: 'Surtido de la máquina CER 2 para botanas.', convenio: 'NO', cliente: '' },
-              { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', desc: 'Surtido de la máquina CER 3 para botanas y snacks.', convenio: 'NO', cliente: '' },
-              { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', desc: 'Surtido de la máquina CG 1 para botanas.', convenio: 'NO', cliente: '' },
-              { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', desc: 'Surtido de la máquina CG 2 para botanas.', convenio: 'NO', cliente: '' },
-              { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', desc: 'Surtido de la máquina CG 3 para botanas.', convenio: 'NO', cliente: '' },
-              { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', desc: 'Surtido de la máquina de bebidas CER BB.', convenio: 'NO', cliente: '' },
-              { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', desc: 'Surtido de la máquina de bebidas CONT. BB.', convenio: 'NO', cliente: '' },
-              { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', desc: 'Surtido de la máquina de bebidas VITRO BB.', convenio: 'NO', cliente: '' }
-            ];
-            
-            let deletedIds: string[] = [];
-            try {
-              const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
-              deletedIds = deletedStored ? JSON.parse(deletedStored) : [];
-            } catch (e) {}
-            
-            const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
-            if (activeDefaults.length > 0) {
-              const toInsert = activeDefaults.map(s => ({
+            // Supabase table is empty, publish currentMenuList (defaults + local additions) to Supabase
+            if (currentMenuList.length > 0) {
+              const toInsert = currentMenuList.map(s => ({
                 id: s.id,
                 name: s.name,
-                title: s.title,
-                description: s.desc,
-                convenio: s.convenio,
-                cliente: s.cliente
+                title: s.title || s.name,
+                description: s.desc || '',
+                convenio: s.convenio || 'NO',
+                cliente: s.cliente || '',
+                grupo: s.grupo || s.group || ''
               }));
-              await supabase.from('surtido_submenus').insert(toInsert);
-              const sortedMerged = sortSubmenus(activeDefaults);
+              await supabase.from('surtido_submenus').upsert(toInsert);
+              const sortedMerged = sortSubmenus(currentMenuList);
               setSupplySubmenuList(sortedMerged);
-              currentMenuList = sortedMerged;
               localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sortedMerged));
             }
           }
@@ -5043,8 +5045,29 @@ export default function ModulePlaceholder({
           sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS cliente VARCHAR(150);\n`;
           sqlText += `ALTER TABLE surtido_submenus ADD COLUMN IF NOT EXISTS grupo VARCHAR(30);\n`;
           sqlText += `ALTER TABLE IF EXISTS surtido_submenus DISABLE ROW LEVEL SECURITY;\n`;
-          sqlText += `GRANT ALL ON TABLE surtido_submenus TO anon;\n`;
-          sqlText += `GRANT ALL ON TABLE surtido_submenus TO authenticated;\n\n`;
+          sqlText += `GRANT ALL ON TABLE surtido_submenus TO anon, authenticated;\n\n`;
+
+          if (supplySubmenuList && supplySubmenuList.length > 0) {
+            sqlText += `-- REGISTRO E INSERCIÓN DE TODAS LAS MÁQUINAS Y ACCESOS CONFIGURADOS EN SURTIDO:\n`;
+            sqlText += `INSERT INTO surtido_submenus (id, name, title, description, convenio, cliente, grupo) VALUES\n`;
+            const submenuValues = supplySubmenuList.map(s => {
+              const escId = String(s.id).replace(/'/g, "''");
+              const escName = String(s.name || '').replace(/'/g, "''");
+              const escTitle = String(s.title || s.name || '').replace(/'/g, "''");
+              const escDesc = String(s.desc || s.description || '').replace(/'/g, "''");
+              const escConvenio = String(s.convenio || 'NO').replace(/'/g, "''");
+              const escCliente = String(s.cliente || '').replace(/'/g, "''");
+              const escGrupo = String(s.grupo || s.group || '').replace(/'/g, "''");
+              return `  ('${escId}', '${escName}', '${escTitle}', '${escDesc}', '${escConvenio}', '${escCliente}', '${escGrupo}')`;
+            });
+            sqlText += submenuValues.join(',\n') + `\nON CONFLICT (id) DO UPDATE SET\n`;
+            sqlText += `  name = EXCLUDED.name,\n`;
+            sqlText += `  title = EXCLUDED.title,\n`;
+            sqlText += `  description = EXCLUDED.description,\n`;
+            sqlText += `  convenio = EXCLUDED.convenio,\n`;
+            sqlText += `  cliente = EXCLUDED.cliente,\n`;
+            sqlText += `  grupo = EXCLUDED.grupo;\n\n`;
+          }
 
           sqlText += `-- 📊 2. TABLA DE REGISTROS DE ESTE ACCESO (${activeMeta.name.toUpperCase()})\n`;
           sqlText += `DROP TABLE IF EXISTS ${tableName} CASCADE;\n\n`;
