@@ -238,7 +238,7 @@ export default function App() {
   const visibleModules = useMemo(() => {
     if (!currentUser) return [];
     if (isSurtidorOnly) {
-      return APP_MODULES.filter(m => m.id === 'supply' || m.id === 'operadores').map(m => m.id === 'supply' ? { ...m, name: 'Surtidos' } : m);
+      return APP_MODULES.filter(m => m.id === 'operadores');
     }
     // Deactivate 'client_accounts' (Cuentas clientes) for Admin role as requested
     return APP_MODULES.filter(m => m.id !== 'client_accounts');
@@ -278,10 +278,10 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Lock Surtidor/Operator or Admin in preview mode to Surtido or Operadores module, and redirect from client_accounts
+  // Lock Surtidor/Operator to Operadores module, and redirect Admin from client_accounts
   useEffect(() => {
-    if (isSurtidorOnly && activeModule !== 'supply' && activeModule !== 'operadores') {
-      setActiveModule('supply');
+    if (isSurtidorOnly && activeModule !== 'operadores') {
+      setActiveModule('operadores');
     } else if (!isSurtidorOnly && activeModule === 'client_accounts') {
       setActiveModule('metrics');
     }
