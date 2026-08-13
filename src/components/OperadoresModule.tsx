@@ -4,14 +4,18 @@ import {
   Trash2, 
   Save, 
   FileSpreadsheet, 
-  Search, 
   Calendar, 
   Box, 
   CheckCircle2, 
   RefreshCw,
   Layers,
   Sparkles,
-  Lock
+  Lock,
+  Boxes,
+  CupSoda,
+  Coffee,
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -20,22 +24,25 @@ interface OperadoresModuleProps {
   isSurtidorOnly?: boolean;
 }
 
-// Default machines fallback if Supabase table is loading
+// Fallback machines list if Supabase query is loading or empty
 const DEFAULT_SUBMENUS = [
-  { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT' },
-  { id: 'art_pk', name: 'ART PK', title: 'Reporte ART PK' },
-  { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK' },
-  { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1' },
-  { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2' },
-  { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3' },
-  { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1' },
-  { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2' },
-  { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3' },
-  { id: 'frial', name: 'FRIAL', title: 'Reporte FRIAL' },
-  { id: 'lmno', name: 'LMNO', title: 'Reporte LMNO' }
+  { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', grupo: 'botana' },
+  { id: 'art_pk', name: 'ART PK', title: 'Reporte ART PK', grupo: 'botana' },
+  { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', grupo: 'botana' },
+  { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', grupo: 'botana' },
+  { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', grupo: 'botana' },
+  { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', grupo: 'botana' },
+  { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', grupo: 'botana' },
+  { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', grupo: 'botana' },
+  { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', grupo: 'botana' },
+  { id: 'frial', name: 'FRIAL', title: 'Reporte FRIAL', grupo: 'botana' },
+  { id: 'lmno', name: 'LMNO', title: 'Reporte LMNO', grupo: 'botana' },
+  { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', grupo: 'bebidas' },
+  { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', grupo: 'bebidas' },
+  { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', grupo: 'bebidas' }
 ];
 
-// Initial default controls/bitacora checklist
+// Default bitacora / controls checklist
 const DEFAULT_CONTROLS = [
   { id: 'c1', label: 'Mon. Inicial', detail: '', values: { '01-jul': '$679', '06-jul': '$51', '08-jul': '$202', '10-jul': '$21' } },
   { id: 'c2', label: 'Mon. Final', detail: '', values: { '01-jul': '$1,349', '06-jul': '$1,040', '08-jul': '$1,208', '10-jul': '$1,260' } },
@@ -52,8 +59,68 @@ const DEFAULT_CONTROLS = [
   { id: 'c13', label: 'Elaboro', detail: '', values: { '01-jul': 'FC', '06-jul': 'FC', '08-jul': 'FC', '10-jul': 'Fc' } }
 ];
 
+// Helper to determine category group (botana, bebidas, cafe)
+const getSubmenuGroup = (id: string, name: string, group?: string): string => {
+  if (group && ['botana', 'bebidas', 'cafe'].includes(group.toLowerCase())) {
+    return group.toLowerCase();
+  }
+  const lower = (id + ' ' + name).toLowerCase();
+  if (lower.includes('bb') || lower.includes('bebida') || lower.includes('cont_bb') || lower.includes('vitro_bb') || lower.includes('cer_bb')) {
+    return 'bebidas';
+  }
+  if (lower.includes('cafe') || lower.includes('coffee') || lower.includes('cafeteria')) {
+    return 'cafe';
+  }
+  return 'botana';
+};
+
+// Date validation helper
+const formatOrValidateDate = (inputStr: string): string | null => {
+  if (!inputStr || !inputStr.trim()) return null;
+  const str = inputStr.trim();
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-');
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const monthIdx = parseInt(m, 10) - 1;
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${d.padStart(2, '0')}-${months[monthIdx]}`;
+    }
+  }
+
+  // DD-MMM e.g. 12-jul, 05-ago, 15-ene
+  if (/^\d{1,2}-[a-zA-Z]{3,4}$/i.test(str)) {
+    const [d, m] = str.split('-');
+    return `${d.padStart(2, '0')}-${m.toLowerCase()}`;
+  }
+
+  // DD/MM/YYYY or DD/MM/YY
+  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(str)) {
+    const [d, m] = str.split('/');
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const monthIdx = parseInt(m, 10) - 1;
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${d.padStart(2, '0')}-${months[monthIdx]}`;
+    }
+  }
+
+  // JS Date fallback
+  const dObj = new Date(str);
+  if (!isNaN(dObj.getTime())) {
+    const day = String(dObj.getDate()).padStart(2, '0');
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return `${day}-${months[dObj.getMonth()]}`;
+  }
+
+  return null;
+};
+
 export default function OperadoresModule({ currentUser, isSurtidorOnly = false }: OperadoresModuleProps) {
-  // 1. Machines list registered by Admin (synced from surtido_submenus)
+  // Category state (botana, bebidas, cafe)
+  const [activeCategory, setActiveCategory] = useState<'botana' | 'bebidas' | 'cafe'>('botana');
+
+  // Machines list registered by Admin (synced from surtido_submenus)
   const [machinesList, setMachinesList] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_submenu_list');
@@ -66,9 +133,14 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   });
 
   const [activeMachineId, setActiveMachineId] = useState<string>('art_alt');
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Modal for Date picker / Date addition
+  const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
+  const [datePickerValue, setDatePickerValue] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [customDateLabel, setCustomDateLabel] = useState<string>('');
+  const [dateError, setDateError] = useState<string | null>(null);
 
   // Active dates for the selected machine
   const [dates, setDates] = useState<string[]>(['01-jul', '06-jul', '08-jul', '10-jul']);
@@ -90,7 +162,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || DEFAULT_SUBMENUS[0];
   }, [machinesList, activeMachineId]);
 
-  // 1. Load machines registered by Admin from Supabase surtido_submenus
+  // Fetch admin registered machines
   const fetchAdminMachines = async () => {
     try {
       const { data, error } = await supabase.from('surtido_submenus').select('*');
@@ -101,7 +173,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
           title: m.title || m.name || m.id,
           cliente: m.cliente || '',
           convenio: m.convenio || 'NO',
-          grupo: m.grupo || ''
+          grupo: m.grupo || getSubmenuGroup(m.id, m.name || m.title || '')
         }));
         setMachinesList(loaded);
         localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(loaded));
@@ -115,11 +187,24 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     fetchAdminMachines();
   }, []);
 
-  // 2. Load machine product catalog (synced from Admin's surtido_${machineId}) and date entries
+  // Filter machines by active category
+  const categoryMachines = useMemo(() => {
+    return machinesList.filter(m => getSubmenuGroup(m.id, m.name || m.title || '', m.grupo) === activeCategory);
+  }, [machinesList, activeCategory]);
+
+  // Ensure active machine belongs to active category when category changes
+  const handleSelectCategory = (cat: 'botana' | 'bebidas' | 'cafe') => {
+    setActiveCategory(cat);
+    const inCategory = machinesList.filter(m => getSubmenuGroup(m.id, m.name || m.title || '', m.grupo) === cat);
+    if (inCategory.length > 0 && !inCategory.some(m => m.id === activeMachineId)) {
+      setActiveMachineId(inCategory[0].id);
+    }
+  };
+
+  // Load machine catalog products & date entries
   const loadMachineData = async (machineId: string) => {
     setIsLoading(true);
 
-    // First load date entries and bitacora stored for this machine locally or in Supabase
     let storedDates = ['01-jul', '06-jul', '08-jul', '10-jul'];
     let storedTopMetrics = [
       { id: '1', sel: '1', concept: 'Unid. Vtas', values: { '01-jul': '68499', '06-jul': '68673', '08-jul': '68898', '10-jul': '69095' } },
@@ -139,11 +224,9 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       }
     } catch (e) {}
 
-    // Load master product catalog created/registered by Admin in Surtido for this machine
     let masterProducts: any[] = [];
 
     try {
-      // Query Supabase table surtido_${machineId}
       const tableName = `surtido_${machineId}`;
       const { data: supaRows, error: supaErr } = await supabase.from(tableName).select('*');
 
@@ -163,7 +246,6 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
           };
         });
       } else {
-        // Fallback to localStorage surtiantojo_surtido_rows_${machineId}
         const localSurtido = localStorage.getItem(`surtiantojo_surtido_rows_${machineId}`);
         if (localSurtido) {
           const parsedSurtido = JSON.parse(localSurtido);
@@ -182,7 +264,6 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       console.log('Error fetching product rows for machine:', e);
     }
 
-    // If no master products exist yet, supply default catalog rows
     if (masterProducts.length === 0) {
       masterProducts = [
         { id: 'p11', sel: '11', nombre: 'Cheetos torcidito', precio: 21, caben: 12 },
@@ -200,7 +281,6 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       ];
     }
 
-    // Attach date values to each master product row
     const mergedProducts = masterProducts.map(p => {
       const prodKey = `${p.sel}_${p.nombre}`;
       const existingValues = storedValuesMap[prodKey] || storedValuesMap[p.id] || {};
@@ -227,10 +307,9 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     loadMachineData(activeMachineId);
   }, [activeMachineId]);
 
-  // Handle saving Operadores date entries and bitacora for current active machine
+  // Handle saving Operadores date entries and bitacora
   const handleSave = async () => {
     try {
-      // Build values map per product to persist date entries across reloads
       const valuesMap: Record<string, Record<string, string>> = {};
       products.forEach(p => {
         const prodKey = `${p.sel}_${p.nombre}`;
@@ -246,10 +325,8 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
         valuesMap
       };
 
-      // Save locally
       localStorage.setItem(`surtiantojo_operadores_sheet_${activeMachineId}`, JSON.stringify(sheetData));
 
-      // Try saving to Supabase table operadores_data
       try {
         await supabase.from('operadores_data').upsert({
           machine_id: activeMachineId,
@@ -269,28 +346,50 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     }
   };
 
-  // Add new date column
-  const handleAddDateColumn = () => {
-    const todayStr = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }).replace('.', '').replace(' ', '-');
-    const promptDate = window.prompt("Ingrese la etiqueta para la nueva columna de Fecha (ej: 12-jul):", todayStr);
-    if (!promptDate || !promptDate.trim()) return;
-    const cleanDate = promptDate.trim();
+  // Open strict date picker modal
+  const handleOpenAddDateModal = () => {
+    setDateError(null);
+    setDatePickerValue(new Date().toISOString().split('T')[0]);
+    setCustomDateLabel('');
+    setIsDateModalOpen(true);
+  };
 
-    if (dates.includes(cleanDate)) {
-      alert("Esa columna de fecha ya existe.");
+  // Confirm date column addition with validation
+  const handleConfirmAddDate = () => {
+    let finalLabel = customDateLabel.trim();
+    if (!finalLabel) {
+      const validated = formatOrValidateDate(datePickerValue);
+      if (validated) finalLabel = validated;
+    } else {
+      const validated = formatOrValidateDate(finalLabel);
+      if (!validated) {
+        setDateError('Formato de fecha no válido. Usa el selector o escribe una fecha válida (ej: 12-jul o 2026-08-12).');
+        return;
+      }
+      finalLabel = validated;
+    }
+
+    if (!finalLabel) {
+      setDateError('Por favor selecciona una fecha válida.');
       return;
     }
 
-    const newDates = [...dates, cleanDate];
+    if (dates.includes(finalLabel)) {
+      setDateError(`La columna de fecha "${finalLabel}" ya existe.`);
+      return;
+    }
+
+    const newDates = [...dates, finalLabel];
     setDates(newDates);
 
-    // Add empty '0' values for top metrics, products, and default controls
-    setTopMetrics(prev => prev.map(m => ({ ...m, values: { ...m.values, [cleanDate]: '0' } })));
-    setProducts(prev => prev.map(p => ({ ...p, values: { ...p.values, [cleanDate]: '0' } })));
+    setTopMetrics(prev => prev.map(m => ({ ...m, values: { ...m.values, [finalLabel]: '0' } })));
+    setProducts(prev => prev.map(p => ({ ...p, values: { ...p.values, [finalLabel]: '0' } })));
     setControls(prev => prev.map(c => ({
       ...c,
-      values: { ...c.values, [cleanDate]: c.label.startsWith('Limpieza') ? 'si' : 'no' }
+      values: { ...c.values, [finalLabel]: c.label.startsWith('Limpieza') ? 'si' : 'no' }
     })));
+
+    setIsDateModalOpen(false);
   };
 
   // Delete date column
@@ -342,7 +441,23 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     }));
   };
 
-  // Export CSV matching exact Excel format
+  // Handle Enter key navigation across editable input cells
+  const handleKeyDownEnter = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const cells = Array.from(document.querySelectorAll<HTMLElement>('.editable-cell'));
+      const currIndex = cells.indexOf(e.currentTarget);
+      if (currIndex !== -1 && currIndex < cells.length - 1) {
+        const nextCell = cells[currIndex + 1];
+        nextCell.focus();
+        if ('select' in nextCell && typeof (nextCell as any).select === 'function') {
+          (nextCell as any).select();
+        }
+      }
+    }
+  };
+
+  // Export CSV
   const handleExportCSV = () => {
     let csvContent = "";
     csvContent += `SEL,${activeMachine.name || activeMachineId},Precio,Caben,${dates.join(',')}\n`;
@@ -374,16 +489,6 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     document.body.removeChild(link);
   };
 
-  // Filter products by search term
-  const filteredProducts = useMemo(() => {
-    if (!searchTerm.trim()) return products;
-    const q = searchTerm.toLowerCase();
-    return products.filter(p => 
-      String(p.sel).toLowerCase().includes(q) || 
-      String(p.nombre).toLowerCase().includes(q)
-    );
-  }, [products, searchTerm]);
-
   return (
     <div className="space-y-6">
       {/* Top Header Banner */}
@@ -398,7 +503,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
               Control de Operadores y Máquinas
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm mt-1 max-w-2xl">
-              Máquinas sincronizadas con el Administrador. SEL, Producto, Precio y Caben son de solo lectura. El operador actualiza las lecturas por fecha y bitácora.
+              Selecciona categoría y máquina para registrar lecturas de fecha y bitácora. Presiona <kbd className="px-1.5 py-0.5 bg-white/20 rounded font-mono text-xs">Enter</kbd> para avanzar entre celdas editables.
             </p>
           </div>
 
@@ -406,7 +511,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
             <button
               onClick={fetchAdminMachines}
               className="px-3.5 py-2 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-              title="Sincronizar máquinas del Administrador"
+              title="Sincronizar catálogo de máquinas creadas por el Admin"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Sincronizar Máquinas
             </button>
@@ -436,72 +541,191 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
         </div>
       )}
 
-      {/* Machine Tabs Navigation (Synced with Admin's registered machines) */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-wider shrink-0 mr-1">Máquinas Registradas:</span>
-            {machinesList.map(m => (
-              <button
-                key={m.id}
-                onClick={() => setActiveMachineId(m.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
-                  activeMachineId === m.id
-                    ? 'bg-[#043077] text-white shadow-md font-black'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                }`}
-              >
-                <Box className="w-3.5 h-3.5" />
-                {m.name || m.title || m.id}
-              </button>
-            ))}
-          </div>
+      {/* Category Selection Cards ("ORGANIZACIÓN DE ACCESOS SURTIDO") */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-4">
+        <div>
+          <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">
+            Organización de Accesos Surtido (Categorías):
+          </h3>
 
-          {/* Search filter */}
-          <div className="relative min-w-[220px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar SEL o Producto..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#043077] focus:bg-white transition-all font-medium"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Menu 1: Botanas */}
+            <button
+              type="button"
+              onClick={() => handleSelectCategory('botana')}
+              className={`p-4 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                activeCategory === 'botana'
+                  ? 'bg-blue-50/80 border-[#043077] shadow-xs ring-2 ring-[#043077]/20'
+                  : 'bg-white hover:bg-slate-50 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${
+                  activeCategory === 'botana' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  <Boxes className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 1</span>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Maq. Botana</h4>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold">
+                  {machinesList.filter(s => getSubmenuGroup(s.id, s.name || s.title || '', s.grupo) === 'botana').length} Accesos
+                </span>
+                {activeCategory === 'botana' && (
+                  <span className="w-2 h-2 rounded-full bg-[#043077]" />
+                )}
+              </div>
+            </button>
+
+            {/* Menu 2: Bebidas */}
+            <button
+              type="button"
+              onClick={() => handleSelectCategory('bebidas')}
+              className={`p-4 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                activeCategory === 'bebidas'
+                  ? 'bg-blue-50/80 border-[#043077] shadow-xs ring-2 ring-[#043077]/20'
+                  : 'bg-white hover:bg-slate-50 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${
+                  activeCategory === 'bebidas' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  <CupSoda className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 2</span>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Maq. Bebidas</h4>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold">
+                  {machinesList.filter(s => getSubmenuGroup(s.id, s.name || s.title || '', s.grupo) === 'bebidas').length} Accesos
+                </span>
+                {activeCategory === 'bebidas' && (
+                  <span className="w-2 h-2 rounded-full bg-[#043077]" />
+                )}
+              </div>
+            </button>
+
+            {/* Menu 3: Cafe */}
+            <button
+              type="button"
+              onClick={() => handleSelectCategory('cafe')}
+              className={`p-4 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                activeCategory === 'cafe'
+                  ? 'bg-amber-50/80 border-amber-600 shadow-xs ring-2 ring-amber-500/20'
+                  : 'bg-white hover:bg-slate-50 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${
+                  activeCategory === 'cafe' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  <Coffee className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 3</span>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Maq. de Café</h4>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold">
+                  {machinesList.filter(s => getSubmenuGroup(s.id, s.name || s.title || '', s.grupo) === 'cafe').length} Accesos
+                </span>
+                {activeCategory === 'cafe' && (
+                  <span className="w-2 h-2 rounded-full bg-amber-600" />
+                )}
+              </div>
+            </button>
+
+            {/* Card 4: Info for Admin machine registration */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-left flex flex-col justify-between opacity-80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-slate-200 text-slate-600">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-extrabold block uppercase tracking-wider">Registro de Máquinas</span>
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Solo Admin</h4>
+                </div>
+              </div>
+              <div className="mt-4 text-[10px] text-slate-500 font-bold">
+                Las máquinas son administradas exclusivamente por el Administrador.
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Quick Toolbar Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        {/* Submenus / Machines list under the selected category */}
+        <div className="bg-slate-50/70 border border-slate-200 p-4 rounded-2xl space-y-2">
+          <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
+            Selecciona el submenú para {
+              activeCategory === 'botana' ? 'Máquinas de Botana' :
+              activeCategory === 'bebidas' ? 'Máquinas de Bebidas' : 'Máquinas de Café'
+            }:
+          </span>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {categoryMachines.length === 0 ? (
+              <span className="text-xs text-slate-400 italic">No hay máquinas registradas en esta categoría.</span>
+            ) : (
+              categoryMachines.map((submenu) => {
+                const isActive = activeMachineId === submenu.id;
+                return (
+                  <button
+                    key={submenu.id}
+                    onClick={() => setActiveMachineId(submenu.id)}
+                    className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                      isActive
+                        ? 'bg-[#043077] text-white shadow-md ring-2 ring-[#043077]/20 scale-102'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <Box className="w-3.5 h-3.5" />
+                    <span>{submenu.name || submenu.title || submenu.id}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Quick Toolbar Actions & Date Column Creation */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleAddDateColumn}
-              className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#043077] border border-blue-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+              onClick={handleOpenAddDateModal}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
-              <Plus className="w-4 h-4 stroke-[3]" /> Fecha (+)
+              <Plus className="w-4 h-4 stroke-[3]" /> Nueva Fecha (+)
             </button>
 
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold">
-              <Lock className="w-3.5 h-3.5 text-amber-600" />
-              <span>SEL, Producto, Precio y Caben están sincronizados y protegidos por el Admin</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-bold">
+              <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>SEL, Producto, Precio y Caben están sincronizados de solo lectura</span>
             </div>
           </div>
 
-          <div className="text-[11px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
-            Máquina Seleccionada: <strong className="text-slate-900 font-extrabold">{activeMachine.name || activeMachine.title || activeMachineId}</strong> • Total Productos: <strong className="text-[#043077]">{products.length}</strong>
+          <div className="text-[11px] font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+            Máquina Activa: <strong className="text-slate-900 font-extrabold">{activeMachine.name || activeMachine.title || activeMachineId}</strong> • Total Productos: <strong className="text-[#043077] font-black">{products.length}</strong>
           </div>
         </div>
 
-        {/* Table Container with Horizontal Scroll */}
+        {/* Main Products Table */}
         <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs bg-white">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              {/* Row 0: Header Titles */}
+              {/* Row 0: Table Header */}
               <tr className="bg-[#043077] text-white">
                 <th className="py-3 px-3 text-center font-black tracking-wider w-12 border-r border-blue-800 uppercase">
                   SEL
                 </th>
-                <th className="py-3 px-4 font-black tracking-wider border-r border-blue-800 min-w-[200px] uppercase">
-                  {activeMachine.name || activeMachine.title || activeMachineId}
+                <th className="py-3 px-4 font-black tracking-wider border-r border-blue-800 min-w-[220px] uppercase">
+                  Nombre del Producto ({activeMachine.name || activeMachine.title || activeMachineId})
                 </th>
                 <th className="py-3 px-3 text-center font-black tracking-wider w-20 border-r border-blue-800 uppercase">
                   Precio
@@ -510,14 +734,14 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   Caben
                 </th>
                 {dates.map((dateCol: string) => (
-                  <th key={dateCol} className="py-2.5 px-3 text-center font-black tracking-wider min-w-[100px] border-r border-blue-800 bg-blue-900/60 relative group">
+                  <th key={dateCol} className="py-2.5 px-3 text-center font-black tracking-wider min-w-[105px] border-r border-blue-800 bg-blue-900/60 relative group">
                     <div className="flex items-center justify-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-blue-300" />
                       <span className="font-mono text-xs">{dateCol}</span>
                       <button
                         onClick={() => handleDeleteDateColumn(dateCol)}
                         className="opacity-0 group-hover:opacity-100 text-rose-300 hover:text-rose-100 p-0.5 rounded transition-all cursor-pointer ml-1"
-                        title="Eliminar esta columna de fecha"
+                        title="Eliminar columna de fecha"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -530,7 +754,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
             <tbody className="divide-y divide-slate-200 text-slate-800 font-medium">
               {/* Top Metrics Section (Unid. Vtas, $ ventas) */}
               {topMetrics.map((metric: any) => (
-                <tr key={metric.id} className="bg-slate-100/80 hover:bg-slate-200/50 font-bold border-b border-slate-300">
+                <tr key={metric.id} className="bg-slate-100/90 hover:bg-slate-200/50 font-bold border-b border-slate-300">
                   <td className="py-2 px-3 text-center font-mono font-black text-slate-700 border-r border-slate-300">
                     {metric.sel}
                   </td>
@@ -549,14 +773,15 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                         type="text"
                         value={metric.values[dateCol] || ''}
                         onChange={(e) => handleUpdateTopMetric(metric.id, dateCol, e.target.value)}
-                        className="w-full text-center font-mono font-bold text-xs bg-white border border-slate-300 focus:border-[#043077] focus:ring-1 focus:ring-[#043077] rounded px-1.5 py-1 text-indigo-950 focus:outline-none"
+                        onKeyDown={handleKeyDownEnter}
+                        className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-300 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-indigo-950 focus:outline-none"
                       />
                     </td>
                   ))}
                 </tr>
               ))}
 
-              {/* Section Divider: INVENTARIO */}
+              {/* Section Divider: INVENTARIO DE PRODUCTOS */}
               <tr className="bg-slate-200/90 text-slate-900 font-extrabold uppercase text-[11px] tracking-wider">
                 <td className="py-2 px-3 text-center border-r border-slate-300 font-mono text-slate-500">
                   #
@@ -577,21 +802,21 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                 ))}
               </tr>
 
-              {/* Products Table Rows - SEL, Nombre, Precio, Caben are strictly READ-ONLY */}
+              {/* Products Rows - Read-Only for SEL, Nombre, Precio, Caben. Editable for Date columns */}
               {isLoading ? (
                 <tr>
                   <td colSpan={4 + dates.length} className="py-8 text-center text-slate-500 font-bold bg-slate-50">
-                    Cargando datos de la máquina...
+                    Cargando catálogo de productos...
                   </td>
                 </tr>
-              ) : filteredProducts.length === 0 ? (
+              ) : products.length === 0 ? (
                 <tr>
                   <td colSpan={4 + dates.length} className="py-8 text-center text-slate-500 font-bold bg-slate-50">
                     No hay productos registrados en esta máquina.
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((p: any) => (
+                products.map((p: any) => (
                   <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
                     {/* Read-only SEL */}
                     <td className="py-2 px-3 text-center font-mono font-black text-indigo-950 border-r border-slate-200 bg-slate-100/60">
@@ -613,14 +838,15 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                       {p.caben}
                     </td>
 
-                    {/* Editable Date Columns for Operador / Surtidor */}
+                    {/* Editable Date Columns (Press Enter to advance) */}
                     {dates.map((dateCol: string) => (
                       <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-200">
                         <input
                           type="text"
                           value={p.values[dateCol] || '0'}
                           onChange={(e) => handleUpdateProductCount(p.id, dateCol, e.target.value)}
-                          className="w-full text-center font-mono font-bold text-xs bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] rounded px-1.5 py-1 text-slate-900 focus:outline-none"
+                          onKeyDown={handleKeyDownEnter}
+                          className="editable-cell w-full text-center font-mono font-bold text-xs bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
                         />
                       </td>
                     ))}
@@ -628,7 +854,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                 ))
               )}
 
-              {/* Footer Controls & Bitacora Checklist Section */}
+              {/* Bitacora Checklist Section Header */}
               <tr className="bg-slate-800 text-white font-extrabold uppercase text-[11px] tracking-wider">
                 <td colSpan={4} className="py-2.5 px-4 font-black">
                   CONTROLES, BITÁCORA Y ARQUEO DE CAJA Y LIMPIEZA
@@ -640,6 +866,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                 ))}
               </tr>
 
+              {/* Bitacora Controls Rows */}
               {controls.map((ctrl: any) => (
                 <tr key={ctrl.id} className="hover:bg-slate-100/80 bg-slate-50/40">
                   <td className="py-2 px-3 text-center font-mono font-bold text-slate-400 border-r border-slate-200">
@@ -661,7 +888,8 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                           <select
                             value={currentVal.toLowerCase()}
                             onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
-                            className={`w-full text-center font-mono font-black text-xs border rounded px-1 py-1 focus:outline-none cursor-pointer ${
+                            onKeyDown={handleKeyDownEnter}
+                            className={`editable-cell w-full text-center font-mono font-black text-xs border rounded px-1 py-1 focus:outline-none cursor-pointer ${
                               currentVal.toLowerCase() === 'si'
                                 ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
                                 : currentVal.toLowerCase() === 'no'
@@ -678,7 +906,8 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                             type="text"
                             value={currentVal}
                             onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
-                            className="w-full text-center font-mono font-bold text-xs bg-white border border-slate-200 focus:border-[#043077] rounded px-1.5 py-1 text-slate-900 focus:outline-none"
+                            onKeyDown={handleKeyDownEnter}
+                            className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
                           />
                         )}
                       </td>
@@ -690,6 +919,94 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
           </table>
         </div>
       </div>
+
+      {/* Date Picker Modal for Adding Validated Date Columns */}
+      {isDateModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 relative">
+            <button
+              onClick={() => setIsDateModalOpen(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-100 text-[#043077] rounded-xl">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Agregar Columna de Fecha</h3>
+                <p className="text-xs text-slate-500">Selecciona o ingresa una fecha válida</p>
+              </div>
+            </div>
+
+            {dateError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{dateError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                  1. Calendario (Formato Fecha Estricto):
+                </label>
+                <input
+                  type="date"
+                  value={datePickerValue}
+                  onChange={(e) => {
+                    setDatePickerValue(e.target.value);
+                    setCustomDateLabel('');
+                    setDateError(null);
+                  }}
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/20 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono focus:outline-none"
+                />
+              </div>
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink mx-3 text-[10px] font-black uppercase tracking-wider text-slate-400">O Texto de Fecha (dd-mmm)</span>
+                <div className="flex-grow border-t border-slate-200"></div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                  2. Etiqueta Personalizada (Ej: 12-jul, 15-ago):
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: 12-jul o 2026-08-12"
+                  value={customDateLabel}
+                  onChange={(e) => {
+                    setCustomDateLabel(e.target.value);
+                    setDateError(null);
+                  }}
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/20 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDateModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAddDate}
+                className="px-5 py-2 bg-[#043077] hover:bg-blue-900 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" /> Agregar Fecha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
