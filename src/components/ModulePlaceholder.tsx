@@ -5090,6 +5090,23 @@ export default function ModulePlaceholder({
             sqlText += `    fecha_registro DATE DEFAULT CURRENT_DATE\n`;
             sqlText += `);\n\n`;
 
+            sqlText += `-- Columnas de compatibilidad e interoperabilidad\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS sel VARCHAR(50) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS precio_venta DECIMAL(10,2) DEFAULT 0.00;\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS costo_surtido DECIMAL(10,2) DEFAULT 0.00;\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS unidad_surtida INT DEFAULT 0;\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS surtir INT DEFAULT 0;\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS capacidad INT DEFAULT 0;\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS notas TEXT DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT '';\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT '';\n\n`;
+
             if (currentRows.length > 0) {
               const sqlCols = headers.map(header => {
                 return header.toLowerCase()
@@ -5119,15 +5136,10 @@ export default function ModulePlaceholder({
               sqlText += insertValues.join(',\n') + ';\n\n';
             }
 
-            // Create View for KPIs
-            sqlText += `-- Vista Analítica KPI\n`;
-            sqlText += `CREATE VIEW v_${tableName}_resumen AS\n`;
-            sqlText += `SELECT\n`;
-            sqlText += `    COUNT(*) AS total_registros,\n`;
-
-            let surtirCol = 'unidad_surtida';
-            let costoCol = 'costo_surtido';
-            let precioCol = 'precio_venta';
+            // Safe columns detection for KPIs
+            let surtirCol = '';
+            let costoCol = '';
+            let precioCol = '';
             let foundVenta = false;
 
             headers.forEach(header => {
@@ -5139,33 +5151,55 @@ export default function ModulePlaceholder({
                 .replace(/^_+|_+$/g, "")
                 .trim();
                 
-              if (cleanH === 'surtir' || cleanH === 'cantidad' || cleanH === 'unidades') {
+              if (!surtirCol && (cleanH.includes('surtir') || cleanH.includes('cantidad') || cleanH.includes('unidad') || cleanH.includes('cant'))) {
                 surtirCol = sqlCol;
-              } else if (cleanH === 'costo') {
+              } else if (!costoCol && (cleanH.includes('costo') || cleanH.includes('cost'))) {
                 costoCol = sqlCol;
               } else if (cleanH === 'precioventa' || cleanH === 'preciovta' || cleanH === 'vta') {
                 precioCol = sqlCol;
                 foundVenta = true;
-              } else if (!foundVenta && (cleanH === 'precio' || cleanH === 'preciodeventa' || cleanH === 'precio_vta' || cleanH === 'precioregular')) {
+              } else if (!foundVenta && (cleanH.includes('precio') || cleanH.includes('price'))) {
                 precioCol = sqlCol;
               }
             });
 
-            sqlText += `    SUM(${surtirCol}) AS total_piezas_surtidas,\n`;
-            sqlText += `    SUM(${surtirCol} * ${costoCol}) AS inversion_total,\n`;
-            sqlText += `    SUM(${surtirCol} * ${precioCol}) AS venta_proyectada,\n`;
-            sqlText += `    SUM(${surtirCol} * (${precioCol} - ${costoCol})) AS ganancia_bruta_proyectada,\n`;
-            sqlText += `    ROUND(AVG(NULLIF(${precioCol} - ${costoCol}, 0) / NULLIF(${precioCol}, 0) * 100), 2) AS margen_promedio_general\n`;
+            // Create View for KPIs safely checking for column existence
+            sqlText += `-- Vista Analítica KPI\n`;
+            sqlText += `CREATE OR REPLACE VIEW v_${tableName}_resumen AS\n`;
+            sqlText += `SELECT\n`;
+            sqlText += `    COUNT(*) AS total_registros,\n`;
+
+            const piecesExpr = surtirCol ? `SUM(${surtirCol})` : '0';
+            const invExpr = (surtirCol && costoCol) ? `SUM(${surtirCol} * ${costoCol})` : '0.00';
+            const vtaExpr = (surtirCol && precioCol) ? `SUM(${surtirCol} * ${precioCol})` : '0.00';
+            const ganExpr = (surtirCol && precioCol && costoCol) 
+              ? `SUM(${surtirCol} * (${precioCol} - ${costoCol}))` 
+              : (surtirCol && precioCol ? `SUM(${surtirCol} * ${precioCol})` : '0.00');
+            const margExpr = (precioCol && costoCol) 
+              ? `ROUND(AVG(NULLIF(${precioCol} - ${costoCol}, 0) / NULLIF(${precioCol}, 0) * 100), 2)` 
+              : '0.00';
+
+            sqlText += `    ${piecesExpr} AS total_piezas_surtidas,\n`;
+            sqlText += `    ${invExpr} AS inversion_total,\n`;
+            sqlText += `    ${vtaExpr} AS venta_proyectada,\n`;
+            sqlText += `    ${ganExpr} AS ganancia_bruta_proyectada,\n`;
+            sqlText += `    ${margExpr} AS margen_promedio_general\n`;
           } else {
-            sqlText += `    SUM(unidad_surtida) AS total_piezas_surtidas,\n`;
-            sqlText += `    SUM(unidad_surtida * costo_surtido) AS inversion_total,\n`;
-            sqlText += `    SUM(unidad_surtida * precio_venta) AS venta_proyectada,\n`;
-            sqlText += `    SUM(unidad_surtida * (precio_venta - costo_surtido)) AS ganancia_bruta_proyectada,\n`;
-            sqlText += `    ROUND(AVG(NULLIF(precio_venta - costo_surtido, 0) / NULLIF(precio_venta, 0) * 100), 2) AS margen_promedio_general\n`;
+            sqlText += `CREATE OR REPLACE VIEW v_${tableName}_resumen AS\n`;
+            sqlText += `SELECT\n`;
+            sqlText += `    COUNT(*) AS total_registros,\n`;
+            sqlText += `    0 AS total_piezas_surtidas,\n`;
+            sqlText += `    0.00 AS inversion_total,\n`;
+            sqlText += `    0.00 AS venta_proyectada,\n`;
+            sqlText += `    0.00 AS ganancia_bruta_proyectada,\n`;
+            sqlText += `    0.00 AS margen_promedio_general\n`;
           }
           sqlText += `FROM ${tableName};\n\n`;
 
-          sqlText += `-- 🌐 3. SCRIPT GLOBAL PARA AGREGAR COLUMNAS DE SEL, PRODUCTO, PRECIO, RESORTE Y FECHAS A TODAS LAS MÁQUINAS EN SUPABASE\n`;
+          sqlText += `ALTER TABLE IF EXISTS ${tableName} DISABLE ROW LEVEL SECURITY;\n`;
+          sqlText += `GRANT ALL ON TABLE ${tableName} TO anon, authenticated, postgres, service_role;\n\n`;
+
+          sqlText += `-- 🌐 3. SCRIPT GLOBAL PARA AGREGAR COLUMNAS FALTANTES A TODAS LAS MÁQUINAS EN SUPABASE\n`;
           sqlText += `-- Copia y ejecuta este bloque en "SQL Editor" de Supabase para actualizar la estructura de TODAS las máquinas existentes sin borrar datos:\n`;
           sqlText += `DO $$\n`;
           sqlText += `DECLARE\n`;
@@ -5174,18 +5208,25 @@ export default function ModulePlaceholder({
           sqlText += `    FOR t IN\n`;
           sqlText += `        SELECT table_name\n`;
           sqlText += `        FROM information_schema.tables\n`;
-          sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name != 'surtido_submenus' AND table_name != 'surtido_bitacora_mantenimiento' AND table_name != 'surtido_items'\n`;
+          sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name NOT IN ('surtido_submenus', 'surtido_bitacora_mantenimiento', 'surtido_items')\n`;
           sqlText += `    LOOP\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS sel VARCHAR(50) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS precio_venta DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS costo_surtido DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS unidad_surtida INT DEFAULT 0;', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS surtir INT DEFAULT 0;', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS capacidad INT DEFAULT 0;', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS notas TEXT DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I DISABLE ROW LEVEL SECURITY;', t);\n`;
+          sqlText += `        EXECUTE format('GRANT ALL ON TABLE %I TO anon, authenticated, postgres, service_role;', t);\n`;
           sqlText += `    END LOOP;\n`;
           sqlText += `END $$;\n\n`;
 
