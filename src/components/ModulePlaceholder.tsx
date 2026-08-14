@@ -630,6 +630,7 @@ export default function ModulePlaceholder({
   };
 
   const [isEditSubmenuOpen, setIsEditSubmenuOpen] = useState(false);
+  const [deleteConfirmSubmenu, setDeleteConfirmSubmenu] = useState<{ id: string; name: string } | null>(null);
   const [editSubmenuId, setEditSubmenuId] = useState('');
   const [editSubmenuName, setEditSubmenuName] = useState('');
   const [editSubmenuTitle, setEditSubmenuTitle] = useState('');
@@ -1517,43 +1518,30 @@ export default function ModulePlaceholder({
   useEffect(() => {
     const loadFromSupabase = async () => {
       try {
+        // Retrieve explicitly deleted machines to never revive them
+        let deletedIds: string[] = [];
+        try {
+          const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+          if (deletedStored) deletedIds = JSON.parse(deletedStored);
+        } catch (e) {}
+
         // Try to load custom submenus list from Supabase first
-        let currentMenuList = [...supplySubmenuList];
+        let currentMenuList = [...supplySubmenuList].filter(s => !deletedIds.includes(s.id));
         const { data: menuData, error: menuError } = await supabase.from('surtido_submenus').select('*');
         
         if (!menuError && menuData) {
           if (menuData.length > 0) {
-            const loadedMenus = menuData.map((m: any) => ({
-              id: m.id,
-              name: m.name,
-              title: m.title || `Reporte Surtido ${m.name}`,
-              desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`,
-              convenio: m.convenio || 'NO',
-              cliente: m.cliente || '',
-              grupo: m.grupo || ''
-            }));
-
-            // Merge local machines (created in AI Studio or cached) that aren't in Supabase yet
-            const missingInSupabase: any[] = [];
-            currentMenuList.forEach(localItem => {
-              if (!loadedMenus.some(m => m.id === localItem.id)) {
-                loadedMenus.push(localItem);
-                missingInSupabase.push({
-                  id: localItem.id,
-                  name: localItem.name,
-                  title: localItem.title || localItem.name,
-                  description: localItem.desc || '',
-                  convenio: localItem.convenio || 'NO',
-                  cliente: localItem.cliente || '',
-                  grupo: localItem.grupo || localItem.group || ''
-                });
-              }
-            });
-
-            // Auto-publish any missing local machines to Supabase so they appear everywhere (including Vercel)
-            if (missingInSupabase.length > 0) {
-              await supabase.from('surtido_submenus').upsert(missingInSupabase);
-            }
+            const loadedMenus = menuData
+              .filter((m: any) => !deletedIds.includes(m.id))
+              .map((m: any) => ({
+                id: m.id,
+                name: m.name,
+                title: m.title || `Reporte Surtido ${m.name}`,
+                desc: m.description || `Administración, adición y exportación de surtidos para el acceso ${m.name}.`,
+                convenio: m.convenio || 'NO',
+                cliente: m.cliente || '',
+                grupo: m.grupo || ''
+              }));
 
             const sortedMerged = sortSubmenus(loadedMenus);
             setSupplySubmenuList(sortedMerged);
@@ -5186,22 +5174,34 @@ export default function ModulePlaceholder({
           sqlText += `    FOR t IN\n`;
           sqlText += `        SELECT table_name\n`;
           sqlText += `        FROM information_schema.tables\n`;
-          sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name != 'surtido_submenus' AND table_name != 'surtido_bitacora_mantenimiento'\n`;
+          sqlText += `        WHERE table_name LIKE 'surtido_%' AND table_name != 'surtido_submenus' AND table_name != 'surtido_bitacora_mantenimiento' AND table_name != 'surtido_items'\n`;
           sqlText += `    LOOP\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS sel VARCHAR(50) DEFAULT ';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT ';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS sel VARCHAR(50) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS precio_venta DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT ';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT ';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT ';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT ';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT ';', t);\n`;
-          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT ';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_2 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_3 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_4 VARCHAR(150) DEFAULT '''';', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS fecha_5 VARCHAR(150) DEFAULT '''';', t);\n`;
           sqlText += `    END LOOP;\n`;
           sqlText += `END $$;\n\n`;
 
-          sqlText += `-- 🌐 4. SCRIPT GLOBAL PARA TABLA DE BITÁCORA Y CONTROL DE MANTENIMIENTO POR VISITA DE MÁQUINA\n`;
+          sqlText += `-- 🌐 4. TABLA GLOBAL DE OPERADORES, LECTURAS Y FECHAS (SINCRONIZACIÓN ENTRE NAVEGADORES)\n`;
+          sqlText += `CREATE TABLE IF NOT EXISTS operadores_data (\n`;
+          sqlText += `    machine_id VARCHAR(100) PRIMARY KEY,\n`;
+          sqlText += `    dates JSONB DEFAULT '[]'::jsonb,\n`;
+          sqlText += `    top_metrics JSONB DEFAULT '[]'::jsonb,\n`;
+          sqlText += `    controls JSONB DEFAULT '[]'::jsonb,\n`;
+          sqlText += `    values_map JSONB DEFAULT '{}'::jsonb,\n`;
+          sqlText += `    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n`;
+          sqlText += `);\n`;
+          sqlText += `ALTER TABLE IF EXISTS operadores_data DISABLE ROW LEVEL SECURITY;\n`;
+          sqlText += `GRANT ALL ON TABLE operadores_data TO anon, authenticated, postgres, service_role;\n\n`;
+
+          sqlText += `-- 🌐 5. TABLA DE BITÁCORA Y CONTROL DE MANTENIMIENTO POR VISITA DE MÁQUINA\n`;
           sqlText += `CREATE TABLE IF NOT EXISTS surtido_bitacora_mantenimiento (\n`;
           sqlText += `    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n`;
           sqlText += `    maquina_id VARCHAR(100) NOT NULL,\n`;
@@ -5238,7 +5238,7 @@ export default function ModulePlaceholder({
           sqlText += `ALTER TABLE surtido_bitacora_mantenimiento ADD COLUMN IF NOT EXISTS notas TEXT DEFAULT 'no';\n`;
           sqlText += `ALTER TABLE surtido_bitacora_mantenimiento ADD COLUMN IF NOT EXISTS nombre_repartidor VARCHAR(255) DEFAULT '';\n`;
           sqlText += `ALTER TABLE surtido_bitacora_mantenimiento ADD COLUMN IF NOT EXISTS elaboro VARCHAR(100) DEFAULT 'FC';\n`;
-          sqlText += `ALTER TABLE surtido_bitacora_mantenimiento DISABLE ROW LEVEL SECURITY;\n`;
+          sqlText += `ALTER TABLE IF EXISTS surtido_bitacora_mantenimiento DISABLE ROW LEVEL SECURITY;\n`;
           sqlText += `GRANT ALL ON TABLE surtido_bitacora_mantenimiento TO anon, authenticated, postgres, service_role;\n`;
           sqlText += `CREATE INDEX IF NOT EXISTS idx_bitacora_maquina_id ON surtido_bitacora_mantenimiento(maquina_id);\n`;
 
@@ -6073,54 +6073,52 @@ export default function ModulePlaceholder({
           setIsEditSubmenuOpen(false);
         };
 
-        const handleDeleteSubmenu = (submenuId: string) => {
+        const promptDeleteSubmenu = (submenuId: string) => {
           const submenu = supplySubmenuList.find(s => s.id === submenuId);
           if (!submenu) return;
-          
-          const isDefault = ['cer_bb', 'art_alt', 'art_ct'].includes(submenuId);
-          const confirmMsg = isDefault 
-            ? `¿Estás seguro de que deseas eliminar la sección predeterminada "${submenu.name}"? Se perderán todos sus datos.`
-            : `¿Estás seguro de que deseas eliminar la sección "${submenu.name}"? Esta acción borrará el acceso y todos sus datos asociados.`;
-            
-          if (!window.confirm(confirmMsg)) {
-            return;
-          }
+          setDeleteConfirmSubmenu({ id: submenuId, name: submenu.name || submenu.title || submenuId });
+        };
 
-          // Delete from local list state
+        const executeDeleteSubmenu = async (submenuId: string) => {
+          const submenu = supplySubmenuList.find(s => s.id === submenuId);
+          const submenuName = submenu ? (submenu.name || submenu.title || submenuId) : submenuId;
+
+          // 1. Delete from local list state
           setSupplySubmenuList(prev => prev.filter(s => s.id !== submenuId));
           
-          // Clean up generic state data
+          // 2. Clean up generic state data
           setGenericSubmenuData(prev => {
             const copy = { ...prev };
             delete copy[submenuId];
             return copy;
           });
 
-          // Clean up localStorage for this specific submenu data
+          // 3. Clean up localStorage for this specific submenu data
           try {
             localStorage.removeItem(`surtiantojo_${submenuId}`);
+            localStorage.removeItem(`surtiantojo_surtido_rows_${submenuId}`);
+            localStorage.removeItem(`surtiantojo_operadores_sheet_${submenuId}`);
             
             const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
-            const deletedIds = deletedStored ? JSON.parse(deletedStored) : [];
+            const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
             if (!deletedIds.includes(submenuId)) {
               deletedIds.push(submenuId);
               localStorage.setItem('surtiantojo_deleted_submenu_ids', JSON.stringify(deletedIds));
             }
           } catch (e) {}
 
-          // Delete from Supabase 'surtido_submenus' metadata table if connected
-          supabase.from('surtido_submenus').delete().eq('id', submenuId).then(({ error }) => {
-            if (error) {
-              console.log("Supabase submenus delete status:", error.message);
-            } else {
-              console.log("Submenu deleted from Supabase!");
-            }
-          });
+          // 4. Delete from Supabase 'surtido_submenus' and 'operadores_data'
+          try {
+            await supabase.from('surtido_submenus').delete().eq('id', submenuId);
+            await supabase.from('operadores_data').delete().eq('machine_id', submenuId);
+          } catch (e) {
+            console.log("Supabase submenus delete error:", e);
+          }
 
-          // Clear table data in Supabase if any
+          // 5. Clear table data in Supabase if any
           clearTableInSupabase(submenuId);
 
-          // If the deleted submenu was the active one, switch to the first available
+          // 6. If the deleted submenu was the active one, switch to the first available
           if (activeSupplySubmenu === submenuId) {
             const remaining = supplySubmenuList.filter(s => s.id !== submenuId);
             if (remaining.length > 0) {
@@ -6131,6 +6129,13 @@ export default function ModulePlaceholder({
           }
 
           setIsEditSubmenuOpen(false);
+          setDeleteConfirmSubmenu(null);
+          setSaveNotification(`¡Máquina "${submenuName}" eliminada correctamente!`);
+          setTimeout(() => setSaveNotification(null), 4000);
+        };
+
+        const handleDeleteSubmenu = (submenuId: string) => {
+          promptDeleteSubmenu(submenuId);
         };
 
         // 1. RENDER DEDICATED FULL SECTION/PAGE FORM IF MACHINE IS SELECTED FOR REFILL
@@ -6835,21 +6840,33 @@ export default function ModulePlaceholder({
                           </span>
                         )}
                         {!isSurtidorOnly && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditSubmenuId(activeMeta.id);
-                              setEditSubmenuName(activeMeta.name);
-                              setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
-                              setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
-                              setEditSubmenuCliente(activeMeta.cliente || '');
-                              setIsEditSubmenuOpen(true);
-                            }}
-                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-[9px] uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5 cursor-pointer ml-2 shrink-0"
-                            title="Editar nombre y descripción de este acceso"
-                          >
-                            <Edit className="w-3 h-3" /> Editar Acceso
-                          </button>
+                          <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditSubmenuId(activeMeta.id);
+                                setEditSubmenuName(activeMeta.name);
+                                setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
+                                setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
+                                setEditSubmenuCliente(activeMeta.cliente || '');
+                                setEditSubmenuConvenio((activeMeta.convenio as any) || 'NO');
+                                setEditSubmenuGroup((activeMeta.grupo as any) || 'botana');
+                                setIsEditSubmenuOpen(true);
+                              }}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-2xs"
+                              title="Editar nombre y descripción de este acceso"
+                            >
+                              <Edit className="w-3 h-3 text-[#043077]" /> Editar Acceso
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => promptDeleteSubmenu(activeMeta.id)}
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                              title={`Eliminar permanentemente la máquina ${activeMeta.name}`}
+                            >
+                              <Trash2 className="w-3 h-3 text-rose-600" /> Borrar Máquina
+                            </button>
+                          </div>
                         )}
                       </h3>
                       <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta.desc}</p>
@@ -8774,11 +8791,60 @@ export default function ModulePlaceholder({
 
                     <button
                       type="button"
-                      onClick={() => handleDeleteSubmenu(editSubmenuId)}
-                      className="w-full mt-1.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        setIsEditSubmenuOpen(false);
+                        promptDeleteSubmenu(editSubmenuId);
+                      }}
+                      className="w-full mt-1.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-2xs"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      Eliminar Esta Sección
+                      Eliminar Esta Máquina
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {/* Delete Submenu Confirmation Modal */}
+            {deleteConfirmSubmenu && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-white border border-rose-200 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4 text-left"
+                >
+                  <div className="flex items-center gap-3 border-b border-slate-150 pb-3">
+                    <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                      <Trash2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">
+                        Eliminar Máquina Registrada
+                      </h3>
+                      <p className="text-xs text-rose-600 font-extrabold">
+                        {deleteConfirmSubmenu.name}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    ¿Estás seguro de que deseas eliminar permanentemente la máquina <strong>"{deleteConfirmSubmenu.name}"</strong>? Esta acción borrará el acceso, su configuración y todos los registros de surtido y operadores tanto de este navegador como de Supabase.
+                  </p>
+
+                  <div className="pt-2 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmSubmenu(null)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeDeleteSubmenu(deleteConfirmSubmenu.id)}
+                      className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
+                    >
+                      Sí, Borrar Máquina
                     </button>
                   </div>
                 </motion.div>

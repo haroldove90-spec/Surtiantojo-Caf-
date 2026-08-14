@@ -222,13 +222,27 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     let storedValuesMap: Record<string, Record<string, string>> = {};
 
     try {
-      const localSheet = localStorage.getItem(`surtiantojo_operadores_sheet_${machineId}`);
-      if (localSheet) {
-        const parsed = JSON.parse(localSheet);
-        if (parsed.dates) storedDates = parsed.dates;
-        if (parsed.topMetrics) storedTopMetrics = parsed.topMetrics;
-        if (parsed.controls) storedControls = parsed.controls;
-        if (parsed.valuesMap) storedValuesMap = parsed.valuesMap;
+      // 1. Fetch cloud operators data from Supabase first
+      const { data: opCloudData, error: opCloudErr } = await supabase
+        .from('operadores_data')
+        .select('*')
+        .eq('machine_id', machineId)
+        .maybeSingle();
+
+      if (!opCloudErr && opCloudData) {
+        if (opCloudData.dates && Array.isArray(opCloudData.dates)) storedDates = opCloudData.dates;
+        if (opCloudData.top_metrics && Array.isArray(opCloudData.top_metrics)) storedTopMetrics = opCloudData.top_metrics;
+        if (opCloudData.controls && Array.isArray(opCloudData.controls)) storedControls = opCloudData.controls;
+        if (opCloudData.values_map && typeof opCloudData.values_map === 'object') storedValuesMap = opCloudData.values_map;
+      } else {
+        const localSheet = localStorage.getItem(`surtiantojo_operadores_sheet_${machineId}`);
+        if (localSheet) {
+          const parsed = JSON.parse(localSheet);
+          if (parsed.dates) storedDates = parsed.dates;
+          if (parsed.topMetrics) storedTopMetrics = parsed.topMetrics;
+          if (parsed.controls) storedControls = parsed.controls;
+          if (parsed.valuesMap) storedValuesMap = parsed.valuesMap;
+        }
       }
     } catch (e) {}
 
