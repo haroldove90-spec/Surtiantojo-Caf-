@@ -5001,9 +5001,10 @@ export default function ModulePlaceholder({
           return supplySortDirection === 'asc' ? comp : -comp;
         });
 
-        // Paginate Surtido rows (50 per page)
-        const totalSupplyPages = Math.max(Math.ceil(sortedSubmenuRows.length / 50), 1);
-        const paginatedSubmenuRows = sortedSubmenuRows.slice((supplyPage - 1) * 50, supplyPage * 50);
+        // Paginate Surtido rows (10 per page)
+        const SUPPLY_PAGE_SIZE = 10;
+        const totalSupplyPages = Math.max(Math.ceil(sortedSubmenuRows.length / SUPPLY_PAGE_SIZE), 1);
+        const paginatedSubmenuRows = sortedSubmenuRows.slice((supplyPage - 1) * SUPPLY_PAGE_SIZE, supplyPage * SUPPLY_PAGE_SIZE);
 
         // Dynamic Calculations for KPIs
         const totalUnits = filteredSubmenuRows.reduce((acc, row) => acc + safeVal(row.unidad_surtida), 0);
@@ -8143,8 +8144,8 @@ export default function ModulePlaceholder({
                   
                   {/* Table footer info */}
                   <div className="bg-slate-50 px-4 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-bold">
-                    <span>Mostrando {paginatedSubmenuRows.length} de {filteredSubmenuRows.length} registros en {activeMeta.name}</span>
-                    <span className="font-mono text-[#043077] uppercase tracking-wider">Cargar en Dashboard Excel Habilitado</span>
+                    <span>Mostrando {paginatedSubmenuRows.length} de {filteredSubmenuRows.length} registros en {activeMeta.name} (Página {supplyPage} de {totalSupplyPages})</span>
+                    <span className="font-mono text-[#043077] uppercase tracking-wider">Paginación de 10 registros activa</span>
                   </div>
                 </div>
                 )}
@@ -8153,7 +8154,7 @@ export default function ModulePlaceholder({
                 {totalSupplyPages > 1 && (
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-3 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
                     <div className="text-xs font-black text-slate-500 uppercase tracking-wide">
-                      Mostrando <span className="text-[#043077] font-mono">{(supplyPage - 1) * 5 + 1}</span> a <span className="text-[#043077] font-mono">{Math.min(supplyPage * 5, filteredSubmenuRows.length)}</span> de <span className="text-slate-700 font-mono">{filteredSubmenuRows.length}</span> registros
+                      Mostrando <span className="text-[#043077] font-mono">{(supplyPage - 1) * SUPPLY_PAGE_SIZE + 1}</span> a <span className="text-[#043077] font-mono">{Math.min(supplyPage * SUPPLY_PAGE_SIZE, filteredSubmenuRows.length)}</span> de <span className="text-slate-700 font-mono">{filteredSubmenuRows.length}</span> registros
                     </div>
                     <div className="flex items-center gap-1">
                       <button

@@ -154,6 +154,14 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   // Synchronized product rows (SEL, Nombre, Precio, Caben - read-only from Admin, plus date counts)
   const [products, setProducts] = useState<any[]>([]);
 
+  // Pagination for products table (10 per page)
+  const [opPage, setOpPage] = useState<number>(1);
+  const OP_PAGE_SIZE = 10;
+  const totalOpPages = Math.max(Math.ceil(products.length / OP_PAGE_SIZE), 1);
+  const paginatedProducts = useMemo(() => {
+    return products.slice((opPage - 1) * OP_PAGE_SIZE, opPage * OP_PAGE_SIZE);
+  }, [products, opPage]);
+
   // Controls / Bitacora checklist
   const [controls, setControls] = useState<any[]>(DEFAULT_CONTROLS);
 
@@ -300,6 +308,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     setTopMetrics(storedTopMetrics);
     setControls(storedControls);
     setProducts(mergedProducts);
+    setOpPage(1);
     setIsLoading(false);
   };
 
@@ -816,7 +825,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   </td>
                 </tr>
               ) : (
-                products.map((p: any) => (
+                paginatedProducts.map((p: any) => (
                   <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
                     {/* Read-only SEL */}
                     <td className="py-2 px-3 text-center font-mono font-black text-indigo-950 border-r border-slate-200 bg-slate-100/60">
@@ -918,6 +927,59 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
             </tbody>
           </table>
         </div>
+
+        {/* Products Pagination footer */}
+        {totalOpPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-3 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+            <div className="text-xs font-black text-slate-500 uppercase tracking-wide">
+              Mostrando <span className="text-[#043077] font-mono">{(opPage - 1) * OP_PAGE_SIZE + 1}</span> a <span className="text-[#043077] font-mono">{Math.min(opPage * OP_PAGE_SIZE, products.length)}</span> de <span className="text-slate-700 font-mono">{products.length}</span> productos
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setOpPage(prev => Math.max(prev - 1, 1))}
+                disabled={opPage === 1}
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white text-slate-700 text-xs font-black border border-slate-200 rounded-xl cursor-pointer transition-all focus:outline-none flex items-center gap-1"
+              >
+                ◀️ Anterior
+              </button>
+              {Array.from({ length: totalOpPages }, (_, i) => i + 1).map(page => {
+                const isSelected = page === opPage;
+                const shouldShow = totalOpPages <= 6 || Math.abs(page - opPage) <= 1 || page === 1 || page === totalOpPages;
+                
+                if (!shouldShow) {
+                  if (page === 2 || page === totalOpPages - 1) {
+                    return <span key={`op-dots-${page}`} className="text-slate-400 text-xs px-1 select-none">...</span>;
+                  }
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setOpPage(page)}
+                    className={`w-8 h-8 flex items-center justify-center text-xs font-black rounded-xl cursor-pointer transition-all focus:outline-none ${
+                      isSelected
+                        ? 'bg-[#043077] text-white border border-[#043077]'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setOpPage(prev => Math.min(prev + 1, totalOpPages))}
+                disabled={opPage === totalOpPages}
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white text-slate-700 text-xs font-black border border-slate-200 rounded-xl cursor-pointer transition-all focus:outline-none flex items-center gap-1"
+              >
+                Siguiente ▶️
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Date Picker Modal for Adding Validated Date Columns */}
