@@ -26,20 +26,23 @@ interface OperadoresModuleProps {
 
 // Fallback machines list if Supabase query is loading or empty
 const DEFAULT_SUBMENUS = [
-  { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', grupo: 'botana' },
-  { id: 'art_pk', name: 'ART PK', title: 'Reporte ART PK', grupo: 'botana' },
-  { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', grupo: 'botana' },
-  { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', grupo: 'botana' },
-  { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', grupo: 'botana' },
-  { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', grupo: 'botana' },
-  { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', grupo: 'botana' },
-  { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', grupo: 'botana' },
-  { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', grupo: 'botana' },
-  { id: 'frial', name: 'FRIAL', title: 'Reporte FRIAL', grupo: 'botana' },
-  { id: 'lmno', name: 'LMNO', title: 'Reporte LMNO', grupo: 'botana' },
-  { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', grupo: 'bebidas' },
-  { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', grupo: 'bebidas' },
-  { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', grupo: 'bebidas' }
+  // Botanas
+  { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.', grupo: 'botana' },
+  { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.', grupo: 'botana' },
+  { id: 'art_pk', name: 'ART PK', title: 'Reporte ART PK', desc: 'Surtido de artículos de botanas PK.', grupo: 'botana' },
+  { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', desc: 'Surtido de artículos de botanas y confitería PRK.', grupo: 'botana' },
+  { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', desc: 'Surtido de la máquina CER 1 para botanas.', grupo: 'botana' },
+  { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', desc: 'Surtido de la máquina CER 2 para botanas.', grupo: 'botana' },
+  { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', desc: 'Surtido de la máquina CER 3 para botanas y snacks.', grupo: 'botana' },
+  { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', desc: 'Surtido de la máquina CG 1 para botanas.', grupo: 'botana' },
+  { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', desc: 'Surtido de la máquina CG 2 para botanas.', grupo: 'botana' },
+  { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', desc: 'Surtido de la máquina CG 3 para botanas.', grupo: 'botana' },
+  { id: 'frial', name: 'FRIAL', title: 'Reporte FRIAL', desc: 'Surtido para máquina Frial.', grupo: 'botana' },
+  { id: 'lmno', name: 'LMNO', title: 'Reporte LMNO', desc: 'Surtido para máquina LMNO.', grupo: 'botana' },
+  // Bebidas
+  { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', desc: 'Surtido de la máquina de bebidas CER BB.', grupo: 'bebidas' },
+  { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', desc: 'Surtido de la máquina de bebidas CONT. BB.', grupo: 'bebidas' },
+  { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', desc: 'Surtido de la máquina de bebidas VITRO BB.', grupo: 'bebidas' }
 ];
 
 // Default bitacora / controls checklist
@@ -60,18 +63,70 @@ const DEFAULT_CONTROLS = [
 ];
 
 // Helper to determine category group (botana, bebidas, cafe)
-const getSubmenuGroup = (id: string, name: string, group?: string): string => {
+const getSubmenuGroup = (id: string, name: string = '', group?: string): 'botana' | 'bebidas' | 'cafe' => {
   if (group && ['botana', 'bebidas', 'cafe'].includes(group.toLowerCase())) {
-    return group.toLowerCase();
+    return group.toLowerCase() as 'botana' | 'bebidas' | 'cafe';
   }
-  const lower = (id + ' ' + name).toLowerCase();
-  if (lower.includes('bb') || lower.includes('bebida') || lower.includes('cont_bb') || lower.includes('vitro_bb') || lower.includes('cer_bb')) {
+  const lowerId = (id || '').toLowerCase();
+  const lowerName = (name || '').toLowerCase();
+  const combined = `${lowerId} ${lowerName}`;
+
+  if (
+    combined.includes('cer_bb') || 
+    combined.includes('cont_bb') || 
+    combined.includes('vitro_bb') ||
+    combined.includes('bebida') ||
+    combined.includes('refresco') ||
+    combined.includes('jugo') ||
+    combined.includes(' bb') ||
+    lowerId.endsWith('_bb')
+  ) {
     return 'bebidas';
   }
-  if (lower.includes('cafe') || lower.includes('coffee') || lower.includes('cafeteria')) {
+
+  if (
+    combined.includes('cafe') || 
+    combined.includes('café') || 
+    combined.includes('coffee') ||
+    combined.includes('cafeteria') ||
+    combined.includes('cafetería')
+  ) {
     return 'cafe';
   }
+
   return 'botana';
+};
+
+const sortSubmenus = (list: any[]) => {
+  if (!list || !Array.isArray(list)) return [];
+  const others = list.filter(item => item && item.id && item.id !== 'vending_surtido');
+  const unique: any[] = [];
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+
+  others.forEach(item => {
+    const rawId = String(item.id || '').trim();
+    const normId = rawId.toLowerCase();
+    const rawName = String(item.name || item.title || item.id || '').trim();
+    const cleanKey = rawName.toUpperCase().replace(/\s+/g, '');
+
+    if (!seenIds.has(normId) && !seenNames.has(cleanKey)) {
+      seenIds.add(normId);
+      seenNames.add(cleanKey);
+      const group = getSubmenuGroup(rawId, rawName, item.grupo || item.group);
+      unique.push({
+        id: rawId,
+        name: rawName,
+        title: item.title || `Reporte ${rawName}`,
+        desc: item.desc || item.description || `Surtido para ${rawName}`,
+        cliente: item.cliente || '',
+        convenio: item.convenio || 'NO',
+        grupo: group
+      });
+    }
+  });
+  unique.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base', numeric: true }));
+  return unique;
 };
 
 // Date validation helper
@@ -117,8 +172,8 @@ const formatOrValidateDate = (inputStr: string): string | null => {
 };
 
 export default function OperadoresModule({ currentUser, isSurtidorOnly = false }: OperadoresModuleProps) {
-  // Category state (botana, bebidas, cafe)
-  const [activeCategory, setActiveCategory] = useState<'botana' | 'bebidas' | 'cafe'>('botana');
+  // Category state (all, botana, bebidas, cafe)
+  const [activeCategory, setActiveCategory] = useState<'all' | 'botana' | 'bebidas' | 'cafe'>('all');
 
   // Machines list registered by Admin (synced from surtido_submenus)
   const [machinesList, setMachinesList] = useState<any[]>(() => {
@@ -126,10 +181,10 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       const stored = localStorage.getItem('surtiantojo_submenu_list');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return sortSubmenus(parsed);
       }
     } catch (e) {}
-    return DEFAULT_SUBMENUS;
+    return sortSubmenus(DEFAULT_SUBMENUS);
   });
 
   const [activeMachineId, setActiveMachineId] = useState<string>('art_alt');
@@ -183,8 +238,9 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
           convenio: m.convenio || 'NO',
           grupo: m.grupo || getSubmenuGroup(m.id, m.name || m.title || '')
         }));
-        setMachinesList(loaded);
-        localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(loaded));
+        const sorted = sortSubmenus(loaded);
+        setMachinesList(sorted);
+        localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sorted));
       }
     } catch (e) {
       console.log('Error fetching admin submenus:', e);
@@ -197,12 +253,14 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
   // Filter machines by active category
   const categoryMachines = useMemo(() => {
+    if (activeCategory === 'all') return machinesList;
     return machinesList.filter(m => getSubmenuGroup(m.id, m.name || m.title || '', m.grupo) === activeCategory);
   }, [machinesList, activeCategory]);
 
   // Ensure active machine belongs to active category when category changes
-  const handleSelectCategory = (cat: 'botana' | 'bebidas' | 'cafe') => {
+  const handleSelectCategory = (cat: 'all' | 'botana' | 'bebidas' | 'cafe') => {
     setActiveCategory(cat);
+    if (cat === 'all') return;
     const inCategory = machinesList.filter(m => getSubmenuGroup(m.id, m.name || m.title || '', m.grupo) === cat);
     if (inCategory.length > 0 && !inCategory.some(m => m.id === activeMachineId)) {
       setActiveMachineId(inCategory[0].id);
@@ -571,22 +629,53 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
             Organización de Accesos Surtido (Categorías):
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* Menu 0: Todas las Maquinas */}
+            <button
+              type="button"
+              onClick={() => handleSelectCategory('all')}
+              className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                activeCategory === 'all'
+                  ? 'bg-blue-50/90 border-[#043077] shadow-xs ring-2 ring-[#043077]/20'
+                  : 'bg-white hover:bg-slate-50 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${
+                  activeCategory === 'all' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  <Layers className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Catálogo Total</span>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Todas</h4>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold">
+                  {machinesList.length} Máquinas
+                </span>
+                {activeCategory === 'all' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
+                )}
+              </div>
+            </button>
+
             {/* Menu 1: Botanas */}
             <button
               type="button"
               onClick={() => handleSelectCategory('botana')}
-              className={`p-4 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+              className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
                 activeCategory === 'botana'
                   ? 'bg-blue-50/80 border-[#043077] shadow-xs ring-2 ring-[#043077]/20'
                   : 'bg-white hover:bg-slate-50 border-slate-200'
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${
+                <div className={`p-2 rounded-xl ${
                   activeCategory === 'botana' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  <Boxes className="w-5 h-5" />
+                  <Boxes className="w-4 h-4" />
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 1</span>
@@ -598,7 +687,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   {machinesList.filter(s => getSubmenuGroup(s.id, s.name || s.title || '', s.grupo) === 'botana').length} Accesos
                 </span>
                 {activeCategory === 'botana' && (
-                  <span className="w-2 h-2 rounded-full bg-[#043077]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
                 )}
               </div>
             </button>
@@ -607,17 +696,17 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
             <button
               type="button"
               onClick={() => handleSelectCategory('bebidas')}
-              className={`p-4 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+              className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
                 activeCategory === 'bebidas'
                   ? 'bg-blue-50/80 border-[#043077] shadow-xs ring-2 ring-[#043077]/20'
                   : 'bg-white hover:bg-slate-50 border-slate-200'
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${
+                <div className={`p-2 rounded-xl ${
                   activeCategory === 'bebidas' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  <CupSoda className="w-5 h-5" />
+                  <CupSoda className="w-4 h-4" />
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 2</span>
@@ -629,7 +718,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   {machinesList.filter(s => getSubmenuGroup(s.id, s.name || s.title || '', s.grupo) === 'bebidas').length} Accesos
                 </span>
                 {activeCategory === 'bebidas' && (
-                  <span className="w-2 h-2 rounded-full bg-[#043077]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
                 )}
               </div>
             </button>
@@ -638,17 +727,17 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
             <button
               type="button"
               onClick={() => handleSelectCategory('cafe')}
-              className={`p-4 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+              className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
                 activeCategory === 'cafe'
                   ? 'bg-amber-50/80 border-amber-600 shadow-xs ring-2 ring-amber-500/20'
                   : 'bg-white hover:bg-slate-50 border-slate-200'
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${
+                <div className={`p-2 rounded-xl ${
                   activeCategory === 'cafe' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  <Coffee className="w-5 h-5" />
+                  <Coffee className="w-4 h-4" />
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Menu 3</span>
@@ -660,24 +749,24 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   {machinesList.filter(s => getSubmenuGroup(s.id, s.name || s.title || '', s.grupo) === 'cafe').length} Accesos
                 </span>
                 {activeCategory === 'cafe' && (
-                  <span className="w-2 h-2 rounded-full bg-amber-600" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
                 )}
               </div>
             </button>
 
-            {/* Card 4: Info for Admin machine registration */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-left flex flex-col justify-between opacity-80">
+            {/* Card 4: Info for Admin machine synchronization */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-left flex flex-col justify-between opacity-85">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-slate-200 text-slate-600">
-                  <Lock className="w-5 h-5" />
+                <div className="p-2 rounded-xl bg-slate-200 text-slate-600">
+                  <Lock className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 font-extrabold block uppercase tracking-wider">Registro de Máquinas</span>
-                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Solo Admin</h4>
+                  <span className="text-[10px] text-slate-500 font-extrabold block uppercase tracking-wider">Sincronizado</span>
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Catálogo Admin</h4>
                 </div>
               </div>
               <div className="mt-4 text-[10px] text-slate-500 font-bold">
-                Las máquinas son administradas exclusivamente por el Administrador.
+                100% Sincronizado con Surtido
               </div>
             </div>
           </div>
@@ -687,6 +776,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
         <div className="bg-slate-50/70 border border-slate-200 p-4 rounded-2xl space-y-2">
           <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
             Selecciona el submenú para {
+              activeCategory === 'all' ? 'Todas las Máquinas Registradas' :
               activeCategory === 'botana' ? 'Máquinas de Botana' :
               activeCategory === 'bebidas' ? 'Máquinas de Bebidas' : 'Máquinas de Café'
             }:

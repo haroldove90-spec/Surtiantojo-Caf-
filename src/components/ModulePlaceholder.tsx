@@ -476,35 +476,94 @@ export default function ModulePlaceholder({
   const sortSubmenus = (list: any[]) => {
     if (!list || !Array.isArray(list)) return [];
     const others = list.filter(item => item && item.id && item.id !== 'vending_surtido');
-    // Deduplicate by ID to prevent duplication error
+    // Deduplicate by ID and normalized Name to prevent duplication error
     const unique: any[] = [];
-    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+
     others.forEach(item => {
-      if (!seen.has(item.id)) {
-        seen.add(item.id);
-        unique.push(item);
+      const rawId = String(item.id || '').trim();
+      const normId = rawId.toLowerCase();
+      const rawName = String(item.name || item.title || item.id || '').trim();
+      const cleanKey = rawName.toUpperCase().replace(/\s+/g, '');
+
+      if (!seenIds.has(normId) && !seenNames.has(cleanKey)) {
+        seenIds.add(normId);
+        seenNames.add(cleanKey);
+        const group = getSubmenuGroup(rawId, rawName, item.grupo || item.group);
+        unique.push({
+          id: rawId,
+          name: rawName,
+          title: item.title || `Reporte ${rawName}`,
+          desc: item.desc || item.description || `Surtido para ${rawName}`,
+          cliente: item.cliente || '',
+          convenio: item.convenio || 'NO',
+          grupo: group
+        });
       }
     });
-    unique.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    unique.sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base', numeric: true }));
     return unique;
+  };
+
+  const getSubmenuGroup = (id: string, name: string = '', grupo?: string): 'botana' | 'bebidas' | 'cafe' => {
+    if (grupo && ['botana', 'bebidas', 'cafe'].includes(grupo.toLowerCase())) {
+      return grupo.toLowerCase() as 'botana' | 'bebidas' | 'cafe';
+    }
+    const found = supplySubmenuList?.find(s => s.id === id);
+    if (found && (found.group || found.grupo) && ['botana', 'bebidas', 'cafe'].includes(String(found.group || found.grupo).toLowerCase())) {
+      return String(found.group || found.grupo).toLowerCase() as 'botana' | 'bebidas' | 'cafe';
+    }
+
+    const lowerId = (id || '').toLowerCase();
+    const lowerName = (name || '').toLowerCase();
+    const combined = `${lowerId} ${lowerName}`;
+    
+    if (
+      combined.includes('cer_bb') || 
+      combined.includes('cont_bb') || 
+      combined.includes('vitro_bb') ||
+      combined.includes('bebida') ||
+      combined.includes('refresco') ||
+      combined.includes('jugo') ||
+      combined.includes(' bb') ||
+      lowerId.endsWith('_bb')
+    ) {
+      return 'bebidas';
+    }
+    
+    if (
+      combined.includes('cafe') || 
+      combined.includes('café') || 
+      combined.includes('coffee') ||
+      combined.includes('cafeteria') ||
+      combined.includes('cafetería')
+    ) {
+      return 'cafe';
+    }
+    
+    return 'botana';
   };
 
   const [supplySubmenuList, setSupplySubmenuList] = useState<any[]>(() => {
     const defaultSubmenus = [
       // Botanas
-      { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.' },
-      { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.' },
-      { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', desc: 'Surtido de artículos de botanas y confitería PRK.' },
-      { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', desc: 'Surtido de la máquina CER 1 para botanas.' },
-      { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', desc: 'Surtido de la máquina CER 2 para botanas.' },
-      { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', desc: 'Surtido de la máquina CER 3 para botanas y snacks.' },
-      { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', desc: 'Surtido de la máquina CG 1 para botanas.' },
-      { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', desc: 'Surtido de la máquina CG 2 para botanas.' },
-      { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', desc: 'Surtido de la máquina CG 3 para botanas.' },
+      { id: 'art_alt', name: 'ART ALT', title: 'Reporte ART ALT', desc: 'Surtido de artículos alternos y complementarios.', grupo: 'botana' },
+      { id: 'art_ct', name: 'ART CT', title: 'Reporte ART CT', desc: 'Surtido de artículos de cafetería y complementarios de té.', grupo: 'botana' },
+      { id: 'art_pk', name: 'ART PK', title: 'Reporte ART PK', desc: 'Surtido de artículos de botanas PK.', grupo: 'botana' },
+      { id: 'art_prk', name: 'ART PRK', title: 'Reporte ART PRK', desc: 'Surtido de artículos de botanas y confitería PRK.', grupo: 'botana' },
+      { id: 'cer1', name: 'CER 1', title: 'Reporte CER 1', desc: 'Surtido de la máquina CER 1 para botanas.', grupo: 'botana' },
+      { id: 'cer2', name: 'CER 2', title: 'Reporte CER 2', desc: 'Surtido de la máquina CER 2 para botanas.', grupo: 'botana' },
+      { id: 'cer3', name: 'CER 3', title: 'Reporte CER 3', desc: 'Surtido de la máquina CER 3 para botanas y snacks.', grupo: 'botana' },
+      { id: 'cg1', name: 'CG 1', title: 'Reporte CG 1', desc: 'Surtido de la máquina CG 1 para botanas.', grupo: 'botana' },
+      { id: 'cg2', name: 'CG 2', title: 'Reporte CG 2', desc: 'Surtido de la máquina CG 2 para botanas.', grupo: 'botana' },
+      { id: 'cg3', name: 'CG 3', title: 'Reporte CG 3', desc: 'Surtido de la máquina CG 3 para botanas.', grupo: 'botana' },
+      { id: 'frial', name: 'FRIAL', title: 'Reporte FRIAL', desc: 'Surtido para máquina Frial.', grupo: 'botana' },
+      { id: 'lmno', name: 'LMNO', title: 'Reporte LMNO', desc: 'Surtido para máquina LMNO.', grupo: 'botana' },
       // Bebidas
-      { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', desc: 'Surtido de la máquina de bebidas CER BB.' },
-      { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', desc: 'Surtido de la máquina de bebidas CONT. BB.' },
-      { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', desc: 'Surtido de la máquina de bebidas VITRO BB.' }
+      { id: 'cer_bb', name: 'CER BB', title: 'Reporte CER BB', desc: 'Surtido de la máquina de bebidas CER BB.', grupo: 'bebidas' },
+      { id: 'cont_bb', name: 'CONT. BB', title: 'Reporte CONT. BB', desc: 'Surtido de la máquina de bebidas CONT. BB.', grupo: 'bebidas' },
+      { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', desc: 'Surtido de la máquina de bebidas VITRO BB.', grupo: 'bebidas' }
     ];
 
     try {
@@ -515,7 +574,6 @@ export default function ModulePlaceholder({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge parsed submenus and defaults, making sure all default ones exist and are not deleted
           const merged = [...parsed];
           defaultSubmenus.forEach(def => {
             if (!merged.some(item => item.id === def.id) && !deletedIds.includes(def.id)) {
@@ -525,45 +583,12 @@ export default function ModulePlaceholder({
           return sortSubmenus(merged);
         }
       } else if (deletedIds.length > 0) {
-        // If stored doesn't exist but we have deleted IDs, filter them from defaultSubmenus
         const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
         return sortSubmenus(activeDefaults);
       }
     } catch (e) {}
     return sortSubmenus(defaultSubmenus);
   });
-
-  const getSubmenuGroup = (id: string, name: string): 'botana' | 'bebidas' | 'cafe' => {
-    const found = supplySubmenuList?.find(s => s.id === id);
-    if (found && (found.group || found.grupo)) {
-      return found.group || found.grupo;
-    }
-
-    const lowerId = id.toLowerCase();
-    const lowerName = (name || '').toLowerCase();
-    
-    if (
-      lowerId.includes('cer_bb') || 
-      lowerId.includes('cont_bb') || 
-      lowerId.includes('vitro_bb') ||
-      lowerName.includes('bebida') ||
-      lowerName.includes('bb') ||
-      lowerId.includes('bebida') ||
-      lowerId.includes('bb')
-    ) {
-      return 'bebidas';
-    }
-    
-    if (
-      lowerId.includes('cafe') || 
-      lowerName.includes('café') || 
-      lowerName.includes('cafe')
-    ) {
-      return 'cafe';
-    }
-    
-    return 'botana';
-  };
 
   const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>(() => {
     try {
@@ -581,9 +606,7 @@ export default function ModulePlaceholder({
     return supplySubmenuList[0]?.id || 'art_alt';
   });
 
-  const [activeCategory, setActiveCategory] = useState<'botana' | 'bebidas' | 'cafe'>(() => {
-    return getSubmenuGroup(activeSupplySubmenu, '');
-  });
+  const [activeCategory, setActiveCategory] = useState<'all' | 'botana' | 'bebidas' | 'cafe'>('all');
 
   useEffect(() => {
     try {
@@ -609,20 +632,12 @@ export default function ModulePlaceholder({
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  useEffect(() => {
-    if (activeSupplySubmenu) {
-      const activeMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu);
-      const category = getSubmenuGroup(activeSupplySubmenu, activeMeta?.name || '');
-      setActiveCategory(category);
-    }
-  }, [activeSupplySubmenu, supplySubmenuList]);
-
-  const handleSelectCategory = (category: 'botana' | 'bebidas' | 'cafe') => {
+  const handleSelectCategory = (category: 'all' | 'botana' | 'bebidas' | 'cafe') => {
     setActiveCategory(category);
-    const categorySubmenus = supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name) === category);
+    if (category === 'all') return;
+    const categorySubmenus = supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name, s.grupo) === category);
     if (categorySubmenus.length > 0) {
-      // Prioritize active selection if already in that category, otherwise choose first
-      const currentActiveBelongs = getSubmenuGroup(activeSupplySubmenu, '') === category;
+      const currentActiveBelongs = getSubmenuGroup(activeSupplySubmenu, '', supplySubmenuList.find(s => s.id === activeSupplySubmenu)?.grupo) === category;
       if (!currentActiveBelongs) {
         setActiveSupplySubmenu(categorySubmenus[0].id);
       }
@@ -6508,15 +6523,49 @@ export default function ModulePlaceholder({
               <div className="flex flex-col gap-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#043077]">Organización de Accesos Surtido</span>
                 
-                {/* 4 Core Menus Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* 5 Core Menus Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                {/* Menu 0: 'Todas las Maquinas */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('all')}
+                  className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                    activeCategory === 'all'
+                      ? 'bg-blue-50/90 border-[#043077] shadow-xs ring-2 ring-[#043077]/20'
+                      : 'bg-white hover:bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="absolute top-0 right-0 p-4 opacity-5 text-blue-900 group-hover:scale-110 transition-transform">
+                    <Layers className="w-16 h-16" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl ${
+                      activeCategory === 'all' ? 'bg-[#043077] text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wider">Catálogo Total</span>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Todas</h4>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 font-bold">
+                      {supplySubmenuList.length} Máquinas
+                    </span>
+                    {activeCategory === 'all' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
+                    )}
+                  </div>
+                </button>
+
                 {/* Menu 1: 'Maq. Botana */}
                 <button
                   type="button"
                   onClick={() => handleSelectCategory('botana')}
                   className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
                     activeCategory === 'botana'
-                      ? 'bg-blue-50/70 border-blue-200 shadow-xs ring-1 ring-blue-100'
+                      ? 'bg-blue-50/70 border-blue-400 shadow-xs ring-2 ring-blue-300'
                       : 'bg-white hover:bg-slate-50 border-slate-200'
                   }`}
                 >
@@ -6536,7 +6585,7 @@ export default function ModulePlaceholder({
                   </div>
                   <div className="mt-4 flex items-center justify-between">
                     <span className="text-[10px] text-slate-500 font-bold">
-                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name) === 'botana').length} Accesos
+                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name, s.grupo) === 'botana').length} Accesos
                     </span>
                     {activeCategory === 'botana' && (
                       <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
@@ -6550,7 +6599,7 @@ export default function ModulePlaceholder({
                   onClick={() => handleSelectCategory('bebidas')}
                   className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
                     activeCategory === 'bebidas'
-                      ? 'bg-blue-50/70 border-blue-200 shadow-xs ring-1 ring-blue-100'
+                      ? 'bg-blue-50/70 border-blue-400 shadow-xs ring-2 ring-blue-300'
                       : 'bg-white hover:bg-slate-50 border-slate-200'
                   }`}
                 >
@@ -6570,7 +6619,7 @@ export default function ModulePlaceholder({
                   </div>
                   <div className="mt-4 flex items-center justify-between">
                     <span className="text-[10px] text-slate-500 font-bold">
-                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name) === 'bebidas').length} Accesos
+                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name, s.grupo) === 'bebidas').length} Accesos
                     </span>
                     {activeCategory === 'bebidas' && (
                       <span className="w-1.5 h-1.5 rounded-full bg-[#043077]" />
@@ -6584,7 +6633,7 @@ export default function ModulePlaceholder({
                   onClick={() => handleSelectCategory('cafe')}
                   className={`p-3.5 rounded-2xl text-left transition-all border flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
                     activeCategory === 'cafe'
-                      ? 'bg-amber-50/70 border-amber-200 shadow-xs ring-1 ring-amber-100'
+                      ? 'bg-amber-50/70 border-amber-400 shadow-xs ring-2 ring-amber-300'
                       : 'bg-white hover:bg-slate-50 border-slate-200'
                   }`}
                 >
@@ -6604,7 +6653,7 @@ export default function ModulePlaceholder({
                   </div>
                   <div className="mt-4 flex items-center justify-between">
                     <span className="text-[10px] text-slate-500 font-bold">
-                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name) === 'cafe').length} Accesos
+                      {supplySubmenuList.filter(s => getSubmenuGroup(s.id, s.name, s.grupo) === 'cafe').length} Accesos
                     </span>
                     {activeCategory === 'cafe' && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -6627,7 +6676,7 @@ export default function ModulePlaceholder({
                     </div>
                     <div>
                       <span className="text-[10px] text-indigo-600 font-extrabold block uppercase tracking-wider">Registrar</span>
-                      <h4 className="text-xs font-black text-[#043077] uppercase tracking-wider">Nueva maquina</h4>
+                      <h4 className="text-xs font-black text-[#043077] uppercase tracking-wider">Nueva máquina</h4>
                     </div>
                   </div>
                   {!isSurtidorOnly && (
@@ -6652,16 +6701,18 @@ export default function ModulePlaceholder({
                   <div className="flex flex-col gap-2.5">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
                       Selecciona el Submenú para {
-                        activeCategory === 'botana'
-                          ? 'Máquinas de Botana'
-                          : activeCategory === 'bebidas'
-                            ? 'Máquinas de Bebidas'
-                            : 'Máquinas de Café'
+                        activeCategory === 'all'
+                          ? 'Todas las Máquinas Registradas'
+                          : activeCategory === 'botana'
+                            ? 'Máquinas de Botana'
+                            : activeCategory === 'bebidas'
+                              ? 'Máquinas de Bebidas'
+                              : 'Máquinas de Café'
                       }:
                     </span>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {supplySubmenuList
-                        .filter(submenu => getSubmenuGroup(submenu.id, submenu.name) === activeCategory)
+                        .filter(submenu => activeCategory === 'all' || getSubmenuGroup(submenu.id, submenu.name, submenu.grupo) === activeCategory)
                         .map((submenu) => {
                           const isActive = activeSupplySubmenu === submenu.id;
                           const isMissing = missingTables.includes(`surtido_${submenu.id}`);
