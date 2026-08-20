@@ -568,43 +568,42 @@ export default function ModulePlaceholder({
     ];
 
     try {
-      const stored = localStorage.getItem('surtiantojo_submenu_list');
       const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
-      const deletedIds = deletedStored ? JSON.parse(deletedStored) : [];
+      const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+      const stored = localStorage.getItem('surtiantojo_submenu_list');
 
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = [...parsed];
-          defaultSubmenus.forEach(def => {
-            if (!merged.some(item => item.id === def.id) && !deletedIds.includes(def.id)) {
-              merged.push(def);
-            }
-          });
-          return sortSubmenus(merged);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter(item => item && item.id && !deletedIds.includes(item.id));
+          if (filtered.length > 0) {
+            return sortSubmenus(filtered);
+          }
         }
-      } else if (deletedIds.length > 0) {
-        const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
-        return sortSubmenus(activeDefaults);
       }
+      const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
+      return sortSubmenus(activeDefaults);
     } catch (e) {}
     return sortSubmenus(defaultSubmenus);
   });
 
   const [activeSupplySubmenu, setActiveSupplySubmenu] = useState<string>(() => {
     try {
+      const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+      const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+
       if (window.location.hash) {
         const parts = window.location.hash.replace('#', '').split('/');
-        if (parts.length > 1 && parts[1]) {
+        if (parts.length > 1 && parts[1] && !deletedIds.includes(parts[1])) {
           return parts[1];
         }
       }
       const storedActive = localStorage.getItem('surtiantojo_active_submenu');
-      if (storedActive) {
+      if (storedActive && !deletedIds.includes(storedActive)) {
         return storedActive;
       }
     } catch (e) {}
-    return supplySubmenuList[0]?.id || 'art_alt';
+    return supplySubmenuList[0]?.id || '';
   });
 
   const [activeCategory, setActiveCategory] = useState<'all' | 'botana' | 'bebidas' | 'cafe'>('all');
@@ -629,8 +628,33 @@ export default function ModulePlaceholder({
         }
       } catch (e) {}
     };
+
+    const handleSubmenusUpdated = () => {
+      try {
+        const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+        const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+        const stored = localStorage.getItem('surtiantojo_submenu_list');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const filtered = sortSubmenus(parsed.filter(item => item && item.id && !deletedIds.includes(item.id)));
+            setSupplySubmenuList(filtered);
+            if (filtered.length > 0) {
+              setActiveSupplySubmenu(prev => (filtered.some(s => s.id === prev) ? prev : filtered[0].id));
+            }
+          }
+        }
+      } catch (e) {}
+    };
+
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('surtiantojo_submenus_updated', handleSubmenusUpdated);
+    window.addEventListener('storage', handleSubmenusUpdated);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('surtiantojo_submenus_updated', handleSubmenusUpdated);
+      window.removeEventListener('storage', handleSubmenusUpdated);
+    };
   }, []);
 
   const handleSelectCategory = (category: 'all' | 'botana' | 'bebidas' | 'cafe') => {
@@ -5948,9 +5972,10 @@ export default function ModulePlaceholder({
         const executeDeleteSubmenu = async (submenuId: string) => {
           const submenu = supplySubmenuList.find(s => s.id === submenuId);
           const submenuName = submenu ? (submenu.name || submenu.title || submenuId) : submenuId;
+          const remaining = supplySubmenuList.filter(s => s.id !== submenuId);
 
           // 1. Delete from local list state
-          setSupplySubmenuList(prev => prev.filter(s => s.id !== submenuId));
+          setSupplySubmenuList(remaining);
           
           // 2. Clean up generic state data
           setGenericSubmenuData(prev => {
@@ -5961,6 +5986,7 @@ export default function ModulePlaceholder({
 
           // 3. Clean up localStorage for this specific submenu data
           try {
+            localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(remaining));
             localStorage.removeItem(`surtiantojo_${submenuId}`);
             localStorage.removeItem(`surtiantojo_surtido_rows_${submenuId}`);
             localStorage.removeItem(`surtiantojo_operadores_sheet_${submenuId}`);
@@ -5971,6 +5997,10 @@ export default function ModulePlaceholder({
               deletedIds.push(submenuId);
               localStorage.setItem('surtiantojo_deleted_submenu_ids', JSON.stringify(deletedIds));
             }
+
+            window.dispatchEvent(new CustomEvent('surtiantojo_submenus_updated', {
+              detail: { deletedId: submenuId, remaining }
+            }));
           } catch (e) {}
 
           // 4. Delete from Supabase 'surtido_submenus' and 'operadores_data'
@@ -5986,11 +6016,10 @@ export default function ModulePlaceholder({
 
           // 6. If the deleted submenu was the active one, switch to the first available
           if (activeSupplySubmenu === submenuId) {
-            const remaining = supplySubmenuList.filter(s => s.id !== submenuId);
             if (remaining.length > 0) {
               setActiveSupplySubmenu(remaining[0].id);
             } else {
-              setActiveSupplySubmenu('art_alt');
+              setActiveSupplySubmenu('');
             }
           }
 

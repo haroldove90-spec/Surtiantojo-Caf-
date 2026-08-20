@@ -180,16 +180,39 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   // Machines list registered by Admin (synced from surtido_submenus)
   const [machinesList, setMachinesList] = useState<any[]>(() => {
     try {
+      const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+      const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
       const stored = localStorage.getItem('surtiantojo_submenu_list');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return sortSubmenus(parsed);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter(item => item && item.id && !deletedIds.includes(item.id));
+          if (filtered.length > 0) return sortSubmenus(filtered);
+        }
       }
+      const filteredDefaults = DEFAULT_SUBMENUS.filter(item => !deletedIds.includes(item.id));
+      return sortSubmenus(filteredDefaults);
     } catch (e) {}
     return sortSubmenus(DEFAULT_SUBMENUS);
   });
 
-  const [activeMachineId, setActiveMachineId] = useState<string>('art_alt');
+  const [activeMachineId, setActiveMachineId] = useState<string>(() => {
+    try {
+      const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+      const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+      const stored = localStorage.getItem('surtiantojo_submenu_list');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter(item => item && item.id && !deletedIds.includes(item.id));
+          if (filtered.length > 0) return filtered[0].id;
+        }
+      }
+      const filteredDefaults = DEFAULT_SUBMENUS.filter(item => !deletedIds.includes(item.id));
+      if (filteredDefaults.length > 0) return filteredDefaults[0].id;
+    } catch (e) {}
+    return '';
+  });
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -246,25 +269,36 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
   // Get active machine object
   const activeMachine = useMemo(() => {
-    return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || DEFAULT_SUBMENUS[0];
+    return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || null;
   }, [machinesList, activeMachineId]);
 
   // Fetch admin registered machines
   const fetchAdminMachines = async () => {
     try {
+      let deletedIds: string[] = [];
+      try {
+        const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+        if (deletedStored) deletedIds = JSON.parse(deletedStored);
+      } catch (e) {}
+
       const { data, error } = await supabase.from('surtido_submenus').select('*');
       if (!error && data && data.length > 0) {
-        const loaded = data.map((m: any) => ({
-          id: m.id,
-          name: m.name || m.title || m.id,
-          title: m.title || m.name || m.id,
-          cliente: m.cliente || '',
-          convenio: m.convenio || 'NO',
-          grupo: m.grupo || getSubmenuGroup(m.id, m.name || m.title || '')
-        }));
+        const loaded = data
+          .filter((m: any) => !deletedIds.includes(m.id))
+          .map((m: any) => ({
+            id: m.id,
+            name: m.name || m.title || m.id,
+            title: m.title || m.name || m.id,
+            cliente: m.cliente || '',
+            convenio: m.convenio || 'NO',
+            grupo: m.grupo || getSubmenuGroup(m.id, m.name || m.title || '')
+          }));
         const sorted = sortSubmenus(loaded);
         setMachinesList(sorted);
         localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sorted));
+        if (sorted.length > 0) {
+          setActiveMachineId(prev => (sorted.some(s => s.id === prev) ? prev : sorted[0].id));
+        }
       }
     } catch (e) {
       console.log('Error fetching admin submenus:', e);
@@ -273,6 +307,31 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
   useEffect(() => {
     fetchAdminMachines();
+
+    const handleSubmenusUpdated = () => {
+      try {
+        const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+        const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+        const stored = localStorage.getItem('surtiantojo_submenu_list');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const filtered = sortSubmenus(parsed.filter(item => item && item.id && !deletedIds.includes(item.id)));
+            setMachinesList(filtered);
+            if (filtered.length > 0) {
+              setActiveMachineId(prev => (filtered.some(s => s.id === prev) ? prev : filtered[0].id));
+            }
+          }
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('surtiantojo_submenus_updated', handleSubmenusUpdated);
+    window.addEventListener('storage', handleSubmenusUpdated);
+    return () => {
+      window.removeEventListener('surtiantojo_submenus_updated', handleSubmenusUpdated);
+      window.removeEventListener('storage', handleSubmenusUpdated);
+    };
   }, []);
 
   // Filter machines by active category
@@ -526,6 +585,12 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     setAddSubmenuOpen(false);
     setSaveMessage(`¡Máquina "${displayName}" dada de alta exitosamente!`);
     setTimeout(() => setSaveMessage(null), 3500);
+
+    try {
+      window.dispatchEvent(new CustomEvent('surtiantojo_submenus_updated', {
+        detail: { createdId: generatedId, remaining: updatedList }
+      }));
+    } catch (e) {}
   };
 
   const handleOpenEditSubmenu = (submenu: any) => {
@@ -563,6 +628,12 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
     setMachinesList(updatedList);
     localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(updatedList));
+
+    try {
+      window.dispatchEvent(new CustomEvent('surtiantojo_submenus_updated', {
+        detail: { updatedId: editSubmenuId, remaining: updatedList }
+      }));
+    } catch (e) {}
 
     // Persist to Supabase
     supabase.from('surtido_submenus').upsert({
@@ -611,6 +682,10 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
         deletedIds.push(submenuId);
         localStorage.setItem('surtiantojo_deleted_submenu_ids', JSON.stringify(deletedIds));
       }
+
+      window.dispatchEvent(new CustomEvent('surtiantojo_submenus_updated', {
+        detail: { deletedId: submenuId, remaining }
+      }));
     } catch (e) {}
 
     try {
@@ -624,7 +699,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       if (remaining.length > 0) {
         setActiveMachineId(remaining[0].id);
       } else {
-        setActiveMachineId('art_alt');
+        setActiveMachineId('');
       }
     }
 
