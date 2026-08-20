@@ -573,12 +573,16 @@ export default function ModulePlaceholder({
 
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter((item: any) => !deletedIds.includes(item.id));
-          if (filtered.length > 0) return sortSubmenus(filtered);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          defaultSubmenus.forEach(def => {
+            if (!merged.some(item => item.id === def.id) && !deletedIds.includes(def.id)) {
+              merged.push(def);
+            }
+          });
+          return sortSubmenus(merged);
         }
-      }
-      if (deletedIds.length > 0) {
+      } else if (deletedIds.length > 0) {
         const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
         return sortSubmenus(activeDefaults);
       }
@@ -1514,9 +1518,11 @@ export default function ModulePlaceholder({
   const clearTableInSupabase = async (tabId: string) => {
     try {
       const tableName = `surtido_${tabId}`;
-      const { error } = await supabase.from(tableName).delete().gte('id', 0);
+      const { error } = await supabase.from(tableName).delete().neq('id', 0);
       if (error) {
-        await supabase.from(tableName).delete().not('id', 'is', null);
+        console.log(`Supabase clear info for ${tableName}:`, error.message);
+      } else {
+        console.log(`Supabase clear success for ${tableName}`);
       }
     } catch (err) {
       console.error("Error in clearTableInSupabase:", err);
@@ -1556,7 +1562,23 @@ export default function ModulePlaceholder({
             setSupplySubmenuList(sortedMerged);
             currentMenuList = sortedMerged;
             localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sortedMerged));
-            window.dispatchEvent(new CustomEvent('surtiantojo_machines_updated'));
+          } else {
+            // Supabase table is empty, publish currentMenuList (defaults + local additions) to Supabase
+            if (currentMenuList.length > 0) {
+              const toInsert = currentMenuList.map(s => ({
+                id: s.id,
+                name: s.name,
+                title: s.title || s.name,
+                description: s.desc || '',
+                convenio: s.convenio || 'NO',
+                cliente: s.cliente || '',
+                grupo: s.grupo || s.group || ''
+              }));
+              await supabase.from('surtido_submenus').upsert(toInsert);
+              const sortedMerged = sortSubmenus(currentMenuList);
+              setSupplySubmenuList(sortedMerged);
+              localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sortedMerged));
+            }
           }
         }
 
@@ -3329,13 +3351,7 @@ export default function ModulePlaceholder({
   const renderInteractiveMetrics = () => {
     switch (moduleId) {
       case 'operadores':
-        return (
-          <OperadoresModule
-            key={`${supplySubmenuList.map(s => s.id).join('_')}_${activeSupplySubmenu}`}
-            currentUser={currentUser}
-            isSurtidorOnly={isSurtidorOnly}
-          />
-        );
+        return <OperadoresModule currentUser={currentUser} isSurtidorOnly={isSurtidorOnly} />;
 
       case 'metrics':
         return (
@@ -5726,7 +5742,7 @@ export default function ModulePlaceholder({
           }
         };
 
-        const handleClearAllSubmenuRows = async () => {
+        const handleClearAllSubmenuRows = () => {
           const count = currentSubmenuData.length;
           if (count === 0) {
             alert("No hay registros para borrar en esta sección.");
@@ -5742,15 +5758,6 @@ export default function ModulePlaceholder({
             else {
               setGenericSubmenuData(prev => ({ ...prev, [activeSupplySubmenu]: [] }));
             }
-            try {
-              localStorage.removeItem(`surtiantojo_${activeSupplySubmenu}`);
-              localStorage.removeItem(`surtiantojo_surtido_rows_${activeSupplySubmenu}`);
-              localStorage.removeItem(`surtiantojo_operadores_sheet_${activeSupplySubmenu}`);
-              await supabase.from('operadores_data').delete().eq('machine_id', activeSupplySubmenu);
-            } catch (e) {}
-            window.dispatchEvent(new CustomEvent('surtiantojo_machines_updated', { detail: { action: 'clear_rows', machineId: activeSupplySubmenu } }));
-            setSaveNotification(`¡Registros de "${activeMeta.name}" eliminados completamente!`);
-            setTimeout(() => setSaveNotification(null), 3000);
           }
         };
 
@@ -6133,8 +6140,7 @@ export default function ModulePlaceholder({
           const submenuName = submenu ? (submenu.name || submenu.title || submenuId) : submenuId;
 
           // 1. Delete from local list state
-          const remainingSubmenus = supplySubmenuList.filter(s => s.id !== submenuId);
-          setSupplySubmenuList(remainingSubmenus);
+          setSupplySubmenuList(prev => prev.filter(s => s.id !== submenuId));
           
           // 2. Clean up generic state data
           setGenericSubmenuData(prev => {
@@ -6148,7 +6154,6 @@ export default function ModulePlaceholder({
             localStorage.removeItem(`surtiantojo_${submenuId}`);
             localStorage.removeItem(`surtiantojo_surtido_rows_${submenuId}`);
             localStorage.removeItem(`surtiantojo_operadores_sheet_${submenuId}`);
-            localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(remainingSubmenus));
             
             const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
             const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
@@ -6171,14 +6176,13 @@ export default function ModulePlaceholder({
 
           // 6. If the deleted submenu was the active one, switch to the first available
           if (activeSupplySubmenu === submenuId) {
-            if (remainingSubmenus.length > 0) {
-              setActiveSupplySubmenu(remainingSubmenus[0].id);
+            const remaining = supplySubmenuList.filter(s => s.id !== submenuId);
+            if (remaining.length > 0) {
+              setActiveSupplySubmenu(remaining[0].id);
             } else {
               setActiveSupplySubmenu('art_alt');
             }
           }
-
-          window.dispatchEvent(new CustomEvent('surtiantojo_machines_updated', { detail: { action: 'delete', machineId: submenuId } }));
 
           setIsEditSubmenuOpen(false);
           setDeleteConfirmSubmenu(null);
