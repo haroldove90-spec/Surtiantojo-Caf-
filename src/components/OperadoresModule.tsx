@@ -269,7 +269,14 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
   // Get active machine object
   const activeMachine = useMemo(() => {
-    return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || null;
+    return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || {
+      id: activeMachineId || 'default',
+      name: 'Máquina',
+      title: 'Reporte Máquina',
+      cliente: '',
+      convenio: 'NO',
+      grupo: 'botana'
+    };
   }, [machinesList, activeMachineId]);
 
   // Fetch admin registered machines

@@ -4973,7 +4973,15 @@ export default function ModulePlaceholder({
         };
 
         const currentSubmenuData = getActiveSubmenuData();
-        const activeMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu) || supplySubmenuList[0];
+        const activeMeta = supplySubmenuList.find(s => s.id === activeSupplySubmenu) || supplySubmenuList[0] || {
+          id: activeSupplySubmenu || 'vending_surtido',
+          name: 'Máquina',
+          title: 'Reporte Surtido',
+          desc: 'Gestión de surtido de la máquina.',
+          convenio: 'NO',
+          cliente: '',
+          grupo: 'botana'
+        };
 
         // Filter table rows based on active search inside submenu
         const filteredSubmenuRows = currentSubmenuData.filter(item => {
@@ -6755,19 +6763,19 @@ export default function ModulePlaceholder({
                     <div>
                       <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 flex-wrap">
                         <FileSpreadsheet className="w-5 h-5 text-[#043077]" />
-                        <span>{activeMeta.title}</span>
-                        {activeMeta.convenio && (
+                        <span>{activeMeta?.title || 'Reporte Surtido'}</span>
+                        {activeMeta?.convenio && (
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                            activeMeta.convenio === 'SI' 
+                            activeMeta?.convenio === 'SI' 
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                               : 'bg-slate-100 text-slate-500 border-slate-200'
                           }`}>
-                            Convenio: {activeMeta.convenio}
+                            Convenio: {activeMeta?.convenio}
                           </span>
                         )}
-                        {activeMeta.cliente && (
+                        {activeMeta?.cliente && (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-indigo-50 text-indigo-700 border-indigo-200">
-                            Cliente: {activeMeta.cliente}
+                            Cliente: {activeMeta?.cliente}
                           </span>
                         )}
                         {!isSurtidorOnly && (
@@ -6775,13 +6783,13 @@ export default function ModulePlaceholder({
                             <button
                               type="button"
                               onClick={() => {
-                                setEditSubmenuId(activeMeta.id);
-                                setEditSubmenuName(activeMeta.name);
-                                setEditSubmenuTitle(activeMeta.title || `Reporte Surtido ${activeMeta.name}`);
-                                setEditSubmenuDesc(activeMeta.desc || activeMeta.description || '');
-                                setEditSubmenuCliente(activeMeta.cliente || '');
-                                setEditSubmenuConvenio((activeMeta.convenio as any) || 'NO');
-                                setEditSubmenuGroup((activeMeta.grupo as any) || 'botana');
+                                setEditSubmenuId(activeMeta?.id || '');
+                                setEditSubmenuName(activeMeta?.name || '');
+                                setEditSubmenuTitle(activeMeta?.title || `Reporte Surtido ${activeMeta?.name || ''}`);
+                                setEditSubmenuDesc(activeMeta?.desc || (activeMeta as any)?.description || '');
+                                setEditSubmenuCliente(activeMeta?.cliente || '');
+                                setEditSubmenuConvenio(((activeMeta?.convenio as any) || 'NO'));
+                                setEditSubmenuGroup(((activeMeta?.grupo as any) || 'botana'));
                                 setIsEditSubmenuOpen(true);
                               }}
                               className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-2xs"
@@ -6791,16 +6799,16 @@ export default function ModulePlaceholder({
                             </button>
                             <button
                               type="button"
-                              onClick={() => promptDeleteSubmenu(activeMeta.id)}
+                              onClick={() => promptDeleteSubmenu(activeMeta?.id || '')}
                               className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
-                              title={`Eliminar permanentemente la máquina ${activeMeta.name}`}
+                              title={`Eliminar permanentemente la máquina ${activeMeta?.name || ''}`}
                             >
                               <Trash2 className="w-3 h-3 text-rose-600" /> Borrar Máquina
                             </button>
                           </div>
                         )}
                       </h3>
-                      <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta.desc}</p>
+                      <p className="text-xs text-slate-500 font-bold mt-1 leading-relaxed max-w-2xl">{activeMeta?.desc || ''}</p>
                     </div>
                     
                     {/* Master quick import Excel trigger */}
@@ -6825,7 +6833,7 @@ export default function ModulePlaceholder({
                   if (!supabaseError && !isCurrentTableMissing) return null;
                   
                   const activeTableName = `surtido_${activeSupplySubmenu}`;
-                  const displayError = supabaseError || `La tabla '${activeTableName}' para la sección '${activeMeta.name}' no existe en tu base de datos de Supabase. La información que importes o registres se guardará de forma local en tu navegador (Local), pero NO se sincronizará en la nube de Supabase hasta que crees la tabla correspondiente.`;
+                  const displayError = supabaseError || `La tabla '${activeTableName}' para la sección '${activeMeta?.name || activeSupplySubmenu}' no existe en tu base de datos de Supabase. La información que importes o registres se guardará de forma local en tu navegador (Local), pero NO se sincronizará en la nube de Supabase hasta que crees la tabla correspondiente.`;
                   
                   return (
                     <motion.div
@@ -7036,7 +7044,7 @@ export default function ModulePlaceholder({
                   >
                     <div className="flex justify-between items-center border-b border-slate-150 pb-2">
                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">
-                        ➕ Añadir Registro a {activeMeta.name}
+                        ➕ Añadir Registro a {activeMeta?.name || activeSupplySubmenu}
                       </h4>
                       <button 
                         type="button" 
@@ -7394,7 +7402,7 @@ export default function ModulePlaceholder({
                     className="p-5 bg-slate-900 text-slate-100 rounded-2xl text-left font-mono space-y-3 shadow-inner"
                   >
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                      <span className="text-xs font-bold text-amber-400 block">⚡ SCRIPT SQL DE CREACIÓN Y SEEDING ({activeMeta.name})</span>
+                      <span className="text-xs font-bold text-amber-400 block">⚡ SCRIPT SQL DE CREACIÓN Y SEEDING ({activeMeta?.name || activeSupplySubmenu})</span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -7412,7 +7420,7 @@ export default function ModulePlaceholder({
                           {copiedSQL ? '✓ ¡Copiado!' : '📋 Copiar SQL'}
                         </button>
                         <button 
-                          type="button"
+                          type="button" 
                           onClick={() => setShowSQLSchema(false)} 
                           className="text-slate-500 hover:text-slate-300 text-xs font-black px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 cursor-pointer"
                         >
@@ -7424,7 +7432,7 @@ export default function ModulePlaceholder({
                       <code>{getDynamicSQL()}</code>
                     </pre>
                     <div className="text-[10px] text-slate-400 italic">
-                      💡 Copia este bloque de consulta DDL para aplicarlo en tu base de datos relacional y migrar la información de {activeMeta.name} de forma exacta.
+                      💡 Copia este bloque de consulta DDL para aplicarlo en tu base de datos relacional y migrar la información de {activeMeta?.name || activeSupplySubmenu} de forma exacta.
                     </div>
                   </motion.div>
                 )}
