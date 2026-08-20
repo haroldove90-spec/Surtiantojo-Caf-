@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
+import { exportSurtidoToExcel, exportAllSurtidoToExcel, exportCatalogToExcel } from '../lib/excelExport';
 import OperadoresModule from './OperadoresModule';
 
 const PRODUCT_FIELDS = [
@@ -3294,48 +3295,13 @@ export default function ModulePlaceholder({
     printWindow.document.close();
   };
 
-  const handleExcelExport = (itemsList: any[]) => {
-    const headers = [
-      'Código', 'Nombre del Producto', 'Proveedor', 'Piezas por Caja', 'Precio Caja', 'Precio Unitario', 'Precio Venta', 
-      'Margen de ganancia %', 'Ganancia ($)', 'Precio Sugerido', 'Margen Ps %', 'Forma de Pago', 
-      'Status', 'Fecha Cambio Precio', 'Notas',
-      'Fecha Registro'
-    ];
-    
-    // Dynamic real date
-    const today = new Date().toLocaleDateString('es-ES');
-
-    const csvRows = itemsList.map(p => {
-      const profitMargin = safeVal(p.precio_venta) - safeVal(p.precio_unidad);
-      return [
-        `"${(p.codigo || '').replace(/"/g, '""')}"`,
-        `"${p.nombre.replace(/"/g, '""')}"`,
-        `"${(p.proveedor || '').replace(/"/g, '""')}"`,
-        p.piezas_por_caja || 0,
-        p.precio_caja,
-        p.precio_unidad,
-        p.precio_venta,
-        p.margen_pct,
-        profitMargin,
-        p.precio_sugerido,
-        p.margen_ps_pct,
-        `"${p.forma_pago}"`,
-        `"${p.status}"`,
-        `"${p.cambio_precio_fecha}"`,
-        `"${(p.notas || '').replace(/"/g, '""')}"`,
-        p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Hoy'
-      ].join(',');
-    });
-
-    const csvContent = "\uFEFF" + [headers.join(','), ...csvRows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `inventario_surtiantojo_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExcelExport = async (itemsList: any[]) => {
+    try {
+      await exportCatalogToExcel(itemsList);
+    } catch (err) {
+      console.error('Error exporting catalog to Excel:', err);
+      alert('Ocurrió un error al generar el archivo Excel del inventario.');
+    }
   };
 
   // Common animation setup
@@ -5302,9 +5268,9 @@ export default function ModulePlaceholder({
         };
 
         // Standard custom Excel style export call
-        const handleExportToExcel = (tabId: string) => {
+        const handleExportToExcel = async (tabId: string) => {
           const tabMeta = supplySubmenuList.find(t => t.id === tabId);
-          const tabTitle = tabMeta ? tabMeta.title : 'Reporte_Surtido';
+          const tabTitle = tabMeta ? (tabMeta.title || tabMeta.name) : 'Reporte_Surtido';
           let dataToExport: any[] = [];
           
           if (tabId === 'cer_bb') dataToExport = cerBBData;
@@ -5331,214 +5297,58 @@ export default function ModulePlaceholder({
           });
 
           const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[tabId] || []), sortedDataToExport);
-          const hasDynamicHeaders = activeSubHeaders.length > 0;
-          const colLabels = hasDynamicHeaders 
-            ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
-            : ['', 'Código', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
 
-          const headers = colLabels.map(label => `"${label.replace(/"/g, '""')}"`).join(';');
-          const rows = sortedDataToExport.map(item => {
-            const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
-            
-            if (hasDynamicHeaders) {
-              const rowValues: string[] = [];
-              activeSubHeaders.forEach(h => {
-                const val = item.values && item.values[h] !== undefined ? item.values[h] : getSupplyRowCompareValue(item, h);
-                let valStr = String(val === null || val === undefined ? '' : val).replace(/"/g, '""');
-                rowValues.push(`"${valStr}"`);
-              });
-              // Append totalImport and date
-              rowValues.push(`"${totalImport.toFixed(2).replace('.', ',')}"`);
-              rowValues.push(`"${(item.fecha_registro || '').replace(/"/g, '""')}"`);
-              return rowValues.join(';');
-            } else {
-              const colKeys = ['id', 'codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'notas', 'fecha_registro'];
-              const rowCopy = {
-                ...item,
-                importe_total: totalImport,
-                sel: item.sel || item.seleccion || item.resorte || ''
-              };
-              return colKeys.map(key => {
-                const val = rowCopy[key];
-                if (val === undefined || val === null) return '""';
-                if (typeof val === 'number') {
-                  return `"${val.toFixed(2).replace('.', ',')}"`;
-                }
-                let valStr = String(val).replace(/"/g, '""');
-                return `"${valStr}"`;
-              }).join(';');
-            }
-          });
-
-          const csvContent = "\uFEFF" + "sep=;\n" + [
-            headers,
-            ...rows,
-            '',
-            '',
-            ['Concepto', 'Detalle', ...getMachineVisits(tabId).map(v => v.visitLabel || 'Visita')].map(v => `"${v.replace(/"/g, '""')}"`).join(';'),
-            ...[
-              { concept: 'Mon. Inicial', detail: '', key: 'mon_inicial' },
-              { concept: 'Mon. Final', detail: '', key: 'mon_final' },
-              { concept: 'Pruebas con $$', detail: 'Cuanto $?', key: 'pruebas' },
-              { concept: 'Ventas Externas', detail: 'Cuanto $?', key: 'ventas_externas' },
-              { concept: 'Limpieza interna', detail: 'Si / no', key: 'limpieza_interna' },
-              { concept: 'Limpieza externa', detail: 'Si / no', key: 'limpieza_externa' },
-              { concept: 'Falla de equipo', detail: 'Si / no', key: 'falla_equipo' },
-              { concept: 'Monedero', detail: 'X', key: 'monedero' },
-              { concept: 'Billetero', detail: 'X', key: 'billetero' },
-              { concept: 'Base de resorte', detail: 'X', key: 'base_resorte' },
-              { concept: 'Otro', detail: 'X', key: 'otro' },
-              { concept: 'Notas', detail: 'no', key: 'notas' },
-              { concept: 'Nombre del repartidor', detail: 'Surtidor', key: 'repartidor' },
-              { concept: 'Elaboro', detail: '', key: 'elaboro' }
-            ].map(rowDef => {
-              const lineVals = [rowDef.concept, rowDef.detail];
-              getMachineVisits(tabId).forEach(v => {
-                lineVals.push(String((v as any)[rowDef.key] || ''));
-              });
-              return lineVals.map(val => `"${val.replace(/"/g, '""')}"`).join(';');
-            })
-          ].join('\n');
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          const safeName = tabTitle.toLowerCase().replace(/[^a-z0-9]/g, '_');
-          link.setAttribute("href", url);
-          link.setAttribute("download", `${safeName}_excel.csv`);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+          try {
+            await exportSurtidoToExcel({
+              tabId,
+              tabTitle,
+              tabMeta,
+              data: sortedDataToExport,
+              headers: activeSubHeaders,
+              customDateHeaders,
+              summaryMetrics,
+              visits: getMachineVisits(tabId),
+              isSurtidorOnly
+            });
+          } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            alert('Ocurrió un error al generar el archivo Excel.');
+          }
         };
 
-        const handleExportAllToExcel = () => {
-          const exportBlocks: string[] = [];
-          
-          supplySubmenuList.forEach(submenu => {
-            let data: any[] = [];
-            if (submenu.id === 'cer_bb') data = cerBBData;
-            else if (submenu.id === 'art_alt') data = artAltData;
-            else if (submenu.id === 'art_ct') data = artCtData;
-            else data = genericSubmenuData[submenu.id] || [];
+        const handleExportAllToExcel = async () => {
+          try {
+            await exportAllSurtidoToExcel({
+              supplySubmenuList,
+              getSubmenuData: (id: string) => {
+                let data: any[] = [];
+                if (id === 'cer_bb') data = cerBBData;
+                else if (id === 'art_alt') data = artAltData;
+                else if (id === 'art_ct') data = artCtData;
+                else data = genericSubmenuData[id] || [];
 
-            if (data.length === 0) {
-              // Skip tables with no records
-              return;
-            }
-
-            // Sort each submenu's data using active system sort if available, else by SEL/seleccion
-            const sortedData = [...data].sort((a, b) => {
-              if (!supplySortField) {
-                const aVal = getSupplyRowCompareValue(a, 'sel');
-                const bVal = getSupplyRowCompareValue(b, 'sel');
-                return compareVals(aVal, bVal);
-              }
-              const aVal = getSupplyRowCompareValue(a, supplySortField);
-              const bVal = getSupplyRowCompareValue(b, supplySortField);
-              const comp = compareVals(aVal, bVal);
-              return supplySortDirection === 'asc' ? comp : -comp;
-            });
-
-            const activeSubHeaders = filterEmptyColumnaHeaders(cleanHeaders(submenuHeaders[submenu.id] || []), sortedData);
-            const hasDynamicHeaders = activeSubHeaders.length > 0;
-
-            const colLabels = hasDynamicHeaders 
-              ? [...activeSubHeaders, 'Importe Total ($)', 'Fecha Registro'] 
-              : ['', 'Producto / Artículo', 'Unidades Surtidas', 'Costo Unitario ($)', 'Precio regular ($)', 'Importe Total ($)', 'SEL / Resorte', 'Notas', 'Fecha Registro'];
-
-            // Title block for this submenu
-            exportBlocks.push(`"MÁQUINA / SUBMENÚ: ${submenu.name.replace(/"/g, '""')}"`);
-            exportBlocks.push(colLabels.map(label => `"${label.replace(/"/g, '""')}"`).join(';'));
-
-            sortedData.forEach(item => {
-              const totalImport = safeVal(item.unidad_surtida) * safeVal(item.precio_venta);
-              
-              if (hasDynamicHeaders) {
-                const rowValues: string[] = [];
-                activeSubHeaders.forEach(h => {
-                  const val = item.values && item.values[h] !== undefined ? item.values[h] : getSupplyRowCompareValue(item, h);
-                  let valStr = String(val === null || val === undefined ? '' : val).replace(/"/g, '""');
-                  if (valStr.includes(';') || valStr.includes('\n') || valStr.includes(',')) {
-                    valStr = `"${valStr}"`;
-                  } else {
-                    valStr = `"${valStr}"`;
+                return [...data].sort((a, b) => {
+                  if (!supplySortField) {
+                    const aVal = getSupplyRowCompareValue(a, 'sel');
+                    const bVal = getSupplyRowCompareValue(b, 'sel');
+                    return compareVals(aVal, bVal);
                   }
-                  rowValues.push(valStr);
+                  const aVal = getSupplyRowCompareValue(a, supplySortField);
+                  const bVal = getSupplyRowCompareValue(b, supplySortField);
+                  const comp = compareVals(aVal, bVal);
+                  return supplySortDirection === 'asc' ? comp : -comp;
                 });
-                // Append totalImport and date
-                rowValues.push(`"${totalImport.toFixed(2).replace('.', ',')}"`);
-                rowValues.push(`"${(item.fecha_registro || '').replace(/"/g, '""')}"`);
-                exportBlocks.push(rowValues.join(';'));
-              } else {
-                const colKeys = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'importe_total', 'sel', 'notas', 'fecha_registro'];
-                const rowCopy = {
-                  ...item,
-                  importe_total: totalImport,
-                  sel: item.sel || item.seleccion || item.resorte || ''
-                };
-                const rowValues = colKeys.map(key => {
-                  const val = rowCopy[key];
-                  if (val === undefined || val === null) return '""';
-                  if (typeof val === 'number') {
-                    return `"${val.toFixed(2).replace('.', ',')}"`;
-                  }
-                  let valStr = String(val).replace(/"/g, '""');
-                  return `"${valStr}"`;
-                });
-                exportBlocks.push(rowValues.join(';'));
-              }
+              },
+              submenuHeaders,
+              customDateHeaders,
+              summaryMetrics,
+              getMachineVisits,
+              isSurtidorOnly
             });
-
-            // Append Bitácora de Mantenimiento table for this machine
-            const currentVisits = getMachineVisits(submenu.id);
-            exportBlocks.push('');
-            exportBlocks.push(`"BITÁCORA DE CONTROL Y MANTENIMIENTO - ${submenu.name.replace(/"/g, '""').toUpperCase()}"`);
-            const visitHeaderRow = ['Concepto', 'Detalle', ...currentVisits.map(v => v.visitLabel || 'Visita')];
-            exportBlocks.push(visitHeaderRow.map(v => `"${v.replace(/"/g, '""')}"`).join(';'));
-
-            const maintenanceRowsDef = [
-              { concept: 'Mon. Inicial', detail: '', key: 'mon_inicial' },
-              { concept: 'Mon. Final', detail: '', key: 'mon_final' },
-              { concept: 'Pruebas con $$', detail: 'Cuanto $?', key: 'pruebas' },
-              { concept: 'Ventas Externas', detail: 'Cuanto $?', key: 'ventas_externas' },
-              { concept: 'Limpieza interna', detail: 'Si / no', key: 'limpieza_interna' },
-              { concept: 'Limpieza externa', detail: 'Si / no', key: 'limpieza_externa' },
-              { concept: 'Falla de equipo', detail: 'Si / no', key: 'falla_equipo' },
-              { concept: 'Monedero', detail: 'X', key: 'monedero' },
-              { concept: 'Billetero', detail: 'X', key: 'billetero' },
-              { concept: 'Base de resorte', detail: 'X', key: 'base_resorte' },
-              { concept: 'Otro', detail: 'X', key: 'otro' },
-              { concept: 'Notas', detail: 'no', key: 'notas' },
-              { concept: 'Nombre del repartidor', detail: 'Surtidor', key: 'repartidor' },
-              { concept: 'Elaboro', detail: '', key: 'elaboro' }
-            ];
-
-            maintenanceRowsDef.forEach(rowDef => {
-              const lineVals = [rowDef.concept, rowDef.detail];
-              currentVisits.forEach(v => {
-                lineVals.push(String((v as any)[rowDef.key] || ''));
-              });
-              exportBlocks.push(lineVals.map(val => `"${val.replace(/"/g, '""')}"`).join(';'));
-            });
-
-            // Add separation blank rows after each table block
-            exportBlocks.push('');
-            exportBlocks.push('');
-          });
-
-          if (exportBlocks.length === 0) {
-            alert("No hay registros en ninguna sección para ser exportados.");
-            return;
+          } catch (error) {
+            console.error('Error exporting all to Excel:', error);
+            alert('Ocurrió un error al exportar todas las secciones a Excel.');
           }
-
-          const csvContent = "\uFEFF" + "sep=;\n" + exportBlocks.join('\n');
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.setAttribute("href", url);
-          link.setAttribute("download", `surtido_completo_todos_los_registros.csv`);
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
         };
 
         const handleSelectSelAssociation = (assoc: any) => {
