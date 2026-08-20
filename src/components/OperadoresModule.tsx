@@ -15,8 +15,10 @@ import {
   CupSoda,
   Coffee,
   AlertCircle,
-  X
+  X,
+  Edit
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 
 interface OperadoresModuleProps {
@@ -190,6 +192,28 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   const [activeMachineId, setActiveMachineId] = useState<string>('art_alt');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Form states for creating/registering custom machines (matching Surtido)
+  const [addSubmenuOpen, setAddSubmenuOpen] = useState<boolean>(false);
+  const [newSubmenuName, setNewSubmenuName] = useState<string>('');
+  const [newSubmenuTitle, setNewSubmenuTitle] = useState<string>('');
+  const [newSubmenuCliente, setNewSubmenuCliente] = useState<string>('');
+  const [newSubmenuDesc, setNewSubmenuDesc] = useState<string>('');
+  const [newSubmenuGroup, setNewSubmenuGroup] = useState<string>('botana');
+  const [newSubmenuConvenio, setNewSubmenuConvenio] = useState<'SI' | 'NO'>('NO');
+
+  // Form states for editing machines
+  const [isEditSubmenuOpen, setIsEditSubmenuOpen] = useState<boolean>(false);
+  const [editSubmenuId, setEditSubmenuId] = useState<string>('');
+  const [editSubmenuName, setEditSubmenuName] = useState<string>('');
+  const [editSubmenuTitle, setEditSubmenuTitle] = useState<string>('');
+  const [editSubmenuCliente, setEditSubmenuCliente] = useState<string>('');
+  const [editSubmenuDesc, setEditSubmenuDesc] = useState<string>('');
+  const [editSubmenuGroup, setEditSubmenuGroup] = useState<'botana' | 'bebidas' | 'cafe'>('botana');
+  const [editSubmenuConvenio, setEditSubmenuConvenio] = useState<'SI' | 'NO'>('NO');
+
+  // Delete confirmation state
+  const [deleteConfirmSubmenu, setDeleteConfirmSubmenu] = useState<{ id: string; name: string } | null>(null);
 
   // Modal for Date picker / Date addition
   const [isDateModalOpen, setIsDateModalOpen] = useState<boolean>(false);
@@ -425,6 +449,189 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       setSaveMessage('Error al guardar datos');
       setTimeout(() => setSaveMessage(null), 3000);
     }
+  };
+
+  // Register new machine in Operadores module (matching Surtido module)
+  const handleRegisterNewSubmenu = () => {
+    if (!newSubmenuTitle.trim()) {
+      alert("Por favor escribe el Título de registro de máquina.");
+      return;
+    }
+    
+    const cleanTitle = newSubmenuTitle.trim();
+    let displayName = newSubmenuName.trim() || cleanTitle;
+    
+    // Generate key/id and display label ensuring proper categorization
+    let generatedId = 'custom_' + cleanTitle.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    if (newSubmenuGroup === 'bebidas') {
+      if (!generatedId.includes('bb') && !generatedId.includes('bebida')) {
+        generatedId += '_bb';
+      }
+      if (!displayName.toLowerCase().includes('bb') && !displayName.toLowerCase().includes('bebida')) {
+        displayName += ' (BB)';
+      }
+    } else if (newSubmenuGroup === 'cafe') {
+      if (!generatedId.includes('cafe')) {
+        generatedId += '_cafe';
+      }
+      if (!displayName.toLowerCase().includes('cafe') && !displayName.toLowerCase().includes('café')) {
+        displayName += ' (Café)';
+      }
+    }
+
+    if (machinesList.some(s => s.id === generatedId)) {
+      alert("Ya existe una máquina registrada bajo este mismo título de registro.");
+      return;
+    }
+    
+    const newTabItem = {
+      id: generatedId,
+      name: displayName,
+      title: cleanTitle,
+      desc: newSubmenuDesc.trim() || `Surtido para ${cleanTitle}.`,
+      convenio: newSubmenuConvenio,
+      cliente: newSubmenuCliente.trim(),
+      grupo: newSubmenuGroup
+    };
+
+    const updatedList = sortSubmenus([...machinesList, newTabItem]);
+    setMachinesList(updatedList);
+    localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(updatedList));
+
+    // Persist custom submenu definition in Supabase metadata table
+    supabase.from('surtido_submenus').upsert({
+      id: generatedId,
+      name: displayName,
+      title: cleanTitle,
+      description: newTabItem.desc,
+      convenio: newSubmenuConvenio,
+      cliente: newSubmenuCliente.trim(),
+      grupo: newSubmenuGroup
+    }).then(({ error }) => {
+      if (error) {
+        console.log("Supabase submenus config status:", error.message);
+      } else {
+        console.log("Submenu registered successfully in Supabase!");
+      }
+    });
+
+    setActiveCategory(newSubmenuGroup as any);
+    setActiveMachineId(generatedId);
+    setNewSubmenuName('');
+    setNewSubmenuTitle('');
+    setNewSubmenuCliente('');
+    setNewSubmenuDesc('');
+    setNewSubmenuGroup('botana');
+    setNewSubmenuConvenio('NO');
+    setAddSubmenuOpen(false);
+    setSaveMessage(`¡Máquina "${displayName}" dada de alta exitosamente!`);
+    setTimeout(() => setSaveMessage(null), 3500);
+  };
+
+  const handleOpenEditSubmenu = (submenu: any) => {
+    setEditSubmenuId(submenu.id);
+    setEditSubmenuName(submenu.name || submenu.title || submenu.id);
+    setEditSubmenuTitle(submenu.title || submenu.name || submenu.id);
+    setEditSubmenuCliente(submenu.cliente || '');
+    setEditSubmenuDesc(submenu.desc || submenu.description || '');
+    setEditSubmenuGroup(submenu.grupo || getSubmenuGroup(submenu.id, submenu.name || submenu.title || '', submenu.group));
+    setEditSubmenuConvenio(submenu.convenio || 'NO');
+    setIsEditSubmenuOpen(true);
+  };
+
+  const handleSaveEditedSubmenu = () => {
+    if (!editSubmenuTitle.trim()) {
+      alert("Por favor escribe el Título de registro de máquina.");
+      return;
+    }
+
+    const cleanTitle = editSubmenuTitle.trim();
+    const updatedList = sortSubmenus(machinesList.map(s => {
+      if (s.id === editSubmenuId) {
+        return {
+          ...s,
+          name: cleanTitle,
+          title: cleanTitle,
+          desc: editSubmenuDesc.trim() || `Administración, bitácora y lecturas para ${cleanTitle}.`,
+          cliente: editSubmenuCliente.trim(),
+          convenio: editSubmenuConvenio,
+          grupo: editSubmenuGroup
+        };
+      }
+      return s;
+    }));
+
+    setMachinesList(updatedList);
+    localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(updatedList));
+
+    // Persist to Supabase
+    supabase.from('surtido_submenus').upsert({
+      id: editSubmenuId,
+      name: cleanTitle,
+      title: cleanTitle,
+      description: editSubmenuDesc.trim() || `Administración, bitácora y lecturas para ${cleanTitle}.`,
+      cliente: editSubmenuCliente.trim(),
+      convenio: editSubmenuConvenio,
+      grupo: editSubmenuGroup
+    }).then(({ error }) => {
+      if (error) {
+        console.log("Supabase submenus update status:", error.message);
+      } else {
+        console.log("Submenu updated successfully in Supabase!");
+      }
+    });
+
+    setIsEditSubmenuOpen(false);
+    setSaveMessage(`¡Máquina "${cleanTitle}" actualizada exitosamente!`);
+    setTimeout(() => setSaveMessage(null), 3500);
+  };
+
+  const promptDeleteSubmenu = (submenuId: string) => {
+    const submenu = machinesList.find(s => s.id === submenuId);
+    if (!submenu) return;
+    setDeleteConfirmSubmenu({ id: submenuId, name: submenu.name || submenu.title || submenuId });
+  };
+
+  const executeDeleteSubmenu = async (submenuId: string) => {
+    const submenu = machinesList.find(s => s.id === submenuId);
+    const submenuName = submenu ? (submenu.name || submenu.title || submenuId) : submenuId;
+
+    const remaining = machinesList.filter(s => s.id !== submenuId);
+    setMachinesList(remaining);
+    localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(remaining));
+
+    try {
+      localStorage.removeItem(`surtiantojo_operadores_sheet_${submenuId}`);
+      localStorage.removeItem(`surtiantojo_${submenuId}`);
+      localStorage.removeItem(`surtiantojo_surtido_rows_${submenuId}`);
+
+      const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+      const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+      if (!deletedIds.includes(submenuId)) {
+        deletedIds.push(submenuId);
+        localStorage.setItem('surtiantojo_deleted_submenu_ids', JSON.stringify(deletedIds));
+      }
+    } catch (e) {}
+
+    try {
+      await supabase.from('surtido_submenus').delete().eq('id', submenuId);
+      await supabase.from('operadores_data').delete().eq('machine_id', submenuId);
+    } catch (e) {
+      console.log("Supabase delete error:", e);
+    }
+
+    if (activeMachineId === submenuId) {
+      if (remaining.length > 0) {
+        setActiveMachineId(remaining[0].id);
+      } else {
+        setActiveMachineId('art_alt');
+      }
+    }
+
+    setIsEditSubmenuOpen(false);
+    setDeleteConfirmSubmenu(null);
+    setSaveMessage(`¡Máquina "${submenuName}" eliminada correctamente!`);
+    setTimeout(() => setSaveMessage(null), 3500);
   };
 
   // Open strict date picker modal
@@ -774,13 +981,33 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
         {/* Submenus / Machines list under the selected category */}
         <div className="bg-slate-50/70 border border-slate-200 p-4 rounded-2xl space-y-2">
-          <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
-            Selecciona el submenú para {
-              activeCategory === 'all' ? 'Todas las Máquinas Registradas' :
-              activeCategory === 'botana' ? 'Máquinas de Botana' :
-              activeCategory === 'bebidas' ? 'Máquinas de Bebidas' : 'Máquinas de Café'
-            }:
-          </span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
+              Selecciona el submenú para {
+                activeCategory === 'all' ? 'Todas las Máquinas Registradas' :
+                activeCategory === 'botana' ? 'Máquinas de Botana' :
+                activeCategory === 'bebidas' ? 'Máquinas de Bebidas' : 'Máquinas de Café'
+              }:
+            </span>
+
+            {/* Quick Register Machine Button (Matching Surtido Module) */}
+            <button
+              type="button"
+              onClick={() => {
+                setNewSubmenuGroup(activeCategory === 'all' ? 'botana' : activeCategory);
+                setNewSubmenuName('');
+                setNewSubmenuTitle('');
+                setNewSubmenuCliente('');
+                setNewSubmenuDesc('');
+                setNewSubmenuConvenio('NO');
+                setAddSubmenuOpen(true);
+              }}
+              className="px-3.5 py-1.5 bg-[#043077] hover:bg-blue-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Dar de alta una nueva máquina en el catálogo"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" /> Dar de Alta Máquina
+            </button>
+          </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {categoryMachines.length === 0 ? (
@@ -789,21 +1016,56 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
               categoryMachines.map((submenu) => {
                 const isActive = activeMachineId === submenu.id;
                 return (
-                  <button
-                    key={submenu.id}
-                    onClick={() => setActiveMachineId(submenu.id)}
-                    className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                      isActive
-                        ? 'bg-[#043077] text-white shadow-md ring-2 ring-[#043077]/20 scale-102'
-                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                    }`}
-                  >
-                    <Box className="w-3.5 h-3.5" />
-                    <span>{submenu.name || submenu.title || submenu.id}</span>
-                  </button>
+                  <div key={submenu.id} className="relative group/tab flex items-center">
+                    <button
+                      onClick={() => setActiveMachineId(submenu.id)}
+                      className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        isActive
+                          ? 'bg-[#043077] text-white shadow-md ring-2 ring-[#043077]/20 scale-102 pr-8'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 pr-8'
+                      }`}
+                    >
+                      <Box className="w-3.5 h-3.5" />
+                      <span>{submenu.name || submenu.title || submenu.id}</span>
+                    </button>
+                    {/* Pencil Edit button directly on the tab, matching Surtido */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditSubmenu(submenu);
+                      }}
+                      className={`absolute right-1.5 p-1 rounded-lg transition-opacity cursor-pointer ${
+                        isActive 
+                          ? 'text-blue-200 hover:text-white hover:bg-white/20' 
+                          : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/60'
+                      }`}
+                      title={`Editar o gestionar máquina ${submenu.name || submenu.title || submenu.id}`}
+                    >
+                      <Edit className="w-3 h-3 stroke-[2.5]" />
+                    </button>
+                  </div>
                 );
               })
             )}
+
+            {/* In-line Add Machine Tab Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setNewSubmenuGroup(activeCategory === 'all' ? 'botana' : activeCategory);
+                setNewSubmenuName('');
+                setNewSubmenuTitle('');
+                setNewSubmenuCliente('');
+                setNewSubmenuDesc('');
+                setNewSubmenuConvenio('NO');
+                setAddSubmenuOpen(true);
+              }}
+              className="px-3 py-2.5 bg-blue-50 hover:bg-blue-100/80 text-[#043077] border border-blue-200 border-dashed rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Dar de alta nueva máquina"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" /> + Máquina
+            </button>
           </div>
         </div>
 
@@ -1171,6 +1433,298 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Dynamic Popup Modal to Register a brand new custom machine in Operadores (matching Surtido) */}
+      {addSubmenuOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xl w-full max-w-md space-y-4 text-left"
+          >
+            <div className="flex justify-between items-center border-b border-slate-150 pb-3">
+              <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-1.5">
+                <Plus className="w-5 h-5 text-indigo-600" /> Registrar Nueva Máquina
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setAddSubmenuOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-black text-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Al dar de alta una máquina, se creará de forma dinámica una nueva pestaña de control sincronizada con el módulo Surtido y Operadores.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Grupo de máquina</label>
+                <select
+                  value={newSubmenuGroup}
+                  onChange={(e) => setNewSubmenuGroup(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077] cursor-pointer"
+                >
+                  <option value="botana">Máquina botanas</option>
+                  <option value="bebidas">Máquinas bebidas</option>
+                  <option value="cafe">Máquina de café</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título de registro de máquina</label>
+                <input
+                  type="text"
+                  placeholder="p. ej: 'Máquina de refrescos pasillo central'"
+                  value={newSubmenuTitle}
+                  onChange={(e) => setNewSubmenuTitle(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cliente</label>
+                <input
+                  type="text"
+                  placeholder="p. ej: 'Empresa Cliente S.A.'"
+                  value={newSubmenuCliente}
+                  onChange={(e) => setNewSubmenuCliente(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Aplicar Convenio Comercial</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewSubmenuConvenio('SI')}
+                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                      newSubmenuConvenio === 'SI'
+                        ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    SÍ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewSubmenuConvenio('NO')}
+                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                      newSubmenuConvenio === 'NO'
+                        ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    NO
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">NOTAS</label>
+                <textarea
+                  rows={3}
+                  placeholder="Propósito u observaciones de esta máquina..."
+                  value={newSubmenuDesc}
+                  onChange={(e) => setNewSubmenuDesc(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                />
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-150 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setAddSubmenuOpen(false)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleRegisterNewSubmenu}
+                className="flex-1 py-2.5 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
+              >
+                Dar de Alta Máquina
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Edit Machine Modal in Operadores */}
+      {isEditSubmenuOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xl w-full max-w-md space-y-4 text-left"
+          >
+            <div className="flex justify-between items-center border-b border-slate-150 pb-3">
+              <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-1.5">
+                <Edit className="w-5 h-5 text-[#043077]" /> Gestionar o Editar Máquina
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setIsEditSubmenuOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-black text-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Completa los campos del acceso seleccionado para ajustar su título, cliente y categoría en los submenús.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Grupo de máquina</label>
+                <select
+                  value={editSubmenuGroup}
+                  onChange={(e) => setEditSubmenuGroup(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-black focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077] cursor-pointer"
+                >
+                  <option value="botana">Máquina botanas</option>
+                  <option value="bebidas">Máquinas bebidas</option>
+                  <option value="cafe">Máquina de café</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título de registro de máquina</label>
+                <input
+                  type="text"
+                  placeholder="p. ej: 'Máquina de refrescos pasillo central'"
+                  value={editSubmenuTitle}
+                  onChange={(e) => setEditSubmenuTitle(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cliente</label>
+                <input
+                  type="text"
+                  placeholder="p. ej: 'Empresa Cliente S.A.'"
+                  value={editSubmenuCliente}
+                  onChange={(e) => setEditSubmenuCliente(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Aplicar Convenio Comercial</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditSubmenuConvenio('SI')}
+                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                      editSubmenuConvenio === 'SI'
+                        ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    SÍ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditSubmenuConvenio('NO')}
+                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all border ${
+                      editSubmenuConvenio === 'NO'
+                        ? 'bg-[#043077] text-white border-[#043077] shadow-xs'
+                        : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    NO
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Descripción / Notas</label>
+                <textarea
+                  rows={3}
+                  placeholder="Propósito u observaciones de esta máquina..."
+                  value={editSubmenuDesc}
+                  onChange={(e) => setEditSubmenuDesc(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-[#043077]/20 outline-hidden focus:border-[#043077]"
+                />
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-150 flex flex-col gap-2.5">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditSubmenuOpen(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEditedSubmenu}
+                  className="flex-1 py-2.5 bg-[#043077] hover:bg-blue-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center shadow-xs"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditSubmenuOpen(false);
+                  promptDeleteSubmenu(editSubmenuId);
+                }}
+                className="w-full mt-1.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-2xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Eliminar Máquina del Catálogo
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Delete Machine Confirmation Modal in Operadores */}
+      {deleteConfirmSubmenu && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xl w-full max-w-sm space-y-4 text-center"
+          >
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-800 text-base">¿Eliminar Máquina?</h3>
+              <p className="text-xs text-slate-500 mt-1 font-medium">
+                ¿Estás seguro de que deseas eliminar permanentemente la máquina <strong className="text-slate-800">"{deleteConfirmSubmenu.name}"</strong>?
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmSubmenu(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => executeDeleteSubmenu(deleteConfirmSubmenu.id)}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>
