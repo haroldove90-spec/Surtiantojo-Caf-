@@ -8947,6 +8947,14 @@ export default function ModulePlaceholder({
         );
       }
 
+      case 'operadores':
+        return (
+          <OperadoresModule 
+            currentUser={currentUser} 
+            isSurtidorOnly={isSurtidorOnly} 
+          />
+        );
+
       case 'sales_by_product':
         return (
           <div className="space-y-6">
