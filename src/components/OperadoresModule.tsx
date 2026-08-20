@@ -20,6 +20,7 @@ import {
 import { supabase } from '../lib/supabase';
 
 interface OperadoresModuleProps {
+  key?: React.Key;
   currentUser?: any;
   isSurtidorOnly?: boolean;
 }
@@ -45,21 +46,26 @@ const DEFAULT_SUBMENUS = [
   { id: 'vitro_bb', name: 'VITRO BB', title: 'Reporte VITRO BB', desc: 'Surtido de la máquina de bebidas VITRO BB.', grupo: 'bebidas' }
 ];
 
-// Default bitacora / controls checklist
+// Default bitacora / controls checklist with clean initial values
 const DEFAULT_CONTROLS = [
-  { id: 'c1', label: 'Mon. Inicial', detail: '', values: { '01-jul': '$679', '06-jul': '$51', '08-jul': '$202', '10-jul': '$21' } },
-  { id: 'c2', label: 'Mon. Final', detail: '', values: { '01-jul': '$1,349', '06-jul': '$1,040', '08-jul': '$1,208', '10-jul': '$1,260' } },
-  { id: 'c3', label: 'Pruebas con $$', detail: 'Cuanto $?', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c4', label: 'Ventas Externas', detail: 'Cuanto $?', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c5', label: 'Limpieza interna', detail: 'Si', values: { '01-jul': 'no', '06-jul': 'si', '08-jul': 'si', '10-jul': 'si' } },
-  { id: 'c6', label: 'Limpieza externa', detail: 'Si', values: { '01-jul': 'no', '06-jul': 'si', '08-jul': 'si', '10-jul': 'si' } },
-  { id: 'c7', label: 'Falla de equipo', detail: 'Si', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c8', label: 'Monedero', detail: 'X', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c9', label: 'Billetero', detail: 'X', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c10', label: 'Base de resorte', detail: 'X', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c11', label: 'Otro', detail: 'X', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c12', label: 'Notas', detail: '', values: { '01-jul': 'no', '06-jul': 'no', '08-jul': 'no', '10-jul': 'no' } },
-  { id: 'c13', label: 'Elaboro', detail: '', values: { '01-jul': 'FC', '06-jul': 'FC', '08-jul': 'FC', '10-jul': 'Fc' } }
+  { id: 'c1', label: 'Mon. Inicial', detail: '', values: {} },
+  { id: 'c2', label: 'Mon. Final', detail: '', values: {} },
+  { id: 'c3', label: 'Pruebas con $$', detail: 'Cuanto $?', values: {} },
+  { id: 'c4', label: 'Ventas Externas', detail: 'Cuanto $?', values: {} },
+  { id: 'c5', label: 'Limpieza interna', detail: 'Si', values: {} },
+  { id: 'c6', label: 'Limpieza externa', detail: 'Si', values: {} },
+  { id: 'c7', label: 'Falla de equipo', detail: 'Si', values: {} },
+  { id: 'c8', label: 'Monedero', detail: 'X', values: {} },
+  { id: 'c9', label: 'Billetero', detail: 'X', values: {} },
+  { id: 'c10', label: 'Base de resorte', detail: 'X', values: {} },
+  { id: 'c11', label: 'Otro', detail: 'X', values: {} },
+  { id: 'c12', label: 'Notas', detail: '', values: {} },
+  { id: 'c13', label: 'Elaboro', detail: '', values: {} }
+];
+
+const DEFAULT_TOP_METRICS = [
+  { id: '1', sel: '1', concept: 'Unid. Vtas', values: {} },
+  { id: '2', sel: '2', concept: '$ ventas', values: {} }
 ];
 
 // Helper to determine category group (botana, bebidas, cafe)
@@ -179,15 +185,39 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   const [machinesList, setMachinesList] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('surtiantojo_submenu_list');
+      const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+      const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return sortSubmenus(parsed);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((m: any) => !deletedIds.includes(m.id));
+          if (filtered.length > 0) return sortSubmenus(filtered);
+        }
+      }
+      if (deletedIds.length > 0) {
+        return sortSubmenus(DEFAULT_SUBMENUS.filter(d => !deletedIds.includes(d.id)));
       }
     } catch (e) {}
     return sortSubmenus(DEFAULT_SUBMENUS);
   });
 
-  const [activeMachineId, setActiveMachineId] = useState<string>('art_alt');
+  const [activeMachineId, setActiveMachineId] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('surtiantojo_submenu_list');
+      const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+      const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const valid = parsed.find((m: any) => !deletedIds.includes(m.id));
+          if (valid) return valid.id;
+        }
+      }
+    } catch (e) {}
+    return 'art_alt';
+  });
+
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -198,13 +228,10 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   const [dateError, setDateError] = useState<string | null>(null);
 
   // Active dates for the selected machine
-  const [dates, setDates] = useState<string[]>(['01-jul', '06-jul', '08-jul', '10-jul']);
+  const [dates, setDates] = useState<string[]>([]);
 
   // Top metrics (Unid. Vtas, $ ventas)
-  const [topMetrics, setTopMetrics] = useState<any[]>([
-    { id: '1', sel: '1', concept: 'Unid. Vtas', values: { '01-jul': '68499', '06-jul': '68673', '08-jul': '68898', '10-jul': '69095' } },
-    { id: '2', sel: '2', concept: '$ ventas', values: { '01-jul': '934456', '06-jul': '937157', '08-jul': '940765', '10-jul': '943762' } }
-  ]);
+  const [topMetrics, setTopMetrics] = useState<any[]>(DEFAULT_TOP_METRICS);
 
   // Synchronized product rows (SEL, Nombre, Precio, Caben - read-only from Admin, plus date counts)
   const [products, setProducts] = useState<any[]>([]);
@@ -222,25 +249,40 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
   // Get active machine object
   const activeMachine = useMemo(() => {
-    return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || DEFAULT_SUBMENUS[0];
+    return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || { id: activeMachineId, name: activeMachineId, title: activeMachineId, grupo: 'botana' };
   }, [machinesList, activeMachineId]);
 
   // Fetch admin registered machines
   const fetchAdminMachines = async () => {
     try {
+      let deletedIds: string[] = [];
+      try {
+        const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
+        if (deletedStored) deletedIds = JSON.parse(deletedStored);
+      } catch (e) {}
+
       const { data, error } = await supabase.from('surtido_submenus').select('*');
-      if (!error && data && data.length > 0) {
-        const loaded = data.map((m: any) => ({
-          id: m.id,
-          name: m.name || m.title || m.id,
-          title: m.title || m.name || m.id,
-          cliente: m.cliente || '',
-          convenio: m.convenio || 'NO',
-          grupo: m.grupo || getSubmenuGroup(m.id, m.name || m.title || '')
-        }));
+      if (!error && data) {
+        const loaded = data
+          .filter((m: any) => !deletedIds.includes(m.id))
+          .map((m: any) => ({
+            id: m.id,
+            name: m.name || m.title || m.id,
+            title: m.title || m.name || m.id,
+            cliente: m.cliente || '',
+            convenio: m.convenio || 'NO',
+            grupo: m.grupo || getSubmenuGroup(m.id, m.name || m.title || '')
+          }));
+
         const sorted = sortSubmenus(loaded);
         setMachinesList(sorted);
         localStorage.setItem('surtiantojo_submenu_list', JSON.stringify(sorted));
+
+        if (sorted.length > 0) {
+          if (!sorted.some(m => m.id === activeMachineId)) {
+            setActiveMachineId(sorted[0].id);
+          }
+        }
       }
     } catch (e) {
       console.log('Error fetching admin submenus:', e);
@@ -249,7 +291,22 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
   useEffect(() => {
     fetchAdminMachines();
-  }, []);
+
+    const handleMachinesUpdate = () => {
+      fetchAdminMachines();
+      if (activeMachineId) {
+        loadMachineData(activeMachineId);
+      }
+    };
+
+    window.addEventListener('surtiantojo_machines_updated', handleMachinesUpdate);
+    window.addEventListener('storage', handleMachinesUpdate);
+
+    return () => {
+      window.removeEventListener('surtiantojo_machines_updated', handleMachinesUpdate);
+      window.removeEventListener('storage', handleMachinesUpdate);
+    };
+  }, [activeMachineId]);
 
   // Filter machines by active category
   const categoryMachines = useMemo(() => {
@@ -269,13 +326,19 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
   // Load machine catalog products & date entries
   const loadMachineData = async (machineId: string) => {
+    if (!machineId) {
+      setProducts([]);
+      setDates([]);
+      setTopMetrics(DEFAULT_TOP_METRICS);
+      setControls(JSON.parse(JSON.stringify(DEFAULT_CONTROLS)));
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
 
-    let storedDates = ['01-jul', '06-jul', '08-jul', '10-jul'];
-    let storedTopMetrics = [
-      { id: '1', sel: '1', concept: 'Unid. Vtas', values: { '01-jul': '68499', '06-jul': '68673', '08-jul': '68898', '10-jul': '69095' } },
-      { id: '2', sel: '2', concept: '$ ventas', values: { '01-jul': '934456', '06-jul': '937157', '08-jul': '940765', '10-jul': '943762' } }
-    ];
+    let storedDates: string[] = [];
+    let storedTopMetrics = JSON.parse(JSON.stringify(DEFAULT_TOP_METRICS));
     let storedControls = JSON.parse(JSON.stringify(DEFAULT_CONTROLS));
     let storedValuesMap: Record<string, Record<string, string>> = {};
 
@@ -296,10 +359,10 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
         const localSheet = localStorage.getItem(`surtiantojo_operadores_sheet_${machineId}`);
         if (localSheet) {
           const parsed = JSON.parse(localSheet);
-          if (parsed.dates) storedDates = parsed.dates;
-          if (parsed.topMetrics) storedTopMetrics = parsed.topMetrics;
-          if (parsed.controls) storedControls = parsed.controls;
-          if (parsed.valuesMap) storedValuesMap = parsed.valuesMap;
+          if (parsed.dates && Array.isArray(parsed.dates)) storedDates = parsed.dates;
+          if (parsed.topMetrics && Array.isArray(parsed.topMetrics)) storedTopMetrics = parsed.topMetrics;
+          if (parsed.controls && Array.isArray(parsed.controls)) storedControls = parsed.controls;
+          if (parsed.valuesMap && typeof parsed.valuesMap === 'object') storedValuesMap = parsed.valuesMap;
         }
       }
     } catch (e) {}
@@ -312,10 +375,28 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
       if (!supaErr && supaRows && supaRows.length > 0) {
         masterProducts = supaRows.map((item: any, idx: number) => {
-          const selVal = String(item.resorte !== undefined ? item.resorte : (item.sel !== undefined ? item.sel : idx + 1));
-          const nameVal = String(item.surtir !== undefined ? item.surtir : (item.nombre_producto !== undefined ? item.nombre_producto : (item.nombre || `Producto ${idx + 1}`)));
-          const priceVal = parseFloat(item.precio_venta !== undefined ? item.precio_venta : (item.precio || 0)) || 0;
-          const capacityVal = parseInt(item.capacidad !== undefined ? item.capacidad : (item.caben !== undefined ? item.caben : (item.unidad_surtida || 12))) || 12;
+          let selVal = '';
+          if (item.resorte !== undefined && item.resorte !== null && String(item.resorte).trim()) selVal = String(item.resorte).trim();
+          else if (item.sel !== undefined && item.sel !== null && String(item.sel).trim()) selVal = String(item.sel).trim();
+          else if (item.resor !== undefined && item.resor !== null && String(item.resor).trim()) selVal = String(item.resor).trim();
+          else if (item.seleccion !== undefined && item.seleccion !== null && String(item.seleccion).trim()) selVal = String(item.seleccion).trim();
+          else selVal = String(idx + 1);
+
+          let nameVal = '';
+          if (item.nombre_producto !== undefined && item.nombre_producto !== null && String(item.nombre_producto).trim()) nameVal = String(item.nombre_producto).trim();
+          else if (item.surtir !== undefined && item.surtir !== null && String(item.surtir).trim()) nameVal = String(item.surtir).trim();
+          else if (item.nombre !== undefined && item.nombre !== null && String(item.nombre).trim()) nameVal = String(item.nombre).trim();
+          else if (item.producto !== undefined && item.producto !== null && String(item.producto).trim()) nameVal = String(item.producto).trim();
+          else nameVal = `Producto ${idx + 1}`;
+
+          let priceVal = 0;
+          if (item.precio_venta !== undefined && item.precio_venta !== null) priceVal = parseFloat(item.precio_venta) || 0;
+          else if (item.precio !== undefined && item.precio !== null) priceVal = parseFloat(item.precio) || 0;
+
+          let capacityVal = 12;
+          if (item.capacidad !== undefined && item.capacidad !== null) capacityVal = parseInt(item.capacidad) || 12;
+          else if (item.caben !== undefined && item.caben !== null) capacityVal = parseInt(item.caben) || 12;
+          else if (item.unidad_surtida !== undefined && item.unidad_surtida !== null) capacityVal = parseInt(item.unidad_surtida) || 12;
 
           return {
             id: String(item.id || `prod_${machineId}_${idx}`),
@@ -327,38 +408,26 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
         });
       } else {
         const localSurtido = localStorage.getItem(`surtiantojo_surtido_rows_${machineId}`);
-        if (localSurtido) {
-          const parsedSurtido = JSON.parse(localSurtido);
-          if (Array.isArray(parsedSurtido) && parsedSurtido.length > 0) {
-            masterProducts = parsedSurtido.map((item: any, idx: number) => ({
-              id: String(item.id || `prod_${machineId}_${idx}`),
-              sel: String(item.resorte || item.sel || idx + 1),
-              nombre: String(item.surtir || item.nombre_producto || item.nombre || `Producto ${idx + 1}`),
-              precio: parseFloat(item.precio_venta || item.precio || 0) || 0,
-              caben: parseInt(item.capacidad || item.caben || item.unidad_surtida || 12) || 12
-            }));
-          }
+        const legacyLocal = localStorage.getItem(`surtiantojo_${machineId}`);
+        const sourceData = localSurtido || legacyLocal;
+
+        if (sourceData) {
+          try {
+            const parsedSurtido = JSON.parse(sourceData);
+            if (Array.isArray(parsedSurtido) && parsedSurtido.length > 0) {
+              masterProducts = parsedSurtido.map((item: any, idx: number) => ({
+                id: String(item.id || `prod_${machineId}_${idx}`),
+                sel: String(item.resorte || item.sel || item.seleccion || item.resor || idx + 1),
+                nombre: String(item.nombre_producto || item.surtir || item.nombre || item.producto || `Producto ${idx + 1}`),
+                precio: parseFloat(item.precio_venta || item.precio || 0) || 0,
+                caben: parseInt(item.capacidad || item.caben || item.unidad_surtida || 12) || 12
+              }));
+            }
+          } catch (e) {}
         }
       }
     } catch (e) {
       console.log('Error fetching product rows for machine:', e);
-    }
-
-    if (masterProducts.length === 0) {
-      masterProducts = [
-        { id: 'p11', sel: '11', nombre: 'Cheetos torcidito', precio: 21, caben: 12 },
-        { id: 'p13', sel: '13', nombre: 'Churrumais', precio: 21, caben: 12 },
-        { id: 'p15', sel: '15', nombre: 'Kiubo 1', precio: 10, caben: 12 },
-        { id: 'p17', sel: '17', nombre: 'Churritos ench', precio: 15, caben: 12 },
-        { id: 'p19', sel: '19', nombre: 'Mega totis', precio: 7, caben: 15 },
-        { id: 'p21', sel: '21', nombre: 'Panque gota', precio: 27, caben: 10 },
-        { id: 'p23', sel: '23', nombre: 'Veggies', precio: 18, caben: 12 },
-        { id: 'p25', sel: '25', nombre: 'Rebanadas MIX', precio: 10, caben: 12 },
-        { id: 'p27', sel: '27', nombre: 'Cheeto MIX', precio: 13, caben: 10 },
-        { id: 'p28', sel: '28', nombre: 'Papatina', precio: 17, caben: 12 },
-        { id: 'p29', sel: '29', nombre: 'Besos de Nuez', precio: 12, caben: 15 },
-        { id: 'p30', sel: '30', nombre: 'ChipsAhoy', precio: 12, caben: 18 }
-      ];
     }
 
     const mergedProducts = masterProducts.map(p => {
