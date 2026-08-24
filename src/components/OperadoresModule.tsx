@@ -16,7 +16,9 @@ import {
   Coffee,
   AlertCircle,
   X,
-  Edit
+  Edit,
+  Unlock,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
@@ -279,6 +281,20 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   // Controls / Bitacora checklist
   const [controls, setControls] = useState<any[]>(DEFAULT_CONTROLS);
 
+  // Role detection: Admin vs Operator / Surtidor
+  const isAdmin = useMemo(() => {
+    if (isSurtidorOnly) return false;
+    if (!currentUser) return true; // Default admin if no user session
+    const role = (currentUser.rol || currentUser.role || '').toLowerCase();
+    return role.includes('admin') || role.includes('administrador') || role.includes('gerente');
+  }, [currentUser, isSurtidorOnly]);
+
+  const isOperator = !isAdmin;
+
+  // State to track locked cells per machine (so operator cannot edit once entered)
+  const [lockedCells, setLockedCells] = useState<Record<string, boolean>>({});
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string | null>(null);
+
   // Get active machine object
   const activeMachine = useMemo(() => {
     return machinesList.find(m => m.id === activeMachineId) || machinesList[0] || {
@@ -380,6 +396,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     ];
     let storedControls = JSON.parse(JSON.stringify(DEFAULT_CONTROLS));
     let storedValuesMap: Record<string, Record<string, string>> = {};
+    let storedLockedCells: Record<string, boolean> = {};
 
     try {
       // 1. Fetch cloud operators data from Supabase first
@@ -394,6 +411,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
         if (opCloudData.top_metrics && Array.isArray(opCloudData.top_metrics)) storedTopMetrics = opCloudData.top_metrics;
         if (opCloudData.controls && Array.isArray(opCloudData.controls)) storedControls = opCloudData.controls;
         if (opCloudData.values_map && typeof opCloudData.values_map === 'object') storedValuesMap = opCloudData.values_map;
+        if (opCloudData.locked_cells && typeof opCloudData.locked_cells === 'object') storedLockedCells = opCloudData.locked_cells;
       } else {
         const localSheet = localStorage.getItem(`surtiantojo_operadores_sheet_${machineId}`);
         if (localSheet) {
@@ -402,6 +420,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
           if (parsed.topMetrics) storedTopMetrics = parsed.topMetrics;
           if (parsed.controls) storedControls = parsed.controls;
           if (parsed.valuesMap) storedValuesMap = parsed.valuesMap;
+          if (parsed.lockedCells) storedLockedCells = parsed.lockedCells;
         }
       }
     } catch (e) {}
@@ -494,6 +513,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     setTopMetrics(storedTopMetrics);
     setControls(storedControls);
     setProducts(mergedProducts);
+    setLockedCells(storedLockedCells);
     setOpPage(1);
     setIsLoading(false);
   };
@@ -502,11 +522,19 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     loadMachineData(activeMachineId);
   }, [activeMachineId]);
 
-  // Handle saving Operadores date entries and bitacora
-  const handleSave = async () => {
+  // Robust auto-save helper function for local storage and Supabase cloud
+  const saveToStorageAndCloud = async (
+    currentProducts: any[],
+    currentTopMetrics: any[],
+    currentControls: any[],
+    currentDates: string[],
+    currentLockedCells: Record<string, boolean>,
+    silent = true
+  ) => {
     try {
+      setAutoSaveStatus('Guardando...');
       const valuesMap: Record<string, Record<string, string>> = {};
-      products.forEach(p => {
+      currentProducts.forEach(p => {
         const prodKey = `${p.sel}_${p.nombre}`;
         valuesMap[prodKey] = p.values;
         valuesMap[p.id] = p.values;
@@ -514,10 +542,12 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
       const sheetData = {
         machineId: activeMachineId,
-        dates,
-        topMetrics,
-        controls,
-        valuesMap
+        dates: currentDates,
+        topMetrics: currentTopMetrics,
+        controls: currentControls,
+        valuesMap,
+        lockedCells: currentLockedCells,
+        updatedAt: new Date().toISOString()
       };
 
       localStorage.setItem(`surtiantojo_operadores_sheet_${activeMachineId}`, JSON.stringify(sheetData));
@@ -525,20 +555,42 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       try {
         await supabase.from('operadores_data').upsert({
           machine_id: activeMachineId,
-          dates: dates,
-          top_metrics: topMetrics,
-          controls: controls,
+          dates: currentDates,
+          top_metrics: currentTopMetrics,
+          controls: currentControls,
           values_map: valuesMap,
+          locked_cells: currentLockedCells,
           updated_at: new Date().toISOString()
         });
-      } catch (e) {}
+      } catch (err) {
+        console.log('Operadores cloud sync notice (saved locally):', err);
+      }
 
-      setSaveMessage(`¡Fechas y bitácora de ${activeMachine.name || activeMachineId} guardadas exitosamente!`);
-      setTimeout(() => setSaveMessage(null), 3500);
+      setAutoSaveStatus('Guardado ✓');
+      setTimeout(() => setAutoSaveStatus(null), 2500);
+
+      if (!silent) {
+        setSaveMessage(`¡Fechas y bitácora de ${activeMachine.name || activeMachineId} guardadas exitosamente!`);
+        setTimeout(() => setSaveMessage(null), 3500);
+      }
     } catch (e) {
-      setSaveMessage('Error al guardar datos');
-      setTimeout(() => setSaveMessage(null), 3000);
+      setAutoSaveStatus('Error al guardar');
+      setTimeout(() => setAutoSaveStatus(null), 3000);
     }
+  };
+
+  // Handle explicit manual save
+  const handleSave = async () => {
+    await saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, false);
+  };
+
+  // Admin capability to unlock all cells for operators if corrections are needed
+  const handleUnlockAllCells = async () => {
+    if (!isAdmin) return;
+    setLockedCells({});
+    await saveToStorageAndCloud(products, topMetrics, controls, dates, {}, false);
+    setSaveMessage('Todas las celdas han sido desbloqueadas para el operador.');
+    setTimeout(() => setSaveMessage(null), 3500);
   };
 
   // Register new machine in Operadores module (matching Surtido module)
@@ -811,41 +863,120 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     }));
   };
 
-  // Update top metric for a date
+  // Helper to determine if a cell is locked for the current user
+  const isCellLockedForOperator = (cellKey: string, currentVal: any) => {
+    if (isAdmin) return false; // Admin has 100% full edit access to all cells
+    if (lockedCells[cellKey] === true) return true;
+    // If it has already been filled/recorded previously
+    if (currentVal !== undefined && currentVal !== null && currentVal !== '' && currentVal !== '0' && lockedCells[cellKey] !== false) {
+      return true;
+    }
+    return false;
+  };
+
+  // Update top metric for a date with real-time state sync
   const handleUpdateTopMetric = (metricId: string, dateCol: string, val: string) => {
-    setTopMetrics(prev => prev.map(m => {
-      if (m.id !== metricId) return m;
-      return { ...m, values: { ...m.values, [dateCol]: val } };
-    }));
+    setTopMetrics(prev => {
+      const updated = prev.map(m => {
+        if (m.id !== metricId) return m;
+        return { ...m, values: { ...m.values, [dateCol]: val } };
+      });
+      return updated;
+    });
   };
 
   // Update product count for a date
   const handleUpdateProductCount = (prodId: string, dateCol: string, val: string) => {
-    setProducts(prev => prev.map(p => {
-      if (p.id !== prodId) return p;
-      return { ...p, values: { ...p.values, [dateCol]: val } };
-    }));
+    setProducts(prev => {
+      const updated = prev.map(p => {
+        if (p.id !== prodId) return p;
+        return { ...p, values: { ...p.values, [dateCol]: val } };
+      });
+      return updated;
+    });
   };
 
   // Update bitacora control for a date
   const handleUpdateControl = (ctrlId: string, dateCol: string, val: string) => {
-    setControls(prev => prev.map(c => {
-      if (c.id !== ctrlId) return c;
-      return { ...c, values: { ...c.values, [dateCol]: val } };
-    }));
+    setControls(prev => {
+      const updated = prev.map(c => {
+        if (c.id !== ctrlId) return c;
+        return { ...c, values: { ...c.values, [dateCol]: val } };
+      });
+      return updated;
+    });
   };
 
-  // Handle Enter key navigation across editable input cells
-  const handleKeyDownEnter = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
-    if (e.key === 'Enter') {
+  // Handle Enter key vertical column navigation & auto-save & cell locking
+  const handleKeyDownVertical = (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>,
+    dateCol: string,
+    cellKey: string
+  ) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown') {
       e.preventDefault();
-      const cells = Array.from(document.querySelectorAll<HTMLElement>('.editable-cell'));
-      const currIndex = cells.indexOf(e.currentTarget);
-      if (currIndex !== -1 && currIndex < cells.length - 1) {
-        const nextCell = cells[currIndex + 1];
-        nextCell.focus();
-        if ('select' in nextCell && typeof (nextCell as any).select === 'function') {
-          (nextCell as any).select();
+      
+      let updatedLockedCells = { ...lockedCells };
+      // If user is operator, lock this cell immediately so they cannot alter it later
+      if (isOperator) {
+        updatedLockedCells[cellKey] = true;
+        setLockedCells(updatedLockedCells);
+      }
+
+      // Auto-save immediately to localStorage and Supabase cloud
+      saveToStorageAndCloud(products, topMetrics, controls, dates, updatedLockedCells, true);
+
+      // Navigate down to the next editable cell in the SAME date column
+      setTimeout(() => {
+        const columnCells = Array.from(
+          document.querySelectorAll<HTMLElement>(`[data-date-col="${dateCol}"]`)
+        ).filter(el => {
+          const isInputDisabled = (el as HTMLInputElement | HTMLSelectElement).disabled;
+          return !isInputDisabled && el.offsetParent !== null;
+        });
+
+        const currIndex = columnCells.indexOf(e.currentTarget);
+        if (currIndex !== -1 && currIndex < columnCells.length - 1) {
+          const nextCell = columnCells[currIndex + 1];
+          nextCell.focus();
+          if ('select' in nextCell && typeof (nextCell as any).select === 'function') {
+            (nextCell as any).select();
+          }
+        } else if (currIndex === columnCells.length - 1) {
+          // If on the last row of this column, advance to the top of the next date column
+          const dateIdx = dates.indexOf(dateCol);
+          if (dateIdx !== -1 && dateIdx < dates.length - 1) {
+            const nextDateCol = dates[dateIdx + 1];
+            const nextColCells = Array.from(
+              document.querySelectorAll<HTMLElement>(`[data-date-col="${nextDateCol}"]`)
+            ).filter(el => {
+              const isInputDisabled = (el as HTMLInputElement | HTMLSelectElement).disabled;
+              return !isInputDisabled && el.offsetParent !== null;
+            });
+            if (nextColCells.length > 0) {
+              nextColCells[0].focus();
+              if ('select' in nextColCells[0] && typeof (nextColCells[0] as any).select === 'function') {
+                (nextColCells[0] as any).select();
+              }
+            }
+          }
+        }
+      }, 35);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const columnCells = Array.from(
+        document.querySelectorAll<HTMLElement>(`[data-date-col="${dateCol}"]`)
+      ).filter(el => {
+        const isInputDisabled = (el as HTMLInputElement | HTMLSelectElement).disabled;
+        return !isInputDisabled && el.offsetParent !== null;
+      });
+
+      const currIndex = columnCells.indexOf(e.currentTarget);
+      if (currIndex > 0) {
+        const prevCell = columnCells[currIndex - 1];
+        prevCell.focus();
+        if ('select' in prevCell && typeof (prevCell as any).select === 'function') {
+          (prevCell as any).select();
         }
       }
     }
@@ -1185,10 +1316,40 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
               <Plus className="w-4 h-4 stroke-[3]" /> Nueva Fecha (+)
             </button>
 
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-bold">
-              <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>SEL, Producto, Precio, Resor, Surtir, Código y P. Regular sincronizados desde Surtido</span>
+            {isAdmin && Object.keys(lockedCells).length > 0 && (
+              <button
+                onClick={handleUnlockAllCells}
+                className="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer border border-amber-300 shadow-2xs"
+                title="Desbloquear todas las celdas para que los operadores puedan corregir datos"
+              >
+                <Unlock className="w-3.5 h-3.5 text-amber-700" /> Desbloquear Celdas ({Object.keys(lockedCells).length})
+              </button>
+            )}
+
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${
+              isAdmin 
+                ? 'bg-blue-50 border border-blue-200 text-blue-900' 
+                : 'bg-amber-50 border border-amber-200 text-amber-900'
+            }`}>
+              {isAdmin ? (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span>Modo Administrador: Edición total y vertical automática con Enter</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Modo Operador: Enter baja verticalmente, guarda y asegura el registro</span>
+                </>
+              )}
             </div>
+
+            {autoSaveStatus && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-black animate-pulse">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{autoSaveStatus}</span>
+              </div>
+            )}
           </div>
 
           <div className="text-[11px] font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
@@ -1251,17 +1412,36 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   <td colSpan={6} className="py-2 px-4 font-black text-slate-900 border-r border-slate-300">
                     {metric.concept}
                   </td>
-                  {dates.map((dateCol: string) => (
-                    <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-300 bg-indigo-50/40">
-                      <input
-                        type="text"
-                        value={metric.values[dateCol] || ''}
-                        onChange={(e) => handleUpdateTopMetric(metric.id, dateCol, e.target.value)}
-                        onKeyDown={handleKeyDownEnter}
-                        className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-300 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-indigo-950 focus:outline-none"
-                      />
-                    </td>
-                  ))}
+                  {dates.map((dateCol: string) => {
+                    const cellKey = `metric_${metric.id}_${dateCol}`;
+                    const currentVal = metric.values[dateCol] || '';
+                    const isLocked = isCellLockedForOperator(cellKey, currentVal);
+
+                    return (
+                      <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-300 bg-indigo-50/40">
+                        {isLocked ? (
+                          <div
+                            className="w-full text-center font-mono font-bold text-xs bg-slate-200/80 text-slate-700 border border-slate-300 rounded px-1.5 py-1 flex items-center justify-center gap-1 select-none shadow-2xs"
+                            title="Registro guardado y protegido. Solo editable por Administrador."
+                          >
+                            <Lock className="w-3 h-3 text-slate-500 shrink-0" />
+                            <span>{currentVal || '—'}</span>
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            data-date-col={dateCol}
+                            data-cell-key={cellKey}
+                            value={currentVal}
+                            onChange={(e) => handleUpdateTopMetric(metric.id, dateCol, e.target.value)}
+                            onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
+                            onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
+                            className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-300 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-indigo-950 focus:outline-none shadow-2xs"
+                          />
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
 
@@ -1346,18 +1526,37 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                       ${p.precio_regular !== undefined ? p.precio_regular : p.precio}
                     </td>
 
-                    {/* Editable Date Columns (Press Enter to advance) */}
-                    {dates.map((dateCol: string) => (
-                      <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-200">
-                        <input
-                          type="text"
-                          value={p.values[dateCol] || '0'}
-                          onChange={(e) => handleUpdateProductCount(p.id, dateCol, e.target.value)}
-                          onKeyDown={handleKeyDownEnter}
-                          className="editable-cell w-full text-center font-mono font-bold text-xs bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
-                        />
-                      </td>
-                    ))}
+                    {/* Editable Date Columns (Press Enter to advance vertically) */}
+                    {dates.map((dateCol: string) => {
+                      const cellKey = `prod_${p.id}_${dateCol}`;
+                      const currentVal = p.values[dateCol];
+                      const isLocked = isCellLockedForOperator(cellKey, currentVal);
+
+                      return (
+                        <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-200">
+                          {isLocked ? (
+                            <div
+                              className="w-full text-center font-mono font-bold text-xs bg-slate-100 text-slate-700 border border-slate-200/90 rounded px-1.5 py-1 flex items-center justify-center gap-1 select-none shadow-2xs"
+                              title="Registro guardado y protegido. Solo editable por Administrador."
+                            >
+                              <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{currentVal !== undefined && currentVal !== '' ? currentVal : '0'}</span>
+                            </div>
+                          ) : (
+                            <input
+                              type="text"
+                              data-date-col={dateCol}
+                              data-cell-key={cellKey}
+                              value={currentVal !== undefined ? currentVal : '0'}
+                              onChange={(e) => handleUpdateProductCount(p.id, dateCol, e.target.value)}
+                              onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
+                              onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
+                              className="editable-cell w-full text-center font-mono font-bold text-xs bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
+                            />
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               )}
@@ -1387,16 +1586,29 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                     {ctrl.detail}
                   </td>
                   {dates.map((dateCol: string) => {
+                    const cellKey = `ctrl_${ctrl.id}_${dateCol}`;
                     const currentVal = ctrl.values[dateCol] || '';
                     const isYesNo = ['Limpieza interna', 'Limpieza externa', 'Falla de equipo', 'Monedero', 'Billetero', 'Base de resorte', 'Otro'].includes(ctrl.label);
+                    const isLocked = isCellLockedForOperator(cellKey, currentVal);
 
                     return (
                       <td key={dateCol} className="py-1.5 px-2 text-center border-r border-slate-200">
-                        {isYesNo ? (
+                        {isLocked ? (
+                          <div
+                            className="w-full text-center font-mono font-black text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded px-1 py-1 flex items-center justify-center gap-1 select-none shadow-2xs"
+                            title="Registro guardado y protegido. Solo editable por Administrador."
+                          >
+                            <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{currentVal || '—'}</span>
+                          </div>
+                        ) : isYesNo ? (
                           <select
+                            data-date-col={dateCol}
+                            data-cell-key={cellKey}
                             value={currentVal.toLowerCase()}
                             onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
-                            onKeyDown={handleKeyDownEnter}
+                            onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
+                            onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
                             className={`editable-cell w-full text-center font-mono font-black text-xs border rounded px-1 py-1 focus:outline-none cursor-pointer ${
                               currentVal.toLowerCase() === 'si'
                                 ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
@@ -1412,9 +1624,12 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                         ) : (
                           <input
                             type="text"
+                            data-date-col={dateCol}
+                            data-cell-key={cellKey}
                             value={currentVal}
                             onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
-                            onKeyDown={handleKeyDownEnter}
+                            onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
+                            onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
                             className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
                           />
                         )}
