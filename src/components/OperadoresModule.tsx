@@ -414,9 +414,13 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
       if (!supaErr && supaRows && supaRows.length > 0) {
         masterProducts = supaRows.map((item: any, idx: number) => {
-          const selVal = String(item.resorte !== undefined ? item.resorte : (item.sel !== undefined ? item.sel : idx + 1));
-          const nameVal = String(item.surtir !== undefined ? item.surtir : (item.nombre_producto !== undefined ? item.nombre_producto : (item.nombre || `Producto ${idx + 1}`)));
+          const selVal = String(item.sel !== undefined && item.sel !== '' ? item.sel : (item.slot !== undefined ? item.slot : (item.seleccion !== undefined ? item.seleccion : (item.codigo || idx + 1))));
+          const nameVal = String(item.nombre_producto !== undefined && item.nombre_producto !== '' ? item.nombre_producto : (item.nombre !== undefined ? item.nombre : (item.producto !== undefined ? item.producto : (item.articulo || (item.surtir && isNaN(Number(item.surtir)) ? item.surtir : `Producto ${idx + 1}`)))));
           const priceVal = parseFloat(item.precio_venta !== undefined ? item.precio_venta : (item.precio || 0)) || 0;
+          const resorVal = String(item.resorte !== undefined ? item.resorte : (item.resor !== undefined ? item.resor : (item.resort || '')));
+          const surtirVal = item.unidad_surtida !== undefined ? item.unidad_surtida : (item.surtir !== undefined ? item.surtir : (item.cantidad || ''));
+          const codigoVal = String(item.codigo !== undefined ? item.codigo : (item.sku || (item.code || '')));
+          const precioRegVal = parseFloat(item.precio_regular !== undefined ? item.precio_regular : (item.precio_reg || (item.precio_sin_acuerdo || (item.precio_venta || item.precio || 0)))) || 0;
           const capacityVal = parseInt(item.capacidad !== undefined ? item.capacidad : (item.caben !== undefined ? item.caben : (item.unidad_surtida || 12))) || 12;
 
           return {
@@ -424,19 +428,27 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
             sel: selVal,
             nombre: nameVal,
             precio: priceVal,
+            resor: resorVal,
+            surtir: surtirVal,
+            codigo: codigoVal,
+            precio_regular: precioRegVal,
             caben: capacityVal
           };
         });
       } else {
-        const localSurtido = localStorage.getItem(`surtiantojo_surtido_rows_${machineId}`);
+        const localSurtido = localStorage.getItem(`surtiantojo_surtido_rows_${machineId}`) || localStorage.getItem(`surtiantojo_${machineId}`);
         if (localSurtido) {
           const parsedSurtido = JSON.parse(localSurtido);
           if (Array.isArray(parsedSurtido) && parsedSurtido.length > 0) {
             masterProducts = parsedSurtido.map((item: any, idx: number) => ({
               id: String(item.id || `prod_${machineId}_${idx}`),
-              sel: String(item.resorte || item.sel || idx + 1),
-              nombre: String(item.surtir || item.nombre_producto || item.nombre || `Producto ${idx + 1}`),
+              sel: String(item.sel !== undefined && item.sel !== '' ? item.sel : (item.slot || item.seleccion || item.codigo || idx + 1)),
+              nombre: String(item.nombre_producto || item.nombre || item.producto || item.articulo || (item.surtir && isNaN(Number(item.surtir)) ? item.surtir : `Producto ${idx + 1}`)),
               precio: parseFloat(item.precio_venta || item.precio || 0) || 0,
+              resor: String(item.resorte || item.resor || item.resort || ''),
+              surtir: item.unidad_surtida !== undefined ? item.unidad_surtida : (item.surtir !== undefined ? item.surtir : (item.cantidad || '')),
+              codigo: String(item.codigo || item.sku || item.code || ''),
+              precio_regular: parseFloat(item.precio_regular || item.precio_reg || item.precio_sin_acuerdo || item.precio_venta || item.precio || 0) || 0,
               caben: parseInt(item.capacidad || item.caben || item.unidad_surtida || 12) || 12
             }));
           }
@@ -448,18 +460,18 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
     if (masterProducts.length === 0) {
       masterProducts = [
-        { id: 'p11', sel: '11', nombre: 'Cheetos torcidito', precio: 21, caben: 12 },
-        { id: 'p13', sel: '13', nombre: 'Churrumais', precio: 21, caben: 12 },
-        { id: 'p15', sel: '15', nombre: 'Kiubo 1', precio: 10, caben: 12 },
-        { id: 'p17', sel: '17', nombre: 'Churritos ench', precio: 15, caben: 12 },
-        { id: 'p19', sel: '19', nombre: 'Mega totis', precio: 7, caben: 15 },
-        { id: 'p21', sel: '21', nombre: 'Panque gota', precio: 27, caben: 10 },
-        { id: 'p23', sel: '23', nombre: 'Veggies', precio: 18, caben: 12 },
-        { id: 'p25', sel: '25', nombre: 'Rebanadas MIX', precio: 10, caben: 12 },
-        { id: 'p27', sel: '27', nombre: 'Cheeto MIX', precio: 13, caben: 10 },
-        { id: 'p28', sel: '28', nombre: 'Papatina', precio: 17, caben: 12 },
-        { id: 'p29', sel: '29', nombre: 'Besos de Nuez', precio: 12, caben: 15 },
-        { id: 'p30', sel: '30', nombre: 'ChipsAhoy', precio: 12, caben: 18 }
+        { id: 'p11', sel: '11', nombre: 'Cheetos torcidito', precio: 21, resor: '12', surtir: 12, codigo: 'BOT01', precio_regular: 21, caben: 12 },
+        { id: 'p13', sel: '13', nombre: 'Churrumais', precio: 21, resor: '12', surtir: 12, codigo: 'BOT02', precio_regular: 21, caben: 12 },
+        { id: 'p15', sel: '15', nombre: 'Kiubo 1', precio: 10, resor: '15', surtir: 15, codigo: 'BOT03', precio_regular: 10, caben: 12 },
+        { id: 'p17', sel: '17', nombre: 'Churritos ench', precio: 15, resor: '12', surtir: 12, codigo: 'BOT04', precio_regular: 15, caben: 12 },
+        { id: 'p19', sel: '19', nombre: 'Mega totis', precio: 7, resor: '15', surtir: 15, codigo: 'BOT05', precio_regular: 7, caben: 15 },
+        { id: 'p21', sel: '21', nombre: 'Panque gota', precio: 27, resor: '10', surtir: 10, codigo: 'PAN01', precio_regular: 27, caben: 10 },
+        { id: 'p23', sel: '23', nombre: 'Veggies', precio: 18, resor: '12', surtir: 12, codigo: 'BOT06', precio_regular: 18, caben: 12 },
+        { id: 'p25', sel: '25', nombre: 'Rebanadas MIX', precio: 10, resor: '12', surtir: 12, codigo: 'GAL01', precio_regular: 10, caben: 12 },
+        { id: 'p27', sel: '27', nombre: 'Cheeto MIX', precio: 13, resor: '10', surtir: 10, codigo: 'BOT07', precio_regular: 13, caben: 10 },
+        { id: 'p28', sel: '28', nombre: 'Papatina', precio: 17, resor: '12', surtir: 12, codigo: 'BOT08', precio_regular: 17, caben: 12 },
+        { id: 'p29', sel: '29', nombre: 'Besos de Nuez', precio: 12, resor: '15', surtir: 15, codigo: 'GAL02', precio_regular: 12, caben: 15 },
+        { id: 'p30', sel: '30', nombre: 'ChipsAhoy', precio: 12, resor: '18', surtir: 18, codigo: 'GAL03', precio_regular: 12, caben: 18 }
       ];
     }
 
@@ -842,23 +854,23 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   // Export CSV
   const handleExportCSV = () => {
     let csvContent = "";
-    csvContent += `SEL,${activeMachine.name || activeMachineId},Precio,Caben,${dates.join(',')}\n`;
+    csvContent += `SEL,${activeMachine.name || activeMachineId},PRECIO,RESOR,SURTIR,CODIGO,PRECIO REGULAR,${dates.join(',')}\n`;
 
     topMetrics.forEach(m => {
       const vals = dates.map(d => m.values[d] || '0').join(',');
-      csvContent += `${m.sel},${m.concept},,,${vals}\n`;
+      csvContent += `${m.sel},${m.concept},,,,,${vals}\n`;
     });
 
-    csvContent += `,INVENTARIO DE PRODUCTOS,,,,,,,,\n`;
+    csvContent += `,INVENTARIO DE PRODUCTOS,,,,,,${dates.map(() => '').join(',')}\n`;
 
     products.forEach(p => {
       const vals = dates.map(d => p.values[d] || '0').join(',');
-      csvContent += `${p.sel},"${p.nombre}",$${p.precio},${p.caben},${vals}\n`;
+      csvContent += `${p.sel},"${p.nombre}",$${p.precio},${p.resor || ''},${p.surtir !== undefined ? p.surtir : ''},${p.codigo || ''},$${p.precio_regular !== undefined ? p.precio_regular : p.precio},${vals}\n`;
     });
 
     controls.forEach(c => {
       const vals = dates.map(d => c.values[d] || '').join(',');
-      csvContent += `,${c.label},${c.detail},,${vals}\n`;
+      csvContent += `,${c.label},${c.detail},,,,,${vals}\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1175,7 +1187,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-bold">
               <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>SEL, Producto, Precio y Caben están sincronizados de solo lectura</span>
+              <span>SEL, Producto, Precio, Resor, Surtir, Código y P. Regular sincronizados desde Surtido</span>
             </div>
           </div>
 
@@ -1193,14 +1205,23 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                 <th className="py-3 px-3 text-center font-black tracking-wider w-12 border-r border-blue-800 uppercase">
                   SEL
                 </th>
-                <th className="py-3 px-4 font-black tracking-wider border-r border-blue-800 min-w-[220px] uppercase">
+                <th className="py-3 px-4 font-black tracking-wider border-r border-blue-800 min-w-[200px] uppercase">
                   Nombre del Producto ({activeMachine.name || activeMachine.title || activeMachineId})
                 </th>
-                <th className="py-3 px-3 text-center font-black tracking-wider w-20 border-r border-blue-800 uppercase">
+                <th className="py-3 px-2 text-center font-black tracking-wider w-16 border-r border-blue-800 uppercase">
                   Precio
                 </th>
-                <th className="py-3 px-3 text-center font-black tracking-wider w-20 border-r border-blue-800 uppercase">
-                  Caben
+                <th className="py-3 px-2 text-center font-black tracking-wider w-14 border-r border-blue-800 uppercase">
+                  Resor
+                </th>
+                <th className="py-3 px-2 text-center font-black tracking-wider w-14 border-r border-blue-800 uppercase">
+                  Surtir
+                </th>
+                <th className="py-3 px-2 text-center font-black tracking-wider w-16 border-r border-blue-800 uppercase">
+                  Código
+                </th>
+                <th className="py-3 px-2 text-center font-black tracking-wider w-20 border-r border-blue-800 uppercase">
+                  P. Regular
                 </th>
                 {dates.map((dateCol: string) => (
                   <th key={dateCol} className="py-2.5 px-3 text-center font-black tracking-wider min-w-[105px] border-r border-blue-800 bg-blue-900/60 relative group">
@@ -1227,14 +1248,8 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   <td className="py-2 px-3 text-center font-mono font-black text-slate-700 border-r border-slate-300">
                     {metric.sel}
                   </td>
-                  <td className="py-2 px-4 font-black text-slate-900 border-r border-slate-300">
+                  <td colSpan={6} className="py-2 px-4 font-black text-slate-900 border-r border-slate-300">
                     {metric.concept}
-                  </td>
-                  <td className="py-2 px-3 text-center border-r border-slate-300 text-slate-400">
-                    —
-                  </td>
-                  <td className="py-2 px-3 text-center border-r border-slate-300 text-slate-400">
-                    —
                   </td>
                   {dates.map((dateCol: string) => (
                     <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-300 bg-indigo-50/40">
@@ -1258,11 +1273,20 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                 <td className="py-2 px-4 border-r border-slate-300 text-[#043077] font-black flex items-center gap-2">
                   <Layers className="w-3.5 h-3.5" /> INVENTARIO DE PRODUCTOS
                 </td>
-                <td className="py-2 px-3 text-center border-r border-slate-300">
+                <td className="py-2 px-2 text-center border-r border-slate-300">
                   PRECIO
                 </td>
-                <td className="py-2 px-3 text-center border-r border-slate-300">
-                  CABEN
+                <td className="py-2 px-2 text-center border-r border-slate-300">
+                  RESOR
+                </td>
+                <td className="py-2 px-2 text-center border-r border-slate-300">
+                  SURTIR
+                </td>
+                <td className="py-2 px-2 text-center border-r border-slate-300">
+                  CÓDIGO
+                </td>
+                <td className="py-2 px-2 text-center border-r border-slate-300">
+                  P. REGULAR
                 </td>
                 {dates.map((d: string) => (
                   <td key={d} className="py-2 px-3 text-center border-r border-slate-300 font-mono text-slate-600">
@@ -1271,16 +1295,16 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                 ))}
               </tr>
 
-              {/* Products Rows - Read-Only for SEL, Nombre, Precio, Caben. Editable for Date columns */}
+              {/* Products Rows - Read-Only for SEL, Nombre, Precio, Resor, Surtir, Codigo, P. Regular. Editable for Date columns */}
               {isLoading ? (
                 <tr>
-                  <td colSpan={4 + dates.length} className="py-8 text-center text-slate-500 font-bold bg-slate-50">
+                  <td colSpan={7 + dates.length} className="py-8 text-center text-slate-500 font-bold bg-slate-50">
                     Cargando catálogo de productos...
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={4 + dates.length} className="py-8 text-center text-slate-500 font-bold bg-slate-50">
+                  <td colSpan={7 + dates.length} className="py-8 text-center text-slate-500 font-bold bg-slate-50">
                     No hay productos registrados en esta máquina.
                   </td>
                 </tr>
@@ -1302,9 +1326,24 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                       ${p.precio}
                     </td>
 
-                    {/* Read-only Caben */}
-                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-extrabold text-slate-800 bg-slate-50/50">
-                      {p.caben}
+                    {/* Read-only Resor */}
+                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-700 bg-slate-50/30">
+                      {p.resor || '—'}
+                    </td>
+
+                    {/* Read-only Surtir */}
+                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-emerald-800 bg-emerald-50/20">
+                      {p.surtir !== undefined && p.surtir !== '' ? p.surtir : '—'}
+                    </td>
+
+                    {/* Read-only Codigo */}
+                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono text-[11px] text-slate-600">
+                      {p.codigo || '—'}
+                    </td>
+
+                    {/* Read-only Precio Regular */}
+                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-800 bg-slate-50/50">
+                      ${p.precio_regular !== undefined ? p.precio_regular : p.precio}
                     </td>
 
                     {/* Editable Date Columns (Press Enter to advance) */}
@@ -1325,7 +1364,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
               {/* Bitacora Checklist Section Header */}
               <tr className="bg-slate-800 text-white font-extrabold uppercase text-[11px] tracking-wider">
-                <td colSpan={4} className="py-2.5 px-4 font-black">
+                <td colSpan={7} className="py-2.5 px-4 font-black">
                   CONTROLES, BITÁCORA Y ARQUEO DE CAJA Y LIMPIEZA
                 </td>
                 {dates.map((d: string) => (
@@ -1344,7 +1383,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   <td className="py-2 px-4 font-black text-slate-800 border-r border-slate-200">
                     {ctrl.label}
                   </td>
-                  <td colSpan={2} className="py-2 px-3 text-center font-bold text-slate-500 border-r border-slate-200 text-[11px]">
+                  <td colSpan={5} className="py-2 px-3 text-center font-bold text-slate-500 border-r border-slate-200 text-[11px]">
                     {ctrl.detail}
                   </td>
                   {dates.map((dateCol: string) => {

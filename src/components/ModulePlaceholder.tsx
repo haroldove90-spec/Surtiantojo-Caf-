@@ -1188,6 +1188,51 @@ export default function ModulePlaceholder({
         }
       });
 
+      // Resilient execution helper that dynamically adapts and strips non-existent columns if Supabase rejects them
+      const executeWithSchemaAutoHeal = async (
+        mode: 'upsert' | 'insert',
+        targetRows: any[]
+      ): Promise<{ data: any[] | null; error: any | null }> => {
+        if (!targetRows || targetRows.length === 0) return { data: [], error: null };
+        let currentBatch = targetRows.map(r => ({ ...r }));
+        let attempts = 0;
+        const maxAttempts = 12;
+
+        while (attempts < maxAttempts) {
+          attempts++;
+          let result;
+          if (mode === 'upsert') {
+            result = await supabase.from(tableName).upsert(currentBatch, { onConflict: 'id' }).select();
+          } else {
+            result = await supabase.from(tableName).insert(currentBatch).select();
+          }
+
+          if (!result.error) {
+            return { data: result.data || [], error: null };
+          }
+
+          const errMsg = result.error.message || '';
+          // Detect schema mismatch column errors (e.g. Could not find the 'proveedor' column of 'surtido_art_ct' in the schema cache)
+          const match1 = errMsg.match(/Could not find the '([^']+)' column/i);
+          const match2 = errMsg.match(/column ["']?([^"'\s]+)["']? (?:of relation )?does not exist/i);
+          const missingCol = (match1 && match1[1]) || (match2 && match2[1]);
+
+          if (missingCol) {
+            console.warn(`[Supabase auto-heal] Column '${missingCol}' not found in table '${tableName}'. Stripping column and retrying...`);
+            currentBatch = currentBatch.map(item => {
+              const copy = { ...item };
+              delete copy[missingCol];
+              return copy;
+            });
+            continue;
+          }
+
+          // Return non-column error
+          return { data: null, error: result.error };
+        }
+        return { data: null, error: new Error('Max retries exceeded adapting schema') };
+      };
+
       let combinedData: any[] = [];
       let insertErrGlobal: any = null;
       let updateErrGlobal: any = null;
@@ -1200,10 +1245,7 @@ export default function ModulePlaceholder({
         });
         const uniqueMappedRowsToUpdate = Array.from(uniqueToUpdateMap.values());
 
-        const { data: updateRes, error: updateErr } = await supabase
-          .from(tableName)
-          .upsert(uniqueMappedRowsToUpdate, { onConflict: 'id' })
-          .select();
+        const { data: updateRes, error: updateErr } = await executeWithSchemaAutoHeal('upsert', uniqueMappedRowsToUpdate);
         
         if (updateErr) {
           console.log(`Supabase update notice for ${tableName}:`, updateErr.message);
@@ -1214,10 +1256,7 @@ export default function ModulePlaceholder({
       }
 
       if (mappedRowsToInsert.length > 0) {
-        const { data: insertRes, error: insertErr } = await supabase
-          .from(tableName)
-          .insert(mappedRowsToInsert)
-          .select();
+        const { data: insertRes, error: insertErr } = await executeWithSchemaAutoHeal('insert', mappedRowsToInsert);
         
         if (insertErr) {
           console.log(`Supabase insert notice for ${tableName}:`, insertErr.message);
@@ -1227,22 +1266,25 @@ export default function ModulePlaceholder({
         }
       }
 
-      // FALLBACK TO STANDARD SCHEMA IF THERE WAS AN ERROR (like missing columns in Supabase)
+      // FALLBACK TO STANDARD SCHEMA IF THERE WAS AN ERROR (like missing table or schema cache issues)
       if (insertErrGlobal || updateErrGlobal) {
-        console.log(`Attempting fallback to standard schema for table ${tableName} due to column/insert errors...`);
+        console.log(`Attempting fallback to standard schema for table ${tableName}...`);
         const standardRowsToInsert: any[] = [];
         const standardRowsToUpdate: any[] = [];
 
         rows.forEach(row => {
           const standardObj: any = {
-            codigo: String(row.codigo || '').toUpperCase(),
-            nombre_producto: String(row.nombre_producto || ''),
-            unidad_surtida: parseFloat(row.unidad_surtida) || 0,
-            costo_surtido: parseFloat(row.costo_surtido) || 0,
+            codigo: String(row.codigo || row.sel || '').toUpperCase(),
+            nombre_producto: String(row.nombre_producto || row.nombre || row.producto || ''),
             precio_venta: parseFloat(row.precio_venta) || 0,
-            proveedor: String(row.proveedor || 'Proveedor General'),
             fecha_registro: row.fecha_registro || new Date().toISOString().split('T')[0]
           };
+          if (row.sel) standardObj.sel = String(row.sel);
+          if (row.resorte) standardObj.resorte = String(row.resorte);
+          if (row.unidad_surtida !== undefined) standardObj.unidad_surtida = parseFloat(row.unidad_surtida) || 0;
+          if (row.surtir !== undefined) standardObj.surtir = parseFloat(row.surtir) || 0;
+          if (row.costo_surtido !== undefined) standardObj.costo_surtido = parseFloat(row.costo_surtido) || 0;
+          if (row.precio_regular !== undefined) standardObj.precio_regular = parseFloat(row.precio_regular) || 0;
           
           let hasValidId = false;
           if (row.id && typeof row.id === 'number' && row.id < 1000000000) {
@@ -1263,13 +1305,10 @@ export default function ModulePlaceholder({
         let fallbackInsertErrObj: any = null;
 
         if (standardRowsToUpdate.length > 0) {
-          const { data: fallbackUpdateRes, error: fallbackUpdateErr } = await supabase
-            .from(tableName)
-            .upsert(standardRowsToUpdate, { onConflict: 'id' })
-            .select();
+          const { data: fallbackUpdateRes, error: fallbackUpdateErr } = await executeWithSchemaAutoHeal('upsert', standardRowsToUpdate);
           
           if (fallbackUpdateErr) {
-            console.error(`Fallback standard update failed for ${tableName}:`, fallbackUpdateErr.message);
+            console.error(`Fallback standard update notice for ${tableName}:`, fallbackUpdateErr.message);
             fallbackUpdateErrObj = fallbackUpdateErr;
             fallbackSucceeded = false;
           } else if (fallbackUpdateRes) {
@@ -1278,13 +1317,10 @@ export default function ModulePlaceholder({
         }
 
         if (standardRowsToInsert.length > 0 && fallbackSucceeded) {
-          const { data: fallbackInsertRes, error: fallbackInsertErr } = await supabase
-            .from(tableName)
-            .insert(standardRowsToInsert)
-            .select();
+          const { data: fallbackInsertRes, error: fallbackInsertErr } = await executeWithSchemaAutoHeal('insert', standardRowsToInsert);
           
           if (fallbackInsertErr) {
-            console.error(`Fallback standard insert failed for ${tableName}:`, fallbackInsertErr.message);
+            console.error(`Fallback standard insert notice for ${tableName}:`, fallbackInsertErr.message);
             fallbackInsertErrObj = fallbackInsertErr;
             fallbackSucceeded = false;
           } else if (fallbackInsertRes) {
@@ -1298,10 +1334,10 @@ export default function ModulePlaceholder({
           setSupabaseError(null);
           setMissingTables(prev => prev.filter(t => t !== tableName));
           // Set headers to the standard columns since we had to fallback
-          headers = ['codigo', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor'];
+          headers = ['sel', 'nombre_producto', 'precio_venta', 'resorte', 'surtir', 'codigo', 'precio_regular'];
           setSubmenuHeaders(prev => ({
             ...prev,
-            [tabId]: ['', 'nombre_producto', 'unidad_surtida', 'costo_surtido', 'precio_venta', 'proveedor']
+            [tabId]: ['', 'nombre_producto', 'precio_venta', 'resorte', 'surtir', 'codigo', 'precio_regular']
           }));
         } else {
           // Both original insert and fallback failed
@@ -4940,6 +4976,8 @@ export default function ModulePlaceholder({
             sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT '';\n`;
             sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT '';\n`;
             sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS precio_venta DECIMAL(10,2) DEFAULT 0.00;\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS precio_regular DECIMAL(10,2) DEFAULT 0.00;\n`;
+            sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS proveedor VARCHAR(255) DEFAULT '';\n`;
             sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT '';\n`;
             sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS costo_surtido DECIMAL(10,2) DEFAULT 0.00;\n`;
             sqlText += `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS unidad_surtida INT DEFAULT 0;\n`;
@@ -5059,6 +5097,8 @@ export default function ModulePlaceholder({
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS codigo VARCHAR(50) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS nombre_producto VARCHAR(255) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS precio_venta DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS precio_regular DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
+          sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS proveedor VARCHAR(255) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS resorte VARCHAR(50) DEFAULT '''';', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS costo_surtido DECIMAL(10,2) DEFAULT 0.00;', t);\n`;
           sqlText += `        EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS unidad_surtida INT DEFAULT 0;', t);\n`;
