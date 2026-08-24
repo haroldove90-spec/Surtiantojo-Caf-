@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
+import * as XLSX from 'xlsx';
 import { exportSurtidoToExcel, exportAllSurtidoToExcel, exportCatalogToExcel } from '../lib/excelExport';
 import OperadoresModule from './OperadoresModule';
 
@@ -93,62 +94,25 @@ const cleanHeader = (h: string) => {
 const cleanHeaders = (headersList: string[]): string[] => {
   if (!headersList) return [];
   
-  // 1. Map headers: "" -> "Precio regular", remove other special/unwanted ones
+  // 1. Normalize empty or mapped headers
   let mapped = headersList.map(h => {
+    if (!h) return '';
     const norm = h.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
     if (norm === 'precio sin acuerdo' || norm === 'precios sin acuerdo') {
       return 'Precio regular';
     }
-    return h;
+    return h.trim();
   });
 
-  // 2. Filter out unwanted "columna 1", "columna 10", "Busc", "Busc.", "Buscar" columns, or "id", "ID", "Id"
+  // 2. Filter out unwanted internal placeholder columns or empty strings
   let filtered = mapped.filter(h => {
+    if (!h) return false;
     const norm = h.toLowerCase().trim().replace(/_/g, ' ').replace(/\./g, '');
     if (norm === 'columna 1' || norm === 'columna 10' || norm === 'columna_1' || norm === 'columna_10' || norm === 'columna1' || norm === 'columna10') return false;
     if (norm === 'busc' || norm === 'buscar' || norm === 'busc.') return false;
     if (norm === 'id') return false;
     return true;
   });
-
-  // 3. Ensure "Notas" is present and placed after "POR CANAL LLEVA" (or at the end if not found)
-  const canalIdx = filtered.findIndex(h => {
-    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
-    return norm === 'por canal lleva' || norm.includes('canal lleva') || norm === 'por canal';
-  });
-
-  const notasIdx = filtered.findIndex(h => h.toLowerCase().trim() === 'notas');
-
-  if (notasIdx !== -1) {
-    filtered.splice(notasIdx, 1);
-  }
-
-  const targetHeaderName = 'Notas';
-  const newCanalIdx = filtered.findIndex(h => {
-    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
-    return norm === 'por canal lleva' || norm.includes('canal lleva') || norm === 'por canal';
-  });
-
-  if (newCanalIdx !== -1) {
-    filtered.splice(newCanalIdx + 1, 0, targetHeaderName);
-  } else {
-    filtered.push(targetHeaderName);
-  }
-
-  // 4. Ensure "Fecha" is present after "Notas" if no date header exists
-  const hasFecha = filtered.some(h => {
-    const norm = h.toLowerCase().trim().replace(/_/g, ' ');
-    return norm.startsWith('fecha');
-  });
-
-  if (!hasFecha) {
-    const currentNotasIdx = filtered.findIndex(h => h.toLowerCase().trim() === 'notas');
-    if (currentNotasIdx !== -1) {
-      filtered.splice(currentNotasIdx + 1, 0, 'Fecha');
-    } else {
-      filtered.push('Fecha');
-    }
-  }
 
   return filtered;
 };
@@ -572,13 +536,11 @@ export default function ModulePlaceholder({
       const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
       const stored = localStorage.getItem('surtiantojo_submenu_list');
 
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           const filtered = parsed.filter(item => item && item.id && !deletedIds.includes(item.id));
-          if (filtered.length > 0) {
-            return sortSubmenus(filtered);
-          }
+          return sortSubmenus(filtered);
         }
       }
       const activeDefaults = defaultSubmenus.filter(def => !deletedIds.includes(def.id));
@@ -2450,267 +2412,147 @@ export default function ModulePlaceholder({
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const text = event.target?.result as string;
-        if (!text) return;
+        const buffer = event.target?.result;
+        if (!buffer) return;
 
-        // Detect delimiter (semicolon for Spanish locales, comma for US, or tab)
-        let countComma = 0;
-        let countSemi = 0;
-        let countTab = 0;
-        let inQuotes = false;
-        const sample = text.slice(0, 2000);
-        for (let i = 0; i < sample.length; i++) {
-          const char = sample[i];
-          const nextChar = sample[i + 1] || '';
-          if (char === '"' || char === "'") {
-            if (inQuotes && nextChar === char) {
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (!inQuotes) {
-            if (char === ',') countComma++;
-            else if (char === ';') countSemi++;
-            else if (char === '\t') countTab++;
-          }
-        }
-        let delimiter = ',';
-        if (countTab > countComma && countTab > countSemi) delimiter = '\t';
-        else if (countSemi > countComma) delimiter = ';';
+        // Parse workbook using XLSX library (supports .xlsx, .xls, .csv, .tsv)
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rawMatrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-        const lines: string[][] = [];
-        let currentRow: string[] = [];
-        let currentVal = '';
-        inQuotes = false;
-
-        for (let i = 0; i < text.length; i++) {
-          const char = text[i];
-          const nextChar = text[i + 1] || '';
-          if (char === '"' || char === "'") {
-            if (inQuotes && nextChar === char) {
-              currentVal += char;
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (char === delimiter && !inQuotes) {
-            currentRow.push(currentVal.trim());
-            currentVal = '';
-          } else if ((char === '\r' || char === '\n') && !inQuotes) {
-            if (char === '\r' && nextChar === '\n') i++;
-            currentRow.push(currentVal.trim());
-            if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
-              lines.push(currentRow);
-            }
-            currentRow = [];
-            currentVal = '';
-          } else {
-            currentVal += char;
-          }
-        }
-        if (currentVal !== '' || currentRow.length > 0) {
-          currentRow.push(currentVal.trim());
-          if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
-            lines.push(currentRow);
-          }
-        }
-
-        if (lines.length < 2) {
-          alert('El archivo no contiene suficientes registros o está vacío.');
+        if (!rawMatrix || rawMatrix.length === 0) {
+          alert('El archivo no contiene registros o está vacío.');
           return;
         }
 
-        // Normalize cleaner for column header scoring
-        const cleanHeader = (h: string) => {
-          return h.toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "") // remove accents
-            .replace(/[^a-z0-9]/g, "") // alphanumeric only
-            .trim();
-        };
-
-        // Score first 15 lines to identify where headers reside
+        // Identify header row index by scanning first 15 rows for known keywords
         let headerIdx = 0;
         let maxScore = -1;
-        const targetKeywords = ['codigo', 'producto', 'nombre', 'unidades', 'cantidad', 'costo', 'precio', 'proveedor', 'fecha', 'surtir', 'vta'];
-        
-        for (let i = 0; i < Math.min(lines.length, 15); i++) {
+        const targetKeywords = ['sel', 'codigo', 'producto', 'nombre', 'precio', 'resor', 'surtir', 'regular', 'unidades', 'cantidad', 'costo', 'proveedor', 'fecha', 'vta', 'caben', 'articulo', 'descripcion'];
+
+        for (let i = 0; i < Math.min(rawMatrix.length, 15); i++) {
+          const row = rawMatrix[i];
+          if (!Array.isArray(row)) continue;
           let score = 0;
-          for (const col of lines[i]) {
-            const val = cleanHeader(col);
+          for (const col of row) {
+            const val = cleanHeader(String(col || ''));
             if (targetKeywords.some(k => val.includes(k))) score++;
           }
-          if (score > maxScore && score >= 2) {
+          if (score > maxScore && score >= 1) {
             maxScore = score;
             headerIdx = i;
           }
         }
 
-        let detectedSupplier = 'Proveedor General';
-        // Try to scan rows above headers to find a descriptive supplier/section name (e.g. "Bebidas Cerealto")
-        for (let i = headerIdx - 1; i >= 0; i--) {
-          const lObj = lines[i];
-          if (lObj) {
-            const possibleNames = lObj.filter(cell => cell && cell.trim() && cell.trim().length > 3 && !cell.includes('/') && !cell.includes('-'));
-            if (possibleNames.length > 0) {
-              const matchedWord = possibleNames.find(word => !/^[0-9]/.test(word) && word.toLowerCase() !== 'ok');
-              if (matchedWord) {
-                detectedSupplier = matchedWord.trim();
-                break;
-              }
+        const headerRow = rawMatrix[headerIdx] || [];
+        // Extract headers preserving exact column text and sequence
+        const originalHeaders: string[] = [];
+        headerRow.forEach((cellVal, idx) => {
+          const strVal = String(cellVal || '').trim();
+          if (strVal) {
+            originalHeaders.push(strVal);
+          } else {
+            // Check if subsequent rows have data in this column
+            const hasData = rawMatrix.slice(headerIdx + 1).some(r => r[idx] !== undefined && String(r[idx]).trim() !== '');
+            if (hasData) {
+              originalHeaders.push(`Columna_${idx + 1}`);
             }
           }
+        });
+
+        if (originalHeaders.length === 0) {
+          alert('No se pudieron identificar las columnas del archivo.');
+          return;
         }
 
-        const rawHeaders = lines[headerIdx];
-        const originalHeaders = rawHeaders.map((h, i) => h.trim() || `Columna_${i + 1}`);
-        const headersCleaned = rawHeaders.map(cleanHeader);
-
-        let colCodigo = -1;
-        let colNombre = -1;
-        let colUnidades = -1;
-        let colCosto = -1;
-        let colPrecio = -1;
-        let colProveedor = -1;
-        let colFecha = -1;
-
-        // 1st Priority: 'Exact / Close matches
-        headersCleaned.forEach((h, idx) => {
-          if (h === 'codigo' || h === 'sku' || h === 'codig' || h === 'code') colCodigo = idx;
-          else if (h === 'producto' || h === 'nombre' || h === 'articulo') colNombre = idx;
-          else if (h === 'surtir' || h === 'cantidad' || h === 'unidades' || h === 'cant') colUnidades = idx;
-          else if (h === 'costo') colCosto = idx;
-          else if (h === 'precio' || h === 'preciovta' || h === 'precioventa' || h === 'preciodeventa' || h === 'precio_vta' || h === 'precioregular') colPrecio = idx;
-          else if (h === 'proveedor') colProveedor = idx;
-          else if (h === 'fecha' || h === 'fechasurtido') colFecha = idx;
-        });
-
-        // 2nd Priority: 'Partial match fallback
-        headersCleaned.forEach((h, idx) => {
-          if (colCodigo === -1 && (h.includes('codigo') || h.includes('sku') || h.includes('codig') || h === 'ref' || h === 'code') && h !== 'prodcodigo') {
-            colCodigo = idx;
+        // Float / number cleaner
+        const cleanNumVal = (val: any): number => {
+          if (typeof val === 'number') return val;
+          if (!val) return 0;
+          const cleaned = String(val).replace(/[^0-9.,-]/g, '').trim();
+          if (!cleaned) return 0;
+          if (cleaned.includes(',') && !cleaned.includes('.')) {
+            return parseFloat(cleaned.replace(',', '.')) || 0;
           }
-          if (colNombre === -1 && (h.includes('producto') || h.includes('nombre') || h.includes('articulo') || h === 'item' || h.includes('descripcion'))) {
-            colNombre = idx;
+          if (cleaned.includes(',') && cleaned.includes('.')) {
+            return parseFloat(cleaned.replace(/,/g, '')) || 0;
           }
-          if (colUnidades === -1 && (h.includes('surtir') || h.includes('surtid') || h.includes('cantidad') || h.includes('unidad') || h.includes('piezas') || h === 'cant' || h === 'qty')) {
-            colUnidades = idx;
-          }
-          if (colCosto === -1 && (h.includes('costo') || h.includes('compra') || h.includes('adquisicion'))) {
-            colCosto = idx;
-          }
-          if (colPrecio === -1 && (h.includes('precio') || h.includes('venta') || h === 'pv' || h === 'p_venta' || h.includes('vta'))) {
-            colPrecio = idx;
-          }
-          if (colProveedor === -1 && (h.includes('proveedor') || h.includes('marca') || h.includes('distribuidor'))) {
-            colProveedor = idx;
-          }
-          if (colFecha === -1 && (h.includes('fecha') || h.includes('registro'))) {
-            colFecha = idx;
-          }
-        });
-
-        // Build list of mapped indices to prevent overlap in fallback
-        const occupied = new Set<number>();
-        if (colCodigo !== -1) occupied.add(colCodigo);
-        if (colNombre !== -1) occupied.add(colNombre);
-        if (colUnidades !== -1) occupied.add(colUnidades);
-        if (colCosto !== -1) occupied.add(colCosto);
-        if (colPrecio !== -1) occupied.add(colPrecio);
-        if (colProveedor !== -1) occupied.add(colProveedor);
-        if (colFecha !== -1) occupied.add(colFecha);
-
-        const findNextUnoccupied = (start: number): number => {
-          let curr = start;
-          while (curr < headersCleaned.length) {
-            if (!occupied.has(curr) && headersCleaned[curr] !== '') {
-              return curr;
-            }
-            curr++;
-          }
-          return -1;
+          return parseFloat(cleaned) || 0;
         };
 
-        // Highly safe position fallback for unmapped keys (ensuring NO overlap)
-        if (colCodigo === -1) {
-          const idx = findNextUnoccupied(0);
-          if (idx !== -1) { colCodigo = idx; occupied.add(idx); }
-        }
-        if (colNombre === -1) {
-          const idx = findNextUnoccupied(0);
-          if (idx !== -1) { colNombre = idx; occupied.add(idx); }
-        }
-        if (colUnidades === -1) {
-          const idx = findNextUnoccupied(0);
-          if (idx !== -1) { colUnidades = idx; occupied.add(idx); }
-        }
-
         const parsedRows: any[] = [];
-        for (let r = headerIdx + 1; r < lines.length; r++) {
-          const row = lines[r];
-          if (!row || row.length === 0) continue;
+        for (let r = headerIdx + 1; r < rawMatrix.length; r++) {
+          const row = rawMatrix[r];
+          if (!row || !Array.isArray(row) || row.length === 0) continue;
           // Skip completely empty rows
-          if (row.every(cell => !cell || cell.trim() === '')) continue;
+          if (row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) continue;
 
-          // Robust float parser
-          const cleanNumVal = (str: string): number => {
-            if (!str) return 0;
-            const cleaned = str.replace(/[^0-9.,-]/g, '').trim();
-            if (!cleaned) return 0;
-            if (cleaned.includes(',') && !cleaned.includes('.')) {
-              return parseFloat(cleaned.replace(',', '.')) || 0;
-            }
-            if (cleaned.includes(',') && cleaned.includes('.')) {
-              return parseFloat(cleaned.replace(/,/g, '')) || 0;
-            }
-            return parseFloat(cleaned) || 0;
-          };
-
-          const codigoStr = colCodigo !== -1 && row[colCodigo] ? row[colCodigo].trim().toUpperCase() : `PROD-S-${r}`;
-          const nombreStr = colNombre !== -1 && row[colNombre] ? row[colNombre].trim() : `Producto Importado ${r}`;
-          const unidadesVal = colUnidades !== -1 && row[colUnidades] ? cleanNumVal(row[colUnidades]) : 0;
-          const costoVal = colCosto !== -1 && row[colCosto] ? cleanNumVal(row[colCosto]) : 0;
-          const precioVal = colPrecio !== -1 && row[colPrecio] ? cleanNumVal(row[colPrecio]) : 0;
-          const provStr = colProveedor !== -1 && row[colProveedor] ? row[colProveedor].trim() : 'Proveedor General';
-          
-          let dateStr = new Date().toISOString().split('T')[0];
-          if (colFecha !== -1 && row[colFecha]) {
-            const d = new Date(row[colFecha].trim());
-            if (!isNaN(d.getTime())) {
-              dateStr = d.toISOString().split('T')[0];
-            }
-          }
-
-          // Map original dynamic columns
           const rowValues: Record<string, string> = {};
           originalHeaders.forEach((headerName, idx) => {
-            rowValues[headerName] = row[idx] !== undefined ? row[idx].trim() : '';
+            rowValues[headerName] = row[idx] !== undefined && row[idx] !== null ? String(row[idx]).trim() : '';
+          });
+
+          // Extract helper aliases from headers
+          let selStr = '';
+          let nombreStr = '';
+          let precioVal = 0;
+          let resorteStr = '';
+          let surtirVal = 0;
+          let codigoStr = '';
+          let precioRegVal = 0;
+          let notasStr = '';
+          let fechaStr = new Date().toISOString().split('T')[0];
+
+          originalHeaders.forEach(h => {
+            const val = rowValues[h] || '';
+            const norm = cleanHeader(h);
+            if (norm === 'sel' || norm === 'slot' || norm === 'seleccion') selStr = val;
+            else if (norm.includes('nombre') || norm.includes('producto') || norm.includes('articulo') || norm.includes('descripcion')) nombreStr = val;
+            else if (norm === 'precio' || norm === 'precioventa' || norm === 'pv' || norm === 'pventa') precioVal = cleanNumVal(val);
+            else if (norm === 'resor' || norm === 'resorte' || norm === 'resort') resorteStr = val;
+            else if (norm === 'surtir' || norm === 'cantidad' || norm === 'unidades' || norm === 'cant' || norm === 'caben') surtirVal = cleanNumVal(val);
+            else if (norm === 'codigo' || norm === 'sku' || norm === 'cod' || norm === 'code') codigoStr = val;
+            else if (norm.includes('regular') || norm.includes('sinacuerdo')) precioRegVal = cleanNumVal(val);
+            else if (norm === 'notas' || norm === 'nota') notasStr = val;
+            else if (norm.startsWith('fecha') && val) {
+              const d = new Date(val);
+              if (!isNaN(d.getTime())) fechaStr = d.toISOString().split('T')[0];
+            }
           });
 
           parsedRows.push({
             id: Date.now() + r + Math.random(),
-            codigo: codigoStr,
-            nombre_producto: nombreStr,
-            unidad_surtida: unidadesVal,
-            costo_surtido: costoVal,
+            sel: selStr || (codigoStr || `S-${r}`),
+            nombre_producto: nombreStr || `Producto ${r}`,
             precio_venta: precioVal,
-            proveedor: provStr,
-            fecha_registro: dateStr,
+            resorte: resorteStr,
+            unidad_surtida: surtirVal,
+            codigo: codigoStr || selStr || `COD-${r}`,
+            precio_regular: precioRegVal,
+            notas: notasStr,
+            proveedor: 'Proveedor General',
+            fecha_registro: fechaStr,
             values: rowValues
           });
         }
 
         if (parsedRows.length === 0) {
-          alert('No se encontraron registros de surtido válidos para importar.');
+          alert('No se encontraron registros válidos en el archivo Excel/CSV.');
           return;
         }
 
-        // Apply headers first
         const cleanedOriginalHeaders = cleanHeaders(originalHeaders);
-        setSubmenuHeaders(prev => ({
-          ...prev,
-          [tabId]: cleanedOriginalHeaders
-        }));
+        setSubmenuHeaders(prev => {
+          const updated = {
+            ...prev,
+            [tabId]: cleanedOriginalHeaders
+          };
+          try {
+            localStorage.setItem('surtiantojo_submenu_headers', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
 
         if (confirm(`Se detectaron ${parsedRows.length} registros en el archivo.\n\n¿Quieres REEMPLAZAR todos los registros actuales de esta sección con la nueva importación?\n(Aceptar = Reemplazar por completo, Cancelar = Agregar al final del listado)`)) {
           clearTableInSupabase(tabId).then(() => {
@@ -2728,17 +2570,25 @@ export default function ModulePlaceholder({
             }
             else {
               setGenericSubmenuData(prev => ({
-            ...prev,
-            [tabId]: parsedRows
-          }));
+                ...prev,
+                [tabId]: parsedRows
+              }));
               setTimeout(() => saveToSupabase(tabId, parsedRows, cleanedOriginalHeaders), 10);
             }
+            try {
+              localStorage.setItem(`surtiantojo_surtido_rows_${tabId}`, JSON.stringify(parsedRows));
+              window.dispatchEvent(new Event('surtiantojo_submenus_updated'));
+            } catch (e) {}
           });
         } else {
           if (tabId === 'cer_bb') {
             setCerBBData(prev => {
               const res = [...prev, ...parsedRows];
               setTimeout(() => saveToSupabase('cer_bb', res, cleanedOriginalHeaders), 10);
+              try {
+                localStorage.setItem(`surtiantojo_surtido_rows_${tabId}`, JSON.stringify(res));
+                window.dispatchEvent(new Event('surtiantojo_submenus_updated'));
+              } catch (e) {}
               return res;
             });
           }
@@ -2746,6 +2596,10 @@ export default function ModulePlaceholder({
             setArtAltData(prev => {
               const res = [...prev, ...parsedRows];
               setTimeout(() => saveToSupabase('art_alt', res, cleanedOriginalHeaders), 10);
+              try {
+                localStorage.setItem(`surtiantojo_surtido_rows_${tabId}`, JSON.stringify(res));
+                window.dispatchEvent(new Event('surtiantojo_submenus_updated'));
+              } catch (e) {}
               return res;
             });
           }
@@ -2753,6 +2607,10 @@ export default function ModulePlaceholder({
             setArtCtData(prev => {
               const res = [...prev, ...parsedRows];
               setTimeout(() => saveToSupabase('art_ct', res, cleanedOriginalHeaders), 10);
+              try {
+                localStorage.setItem(`surtiantojo_surtido_rows_${tabId}`, JSON.stringify(res));
+                window.dispatchEvent(new Event('surtiantojo_submenus_updated'));
+              } catch (e) {}
               return res;
             });
           }
@@ -2760,6 +2618,10 @@ export default function ModulePlaceholder({
             setGenericSubmenuData(prev => {
               const res = [...(prev[tabId] || []), ...parsedRows];
               setTimeout(() => saveToSupabase(tabId, res, cleanedOriginalHeaders), 10);
+              try {
+                localStorage.setItem(`surtiantojo_surtido_rows_${tabId}`, JSON.stringify(res));
+                window.dispatchEvent(new Event('surtiantojo_submenus_updated'));
+              } catch (e) {}
               return {
                 ...prev,
                 [tabId]: res
@@ -2768,14 +2630,14 @@ export default function ModulePlaceholder({
           }
         }
 
-        alert(`¡Importación exitosa! Se han guardado ${parsedRows.length} registros en el submenú de surtido.`);
+        alert(`¡Importación exitosa! Se han guardado ${parsedRows.length} registros con las columnas exactas del archivo.`);
       } catch (err) {
-        console.error("CSV upload parse error", err);
+        console.error("Excel upload parse error", err);
         alert('Ocurrió un error al procesar el archivo Excel/CSV.');
       }
     };
 
-    reader.readAsText(file, "UTF-8");
+    reader.readAsArrayBuffer(file);
     e.target.value = '';
   };
 
@@ -4821,43 +4683,13 @@ export default function ModulePlaceholder({
         };
 
         // Helper to check if a column header is disabled for Surtidor role
-        const isHeaderDisabledForSurtidor = (headerName: string) => {
-          if (!isSurtidorOnly) return false;
-          const cleanF = headerName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
-          
-          // Surtir / Unidades
-          const isSurtir = cleanF === 'surtir' || cleanF.includes('unidades') || cleanF === 'unidad' || cleanF.includes('unidadsurtida') || cleanF.includes('cantsurtir') || cleanF === 'surtida' || cleanF === 'cantidad';
-          
-          // Código / SKU
-          const isCodigo = cleanF.includes('codigo') || cleanF.includes('sku') || cleanF === 'cod' || cleanF === 'codig';
-          
-          // Precio regular / Precio
-          const isPrecio = cleanF.includes('precioregular') || cleanF === 'precio' || cleanF.includes('precioventa') || cleanF.includes('preciosinacuerdo') || cleanF === 'sinacuerdo';
-          
-          // Fecha
-          const isFecha = cleanF.startsWith('fecha') || cleanF.includes('fecha');
-          
-          // Notas
-          const isNotas = cleanF.includes('nota') || cleanF.includes('observacion');
-
-          return isSurtir || isCodigo || isPrecio || isFecha || isNotas;
+        const isHeaderDisabledForSurtidor = (_headerName: string) => {
+          return false;
         };
 
         // Helper to check if a column header is disabled for Admin role in modulo surtido
-        const isHeaderDisabledForAdmin = (headerName: string) => {
-          if (isSurtidorOnly) return false;
-          const cleanF = headerName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
-          
-          // Fecha
-          const isFecha = cleanF.startsWith('fecha') || cleanF.includes('fecha');
-          
-          // Nombre del producto
-          const isNombreProd = cleanF.includes('nombre') || cleanF.includes('producto') || cleanF.includes('articulo') || cleanF.includes('description');
-          
-          // Precio venta / regular
-          const isPrecio = cleanF.includes('precioregular') || cleanF === 'precio' || cleanF.includes('precioventa') || cleanF.includes('preciosinacuerdo') || cleanF === 'sinacuerdo' || cleanF.includes('precio');
-
-          return isFecha || isNombreProd || isPrecio;
+        const isHeaderDisabledForAdmin = (_headerName: string) => {
+          return false;
         };
 
         // Render sortable header helper for supply table

@@ -183,11 +183,11 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
       const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
       const stored = localStorage.getItem('surtiantojo_submenu_list');
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           const filtered = parsed.filter(item => item && item.id && !deletedIds.includes(item.id));
-          if (filtered.length > 0) return sortSubmenus(filtered);
+          return sortSubmenus(filtered);
         }
       }
       const filteredDefaults = DEFAULT_SUBMENUS.filter(item => !deletedIds.includes(item.id));
@@ -201,11 +201,12 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
       const deletedStored = localStorage.getItem('surtiantojo_deleted_submenu_ids');
       const deletedIds: string[] = deletedStored ? JSON.parse(deletedStored) : [];
       const stored = localStorage.getItem('surtiantojo_submenu_list');
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           const filtered = parsed.filter(item => item && item.id && !deletedIds.includes(item.id));
           if (filtered.length > 0) return filtered[0].id;
+          return '';
         }
       }
       const filteredDefaults = DEFAULT_SUBMENUS.filter(item => !deletedIds.includes(item.id));
@@ -215,6 +216,17 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
   });
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Dynamic headers for the active machine (SEL., NOMBRE DEL PRODUCTO, PRECIO, RESOR, SURTIR, CODIGO, PRECIO REGULAR...)
+  const [machineHeaders, setMachineHeaders] = useState<string[]>([
+    'SEL.',
+    'NOMBRE DEL PRODUCTO',
+    'PRECIO',
+    'RESOR',
+    'SURTIR',
+    'CODIGO',
+    'PRECIO REGULAR'
+  ]);
 
   // Form states for creating/registering custom machines (matching Surtido)
   const [addSubmenuOpen, setAddSubmenuOpen] = useState<boolean>(false);
