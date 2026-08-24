@@ -907,78 +907,86 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
     });
   };
 
+  // Helper to reliably navigate vertically within a date column
+  const navigateVertical = (dateCol: string, targetRowIdx: number, direction: 1 | -1 = 1) => {
+    const maxRows = topMetrics.length + paginatedProducts.length + controls.length + 5;
+    
+    // First try within the same date column
+    if (direction === 1) {
+      for (let r = targetRowIdx; r < maxRows; r++) {
+        const el = document.querySelector<HTMLElement>(`[data-date-col="${dateCol}"][data-row-idx="${r}"]`);
+        if (el && !((el as any).disabled) && el.offsetParent !== null) {
+          el.focus();
+          if ('select' in el && typeof (el as any).select === 'function') {
+            (el as any).select();
+          }
+          return true;
+        }
+      }
+      // If bottom reached, go to top of next date column
+      const dateIdx = dates.indexOf(dateCol);
+      if (dateIdx !== -1 && dateIdx < dates.length - 1) {
+        const nextDateCol = dates[dateIdx + 1];
+        for (let r = 0; r < maxRows; r++) {
+          const el = document.querySelector<HTMLElement>(`[data-date-col="${nextDateCol}"][data-row-idx="${r}"]`);
+          if (el && !((el as any).disabled) && el.offsetParent !== null) {
+            el.focus();
+            if ('select' in el && typeof (el as any).select === 'function') {
+              (el as any).select();
+            }
+            return true;
+          }
+        }
+      }
+    } else {
+      for (let r = targetRowIdx; r >= 0; r--) {
+        const el = document.querySelector<HTMLElement>(`[data-date-col="${dateCol}"][data-row-idx="${r}"]`);
+        if (el && !((el as any).disabled) && el.offsetParent !== null) {
+          el.focus();
+          if ('select' in el && typeof (el as any).select === 'function') {
+            (el as any).select();
+          }
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
   // Handle Enter key vertical column navigation & auto-save & cell locking
   const handleKeyDownVertical = (
     e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>,
     dateCol: string,
-    cellKey: string
+    cellKey: string,
+    rowIdx: number
   ) => {
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
       e.preventDefault();
       
+      // 1. Immediately advance focus to the next cell below in the same date column
+      navigateVertical(dateCol, rowIdx + 1, 1);
+
+      // 2. Lock cell for operator if applicable
       let updatedLockedCells = { ...lockedCells };
-      // If user is operator, lock this cell immediately so they cannot alter it later
       if (isOperator) {
         updatedLockedCells[cellKey] = true;
         setLockedCells(updatedLockedCells);
       }
 
-      // Auto-save immediately to localStorage and Supabase cloud
+      // 3. Auto-save immediately to localStorage and Supabase cloud
       saveToStorageAndCloud(products, topMetrics, controls, dates, updatedLockedCells, true);
 
-      // Navigate down to the next editable cell in the SAME date column
+      // 4. Double-check focus after state updates
       setTimeout(() => {
-        const columnCells = Array.from(
-          document.querySelectorAll<HTMLElement>(`[data-date-col="${dateCol}"]`)
-        ).filter(el => {
-          const isInputDisabled = (el as HTMLInputElement | HTMLSelectElement).disabled;
-          return !isInputDisabled && el.offsetParent !== null;
-        });
-
-        const currIndex = columnCells.indexOf(e.currentTarget);
-        if (currIndex !== -1 && currIndex < columnCells.length - 1) {
-          const nextCell = columnCells[currIndex + 1];
-          nextCell.focus();
-          if ('select' in nextCell && typeof (nextCell as any).select === 'function') {
-            (nextCell as any).select();
-          }
-        } else if (currIndex === columnCells.length - 1) {
-          // If on the last row of this column, advance to the top of the next date column
-          const dateIdx = dates.indexOf(dateCol);
-          if (dateIdx !== -1 && dateIdx < dates.length - 1) {
-            const nextDateCol = dates[dateIdx + 1];
-            const nextColCells = Array.from(
-              document.querySelectorAll<HTMLElement>(`[data-date-col="${nextDateCol}"]`)
-            ).filter(el => {
-              const isInputDisabled = (el as HTMLInputElement | HTMLSelectElement).disabled;
-              return !isInputDisabled && el.offsetParent !== null;
-            });
-            if (nextColCells.length > 0) {
-              nextColCells[0].focus();
-              if ('select' in nextColCells[0] && typeof (nextColCells[0] as any).select === 'function') {
-                (nextColCells[0] as any).select();
-              }
-            }
-          }
+        const active = document.activeElement;
+        if (!active || active === document.body || active.tagName === 'BODY' || active === e.currentTarget) {
+          navigateVertical(dateCol, rowIdx + 1, 1);
         }
-      }, 35);
+      }, 40);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      const columnCells = Array.from(
-        document.querySelectorAll<HTMLElement>(`[data-date-col="${dateCol}"]`)
-      ).filter(el => {
-        const isInputDisabled = (el as HTMLInputElement | HTMLSelectElement).disabled;
-        return !isInputDisabled && el.offsetParent !== null;
-      });
-
-      const currIndex = columnCells.indexOf(e.currentTarget);
-      if (currIndex > 0) {
-        const prevCell = columnCells[currIndex - 1];
-        prevCell.focus();
-        if ('select' in prevCell && typeof (prevCell as any).select === 'function') {
-          (prevCell as any).select();
-        }
-      }
+      navigateVertical(dateCol, rowIdx - 1, -1);
     }
   };
 
@@ -1404,7 +1412,7 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
 
             <tbody className="divide-y divide-slate-200 text-slate-800 font-medium">
               {/* Top Metrics Section (Unid. Vtas, $ ventas) */}
-              {topMetrics.map((metric: any) => (
+              {topMetrics.map((metric: any, mIdx: number) => (
                 <tr key={metric.id} className="bg-slate-100/90 hover:bg-slate-200/50 font-bold border-b border-slate-300">
                   <td className="py-2 px-3 text-center font-mono font-black text-slate-700 border-r border-slate-300">
                     {metric.sel}
@@ -1431,10 +1439,11 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                           <input
                             type="text"
                             data-date-col={dateCol}
+                            data-row-idx={mIdx}
                             data-cell-key={cellKey}
                             value={currentVal}
                             onChange={(e) => handleUpdateTopMetric(metric.id, dateCol, e.target.value)}
-                            onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
+                            onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey, mIdx)}
                             onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
                             className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-300 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-indigo-950 focus:outline-none shadow-2xs"
                           />
@@ -1489,76 +1498,80 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
                   </td>
                 </tr>
               ) : (
-                paginatedProducts.map((p: any) => (
-                  <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
-                    {/* Read-only SEL */}
-                    <td className="py-2 px-3 text-center font-mono font-black text-indigo-950 border-r border-slate-200 bg-slate-100/60">
-                      {p.sel}
-                    </td>
+                paginatedProducts.map((p: any, pIdx: number) => {
+                  const rowIdx = topMetrics.length + pIdx;
+                  return (
+                    <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
+                      {/* Read-only SEL */}
+                      <td className="py-2 px-3 text-center font-mono font-black text-indigo-950 border-r border-slate-200 bg-slate-100/60">
+                        {p.sel}
+                      </td>
 
-                    {/* Read-only Nombre del producto */}
-                    <td className="py-2 px-4 font-extrabold text-slate-900 border-r border-slate-200">
-                      {p.nombre}
-                    </td>
+                      {/* Read-only Nombre del producto */}
+                      <td className="py-2 px-4 font-extrabold text-slate-900 border-r border-slate-200">
+                        {p.nombre}
+                      </td>
 
-                    {/* Read-only Precio */}
-                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-800 bg-slate-50/50">
-                      ${p.precio}
-                    </td>
+                      {/* Read-only Precio */}
+                      <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-800 bg-slate-50/50">
+                        ${p.precio}
+                      </td>
 
-                    {/* Read-only Resor */}
-                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-700 bg-slate-50/30">
-                      {p.resor || '—'}
-                    </td>
+                      {/* Read-only Resor */}
+                      <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-700 bg-slate-50/30">
+                        {p.resor || '—'}
+                      </td>
 
-                    {/* Read-only Surtir */}
-                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-emerald-800 bg-emerald-50/20">
-                      {p.surtir !== undefined && p.surtir !== '' ? p.surtir : '—'}
-                    </td>
+                      {/* Read-only Surtir */}
+                      <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-emerald-800 bg-emerald-50/20">
+                        {p.surtir !== undefined && p.surtir !== '' ? p.surtir : '—'}
+                      </td>
 
-                    {/* Read-only Codigo */}
-                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono text-[11px] text-slate-600">
-                      {p.codigo || '—'}
-                    </td>
+                      {/* Read-only Codigo */}
+                      <td className="py-2 px-2 text-center border-r border-slate-200 font-mono text-[11px] text-slate-600">
+                        {p.codigo || '—'}
+                      </td>
 
-                    {/* Read-only Precio Regular */}
-                    <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-800 bg-slate-50/50">
-                      ${p.precio_regular !== undefined ? p.precio_regular : p.precio}
-                    </td>
+                      {/* Read-only Precio Regular */}
+                      <td className="py-2 px-2 text-center border-r border-slate-200 font-mono font-bold text-slate-800 bg-slate-50/50">
+                        ${p.precio_regular !== undefined ? p.precio_regular : p.precio}
+                      </td>
 
-                    {/* Editable Date Columns (Press Enter to advance vertically) */}
-                    {dates.map((dateCol: string) => {
-                      const cellKey = `prod_${p.id}_${dateCol}`;
-                      const currentVal = p.values[dateCol];
-                      const isLocked = isCellLockedForOperator(cellKey, currentVal);
+                      {/* Editable Date Columns (Press Enter to advance vertically) */}
+                      {dates.map((dateCol: string) => {
+                        const cellKey = `prod_${p.id}_${dateCol}`;
+                        const currentVal = p.values[dateCol];
+                        const isLocked = isCellLockedForOperator(cellKey, currentVal);
 
-                      return (
-                        <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-200">
-                          {isLocked ? (
-                            <div
-                              className="w-full text-center font-mono font-bold text-xs bg-slate-100 text-slate-700 border border-slate-200/90 rounded px-1.5 py-1 flex items-center justify-center gap-1 select-none shadow-2xs"
-                              title="Registro guardado y protegido. Solo editable por Administrador."
-                            >
-                              <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>{currentVal !== undefined && currentVal !== '' ? currentVal : '0'}</span>
-                            </div>
-                          ) : (
-                            <input
-                              type="text"
-                              data-date-col={dateCol}
-                              data-cell-key={cellKey}
-                              value={currentVal !== undefined ? currentVal : '0'}
-                              onChange={(e) => handleUpdateProductCount(p.id, dateCol, e.target.value)}
-                              onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
-                              onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
-                              className="editable-cell w-full text-center font-mono font-bold text-xs bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
-                            />
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
+                        return (
+                          <td key={dateCol} className="py-1 px-2 text-center border-r border-slate-200">
+                            {isLocked ? (
+                              <div
+                                className="w-full text-center font-mono font-bold text-xs bg-slate-100 text-slate-700 border border-slate-200/90 rounded px-1.5 py-1 flex items-center justify-center gap-1 select-none shadow-2xs"
+                                title="Registro guardado y protegido. Solo editable por Administrador."
+                              >
+                                <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span>{currentVal !== undefined && currentVal !== '' ? currentVal : '0'}</span>
+                              </div>
+                            ) : (
+                              <input
+                                type="text"
+                                data-date-col={dateCol}
+                                data-row-idx={rowIdx}
+                                data-cell-key={cellKey}
+                                value={currentVal !== undefined ? currentVal : '0'}
+                                onChange={(e) => handleUpdateProductCount(p.id, dateCol, e.target.value)}
+                                onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey, rowIdx)}
+                                onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
+                                className="editable-cell w-full text-center font-mono font-bold text-xs bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
               )}
 
               {/* Bitacora Checklist Section Header */}
@@ -1574,70 +1587,75 @@ export default function OperadoresModule({ currentUser, isSurtidorOnly = false }
               </tr>
 
               {/* Bitacora Controls Rows */}
-              {controls.map((ctrl: any) => (
-                <tr key={ctrl.id} className="hover:bg-slate-100/80 bg-slate-50/40">
-                  <td className="py-2 px-3 text-center font-mono font-bold text-slate-400 border-r border-slate-200">
-                    •
-                  </td>
-                  <td className="py-2 px-4 font-black text-slate-800 border-r border-slate-200">
-                    {ctrl.label}
-                  </td>
-                  <td colSpan={5} className="py-2 px-3 text-center font-bold text-slate-500 border-r border-slate-200 text-[11px]">
-                    {ctrl.detail}
-                  </td>
-                  {dates.map((dateCol: string) => {
-                    const cellKey = `ctrl_${ctrl.id}_${dateCol}`;
-                    const currentVal = ctrl.values[dateCol] || '';
-                    const isYesNo = ['Limpieza interna', 'Limpieza externa', 'Falla de equipo', 'Monedero', 'Billetero', 'Base de resorte', 'Otro'].includes(ctrl.label);
-                    const isLocked = isCellLockedForOperator(cellKey, currentVal);
+              {controls.map((ctrl: any, cIdx: number) => {
+                const rowIdx = topMetrics.length + paginatedProducts.length + cIdx;
+                return (
+                  <tr key={ctrl.id} className="hover:bg-slate-100/80 bg-slate-50/40">
+                    <td className="py-2 px-3 text-center font-mono font-bold text-slate-400 border-r border-slate-200">
+                      •
+                    </td>
+                    <td className="py-2 px-4 font-black text-slate-800 border-r border-slate-200">
+                      {ctrl.label}
+                    </td>
+                    <td colSpan={5} className="py-2 px-3 text-center font-bold text-slate-500 border-r border-slate-200 text-[11px]">
+                      {ctrl.detail}
+                    </td>
+                    {dates.map((dateCol: string) => {
+                      const cellKey = `ctrl_${ctrl.id}_${dateCol}`;
+                      const currentVal = ctrl.values[dateCol] || '';
+                      const isYesNo = ['Limpieza interna', 'Limpieza externa', 'Falla de equipo', 'Monedero', 'Billetero', 'Base de resorte', 'Otro'].includes(ctrl.label);
+                      const isLocked = isCellLockedForOperator(cellKey, currentVal);
 
-                    return (
-                      <td key={dateCol} className="py-1.5 px-2 text-center border-r border-slate-200">
-                        {isLocked ? (
-                          <div
-                            className="w-full text-center font-mono font-black text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded px-1 py-1 flex items-center justify-center gap-1 select-none shadow-2xs"
-                            title="Registro guardado y protegido. Solo editable por Administrador."
-                          >
-                            <Lock className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span>{currentVal || '—'}</span>
-                          </div>
-                        ) : isYesNo ? (
-                          <select
-                            data-date-col={dateCol}
-                            data-cell-key={cellKey}
-                            value={currentVal.toLowerCase()}
-                            onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
-                            onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
-                            onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
-                            className={`editable-cell w-full text-center font-mono font-black text-xs border rounded px-1 py-1 focus:outline-none cursor-pointer ${
-                              currentVal.toLowerCase() === 'si'
-                                ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
-                                : currentVal.toLowerCase() === 'no'
-                                ? 'bg-rose-50 border-rose-200 text-rose-800'
-                                : 'bg-white border-slate-300 text-slate-800'
-                            }`}
-                          >
-                            <option value="no">no</option>
-                            <option value="si">si</option>
-                            <option value="X">X</option>
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            data-date-col={dateCol}
-                            data-cell-key={cellKey}
-                            value={currentVal}
-                            onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
-                            onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey)}
-                            onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
-                            className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
-                          />
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                      return (
+                        <td key={dateCol} className="py-1.5 px-2 text-center border-r border-slate-200">
+                          {isLocked ? (
+                            <div
+                              className="w-full text-center font-mono font-black text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded px-1 py-1 flex items-center justify-center gap-1 select-none shadow-2xs"
+                              title="Registro guardado y protegido. Solo editable por Administrador."
+                            >
+                              <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{currentVal || '—'}</span>
+                            </div>
+                          ) : isYesNo ? (
+                            <select
+                              data-date-col={dateCol}
+                              data-row-idx={rowIdx}
+                              data-cell-key={cellKey}
+                              value={currentVal.toLowerCase()}
+                              onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
+                              onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey, rowIdx)}
+                              onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
+                              className={`editable-cell w-full text-center font-mono font-black text-xs border rounded px-1 py-1 focus:outline-none cursor-pointer ${
+                                currentVal.toLowerCase() === 'si'
+                                  ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                                  : currentVal.toLowerCase() === 'no'
+                                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                                  : 'bg-white border-slate-300 text-slate-800'
+                              }`}
+                            >
+                              <option value="no">no</option>
+                              <option value="si">si</option>
+                              <option value="X">X</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              data-date-col={dateCol}
+                              data-row-idx={rowIdx}
+                              data-cell-key={cellKey}
+                              value={currentVal}
+                              onChange={(e) => handleUpdateControl(ctrl.id, dateCol, e.target.value)}
+                              onKeyDown={(e) => handleKeyDownVertical(e, dateCol, cellKey, rowIdx)}
+                              onBlur={() => saveToStorageAndCloud(products, topMetrics, controls, dates, lockedCells, true)}
+                              className="editable-cell w-full text-center font-mono font-bold text-xs bg-white border border-slate-200 focus:border-[#043077] focus:ring-2 focus:ring-[#043077]/30 rounded px-1.5 py-1 text-slate-900 focus:outline-none"
+                            />
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
